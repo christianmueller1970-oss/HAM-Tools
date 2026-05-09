@@ -15,8 +15,39 @@ struct SpotParser {
         options: [.caseInsensitive]
     )
 
+    // sh/dx 50 history format: "14074.0  JA7GYP   9-May-2026 1430Z ft8  <EA4TX>"
+    private static let patternSHDX = try! NSRegularExpression(
+        pattern: #"^(\d+\.?\d*)\s+([A-Z0-9/\-#@_]+)\s+\d+-\w+-\d+\s+(\d{4})Z\s+(.*?)\s*<([A-Z0-9/\-#@_]+)>\s*$"#,
+        options: [.caseInsensitive]
+    )
+
     static func parse(_ line: String, source: String) -> DXSpot? {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // sh/dx history format (no "DX de" prefix)
+        if !trimmed.uppercased().hasPrefix("DX DE"),
+           let m = patternSHDX.firstMatch(in: trimmed,
+                                          range: NSRange(trimmed.startIndex..., in: trimmed)) {
+            let freqStr = group(m, 1, in: trimmed)
+            let dxCall  = group(m, 2, in: trimmed).uppercased()
+            let spotTime = group(m, 3, in: trimmed) + "Z"
+            let comment  = group(m, 4, in: trimmed)
+            let spotter  = group(m, 5, in: trimmed).uppercased()
+            guard let frequency = Double(freqStr) else { return nil }
+            let band = freqToBand(frequency)
+            let mode = freqToMode(frequency, comment: comment)
+            let dxEntry      = lookupPrefix(dxCall)
+            let spotterEntry = lookupPrefix(spotter)
+            var spot = DXSpot(spotter: spotter, frequency: frequency, dxCall: dxCall,
+                              comment: comment, spotTime: spotTime, source: source)
+            spot.band = band; spot.mode = mode
+            spot.country = dxEntry.country; spot.continent = dxEntry.continent
+            spot.lat = dxEntry.lat; spot.lon = dxEntry.lon
+            spot.spotterLat = spotterEntry.lat; spot.spotterLon = spotterEntry.lon
+            spot.timestamp = Date()
+            return spot.isValid ? spot : nil
+        }
+
         guard trimmed.uppercased().hasPrefix("DX DE") else { return nil }
 
         let range = NSRange(trimmed.startIndex..., in: trimmed)

@@ -95,9 +95,24 @@ final class ClusterClient {
                 if !self.loggedIn {
                     self.appendLog("[NET] \(data.count) Bytes empfangen")
                 }
-                let cleaned = Self.stripIAC(data)
-                let text = String(bytes: cleaned, encoding: .utf8)
-                       ?? String(bytes: cleaned, encoding: .isoLatin1)
+                // Normalize CR/CRLF → LF at byte level before string conversion.
+                // Swift String replacingOccurrences is unreliable when mixed
+                // with Latin-1 data; byte-level is guaranteed.
+                var norm: [UInt8] = []
+                norm.reserveCapacity(data.count)
+                var prev: UInt8 = 0
+                for b in data {
+                    if b == 0x0D {          // CR → LF
+                        norm.append(0x0A)
+                    } else if b == 0x0A && prev == 0x0D {
+                        // already emitted LF for the preceding CR — skip
+                    } else {
+                        norm.append(b)
+                    }
+                    prev = b
+                }
+                let text = String(bytes: norm, encoding: .utf8)
+                       ?? String(bytes: norm, encoding: .isoLatin1)
                        ?? ""
                 self.buffer += text
                 self.processBuffer()

@@ -23,13 +23,13 @@ struct DXClusterView: View {
             Divider()
             HSplitView {
                 leftPanel
-                    .frame(minWidth: 480)
+                    .frame(minWidth: 480, maxWidth: .infinity, maxHeight: .infinity)
                 PropagationPanelView(
                     propagation: vm.propagation,
                     bandMatrix:  vm.bandMatrix(minutes: heatmapMinutes),
                     theme:       theme
                 )
-                .frame(minWidth: 220, idealWidth: 280, maxWidth: 360)
+                .frame(minWidth: 220, idealWidth: 280, maxWidth: 360, maxHeight: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -168,7 +168,7 @@ struct DXClusterView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             ClusterLogView(messages: vm.logMessages, theme: theme)
-                .frame(minHeight: 80, idealHeight: 160)
+                .frame(minHeight: 80, idealHeight: 160, maxHeight: 260)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
