@@ -257,52 +257,133 @@ struct SpiderbeamEinzelbandView: View {
     // MARK: Skizze
 
     private func skizzeBereich(_ r: SBEErgebnis) -> some View {
-        SectionCard(title: "Draufsicht (schematisch)") {
+        SectionCard(title: "Antennenskizze – Draufsicht") {
             Canvas { ctx, size in
                 let W = size.width, H = size.height
-                let marginL: CGFloat = 40, marginR: CGFloat = 60
-                let marginT: CGFloat = 36, marginB: CGFloat = 36
+                let mL: CGFloat = 100, mR: CGFloat = 100
+                let mT: CGFloat = 48,  mB: CGFloat = 36
                 guard r.boomLength > 0 else { return }
 
-                let usableW = W - marginL - marginR
-                let maxLen = r.elements.map { $0.L }.max() ?? 1
-                let minS = r.elements.map { $0.S }.min() ?? 0
-                let maxS = r.elements.map { $0.S }.max() ?? 0
-                let boomSpan = maxS - minS
+                // Physikalischer Spreizer: 5 m (Standard) oder 6 m (WARC)
+                let spreizer_m: Double = r.maxHalfLen <= 5.0 ? 5.0 : 6.0
 
-                let scaleX = boomSpan > 0 ? usableW / CGFloat(boomSpan) : 1
-                let scaleY = (H - marginT - marginB) / CGFloat(maxLen)
-                let scale  = min(scaleX, scaleY)
-                let centerY = H / 2
+                let allS    = r.elements.map { $0.S }
+                let maxSabs = max(abs(allS.max() ?? 1), abs(allS.min() ?? 1), 0.1)
 
-                let offsetX = marginL - CGFloat(minS) * scale
+                let boomX   = W / 2
+                let centerY = mT + (H - mT - mB) / 2
+                let usableH = H - mT - mB
 
-                // Boom
-                let boomStartX = offsetX + CGFloat(minS) * scale
-                let boomEndX   = offsetX + CGFloat(maxS) * scale
-                ctx.stroke(Path { p in
-                    p.move(to: CGPoint(x: boomStartX, y: centerY))
-                    p.addLine(to: CGPoint(x: boomEndX, y: centerY))
-                }, with: .color(.gray.opacity(0.5)), lineWidth: 3)
+                let scale = min(((W - mL - mR) / 2) / CGFloat(spreizer_m),
+                                (usableH / 2) / CGFloat(maxSabs))
 
-                for el in r.elements {
-                    let x = offsetX + CGFloat(el.S) * scale
-                    let half = CGFloat(el.L / 2) * scale
-                    let col = elementColor(el.typ)
-                    ctx.stroke(Path { p in
-                        p.move(to: CGPoint(x: x, y: centerY - half))
-                        p.addLine(to: CGPoint(x: x, y: centerY + half))
-                    }, with: .color(col), lineWidth: 3)
-                    ctx.draw(Text(el.typ.replacingOccurrences(of: "Direktor ", with: "D")).font(.caption2).bold().foregroundStyle(col),
-                             at: CGPoint(x: x, y: centerY - half - 10), anchor: .center)
-                    ctx.draw(Text(String(format: "%.0f cm", el.L * 100)).font(.caption2).foregroundStyle(.secondary),
-                             at: CGPoint(x: x, y: centerY + half + 12), anchor: .center)
+                func bY(_ s: Double) -> CGFloat { centerY - CGFloat(s) * scale }
+                func bX(_ x: Double) -> CGFloat { boomX   + CGFloat(x) * scale }
+
+                let rTip = CGPoint(x: bX( spreizer_m), y: centerY)
+                let lTip = CGPoint(x: bX(-spreizer_m), y: centerY)
+
+                func tipPt(from base: CGPoint, toward target: CGPoint, meters: Double) -> CGPoint {
+                    let dx = target.x - base.x, dy = target.y - base.y
+                    let dist = (dx*dx + dy*dy).squareRoot()
+                    guard dist > 0.001 else { return base }
+                    let len = CGFloat(meters) * scale
+                    return CGPoint(x: base.x + dx/dist * len, y: base.y + dy/dist * len)
                 }
 
-                // Richtungspfeil
-                ctx.draw(Text("▶ Direktor").font(.caption2).foregroundStyle(.blue.opacity(0.7)), at: CGPoint(x: boomEndX + 8, y: centerY), anchor: .leading)
+                // ── Boom ────────────────────────────────────────────────────
+                let boomTop    = bY(maxSabs + 0.3)
+                let boomBottom = bY(-(maxSabs + 0.3))
+                ctx.stroke(Path { p in
+                    p.move(to: CGPoint(x: boomX, y: boomTop))
+                    p.addLine(to: CGPoint(x: boomX, y: boomBottom))
+                }, with: .color(.gray.opacity(0.55)), style: StrokeStyle(lineWidth: 2.5))
+
+                // ── Spreizer-Linie (gestrichelt, horizontal) ─────────────────
+                ctx.stroke(Path { p in p.move(to: lTip); p.addLine(to: rTip) },
+                           with: .color(.gray.opacity(0.35)),
+                           style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                for tip in [lTip, rTip] {
+                    ctx.fill(Path(ellipseIn: CGRect(x: tip.x-5, y: tip.y-5, width: 10, height: 10)),
+                             with: .color(.gray.opacity(0.5)))
+                }
+
+                // ── Richtungstexte ───────────────────────────────────────────
+                ctx.draw(Text("▲").font(.system(size: 11, weight: .bold)).foregroundStyle(Color.primary),
+                         at: CGPoint(x: boomX, y: boomTop - 14), anchor: .center)
+                ctx.draw(Text("Hauptstrahlrichtung").font(.caption2).foregroundStyle(Color.secondary),
+                         at: CGPoint(x: boomX, y: boomTop - 26), anchor: .center)
+                ctx.draw(Text("Reflektor-Seite").font(.caption2).foregroundStyle(Color.secondary),
+                         at: CGPoint(x: boomX, y: boomBottom + 16), anchor: .center)
+
+                // ── Maßstab ─────────────────────────────────────────────────
+                let barLen: CGFloat = 2.0 * scale
+                let barX0: CGFloat  = 12
+                let barY:  CGFloat  = boomTop - 16
+                ctx.stroke(Path { p in
+                    p.move(to: CGPoint(x: barX0, y: barY))
+                    p.addLine(to: CGPoint(x: barX0 + barLen, y: barY))
+                    p.move(to: CGPoint(x: barX0, y: barY-3)); p.addLine(to: CGPoint(x: barX0, y: barY+3))
+                    p.move(to: CGPoint(x: barX0+barLen, y: barY-3)); p.addLine(to: CGPoint(x: barX0+barLen, y: barY+3))
+                }, with: .color(.primary), lineWidth: 1.5)
+                ctx.draw(Text("2 m").font(.system(size: 9)).foregroundStyle(Color.primary),
+                         at: CGPoint(x: barX0 + barLen/2, y: barY - 9), anchor: .center)
+
+                let sorted = r.elements.sorted { $0.S > $1.S }
+
+                // ── Schnüre (dünne Linien von Drahtspitze zum Spreizer-Endpunkt) ──
+                for el in sorted {
+                    let base  = CGPoint(x: boomX, y: bY(el.S))
+                    let rWire = tipPt(from: base, toward: rTip, meters: el.L / 2)
+                    let lWire = tipPt(from: base, toward: lTip, meters: el.L / 2)
+                    let schnur = StrokeStyle(lineWidth: 0.8, dash: [3, 3])
+                    ctx.stroke(Path { p in p.move(to: rWire); p.addLine(to: rTip) },
+                               with: .color(.gray.opacity(0.28)), style: schnur)
+                    ctx.stroke(Path { p in p.move(to: lWire); p.addLine(to: lTip) },
+                               with: .color(.gray.opacity(0.28)), style: schnur)
+                }
+
+                // ── Elementdrähte (farbig) ───────────────────────────────────
+                for (idx, el) in sorted.enumerated() {
+                    let col  = elementColor(el.typ)
+                    let base = CGPoint(x: boomX, y: bY(el.S))
+                    let rWire = tipPt(from: base, toward: rTip, meters: el.L / 2)
+                    let lWire = tipPt(from: base, toward: lTip, meters: el.L / 2)
+
+                    ctx.stroke(Path { p in p.move(to: base); p.addLine(to: rWire) },
+                               with: .color(col), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    ctx.stroke(Path { p in p.move(to: base); p.addLine(to: lWire) },
+                               with: .color(col), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+
+                    let dr: CGFloat = el.typ == "Strahler" ? 4.5 : 3.0
+                    ctx.fill(Path(ellipseIn: CGRect(x: boomX-dr, y: base.y-dr,
+                                                    width: dr*2, height: dr*2)),
+                             with: .color(col))
+
+                    let short = el.typ.replacingOccurrences(of: "Direktor ", with: "D")
+                    let sStr  = el.S == 0 ? "S=0.00 m"
+                               : el.S > 0 ? "S=+\(String(format: "%.2f", el.S)) m"
+                                           : "S=\(String(format: "%.2f", el.S)) m"
+                    let ly = base.y
+                    if idx % 2 == 0 {
+                        ctx.draw(Text(short).font(.system(size: 9, weight: .bold)).foregroundStyle(col),
+                                 at: CGPoint(x: W - mR + 4, y: ly - 6), anchor: .leading)
+                        ctx.draw(Text(sStr).font(.system(size: 8)).foregroundStyle(Color.secondary),
+                                 at: CGPoint(x: W - mR + 4, y: ly + 5), anchor: .leading)
+                    } else {
+                        ctx.draw(Text(short).font(.system(size: 9, weight: .bold)).foregroundStyle(col),
+                                 at: CGPoint(x: mL - 4, y: ly - 6), anchor: .trailing)
+                        ctx.draw(Text(sStr).font(.system(size: 8)).foregroundStyle(Color.secondary),
+                                 at: CGPoint(x: mL - 4, y: ly + 5), anchor: .trailing)
+                    }
+                }
+
+                // ── Spreizer-Beschriftung ─────────────────────────────────────
+                let sprLabel = "\(spreizer_m == 5.0 ? "5" : "6") m Spreizer"
+                ctx.draw(Text(sprLabel).font(.system(size: 8)).foregroundStyle(Color.secondary),
+                         at: CGPoint(x: rTip.x + 4, y: rTip.y - 12), anchor: .leading)
             }
-            .frame(height: 260)
+            .frame(height: 420)
         }
     }
 
