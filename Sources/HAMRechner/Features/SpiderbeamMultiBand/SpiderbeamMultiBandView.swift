@@ -205,85 +205,163 @@ struct SpiderbeamMultiBandView: View {
         }
     }
 
-    // MARK: Skizze (Boom-Draufsicht)
+    // MARK: Skizze (Draufsicht – Boom vertikal, Elemente abgewinkelt zum Kreuz)
 
     private var skizzeBereich: some View {
-        SectionCard(title: "Boom-Draufsicht (Schematisch)") {
+        SectionCard(title: "Antennenskizze – Draufsicht") {
             Canvas { ctx, size in
                 let W = size.width, H = size.height
-                let marginL: CGFloat = 54, marginR: CGFloat = 54
-                let marginT: CGFloat = 22, marginB: CGFloat = 22
+                let mL: CGFloat = 108, mR: CGFloat = 108
+                let mT: CGFloat = 52,  mB: CGFloat = 44
 
-                let allEls: [(band: String, el: SBElement)] = activeBands.flatMap { band in
-                    (version.data[band] ?? []).map { (band, $0) }
+                let allEls: [(band: String, el: SBElement)] = activeBands.flatMap { b in
+                    (version.data[b] ?? []).map { (b, $0) }
                 }
                 guard !allEls.isEmpty else { return }
 
-                let sVals = allEls.map { $0.el.S }
-                let minS = sVals.min() ?? -6
-                let maxS = sVals.max() ?? 6
-                let maxLel = allEls.map { $0.el.Lel }.max() ?? 10
-                let rangeS = max(maxS - minS, 1.0)
+                // Physik: Boom vertikal (Dir oben, Ref unten), je ein Spreizer-Endpunkt
+                // links und rechts auf der Horizontalen durch S=0.
+                // Alle Elementarme gehen vom Boom-Befestigungspunkt zu diesen fixen Punkten.
+                // Schnüre verbinden Drahtspitze mit dem Spreizer-Endpunkt.
+                let spreizer_m: Double = 5.0   // Spreizer-Länge laut Bauanleitung
 
-                let usableW = W - marginL - marginR
-                let usableH = H - marginT - marginB
-                let scaleX = usableW / CGFloat(rangeS)
-                let scaleY = usableH / CGFloat(maxLel)
-                let scale = min(scaleX, scaleY * 0.85)
-                let cy = H / 2
+                let allS    = allEls.map { $0.el.S }
+                let maxSabs = max(abs(allS.max() ?? 5), abs(allS.min() ?? 5), 0.1)
 
-                // Boom
-                let boomStartX = marginL
-                let boomEndX   = marginL + CGFloat(rangeS) * scale
-                ctx.stroke(Path { p in
-                    p.move(to: CGPoint(x: boomStartX, y: cy))
-                    p.addLine(to: CGPoint(x: boomEndX, y: cy))
-                }, with: .color(.gray.opacity(0.6)), lineWidth: 3)
+                let boomX   = W / 2
+                let centerY = mT + (H - mT - mB) / 2
+                let usableH = H - mT - mB
 
-                // Richtungspfeil
-                ctx.draw(Text("▶ Dir.").font(.system(size: 10)).foregroundStyle(.blue.opacity(0.7)),
-                         at: CGPoint(x: boomEndX + 6, y: cy), anchor: .leading)
-                ctx.draw(Text("Ref. ◀").font(.system(size: 10)).foregroundStyle(.gray.opacity(0.7)),
-                         at: CGPoint(x: boomStartX - 6, y: cy), anchor: .trailing)
+                // Gleicher Maßstab X/Y für korrekte Geometrie
+                let scale = min(((W - mL - mR) / 2) / CGFloat(spreizer_m),
+                                (usableH / 2) / CGFloat(maxSabs))
 
-                // Elemente
-                for (band, el) in allEls {
-                    let color = SB_BAND_COLORS[band] ?? .primary
-                    let x = marginL + CGFloat(el.S - minS) * scale
-                    let half = CGFloat(el.Lel / 2) * scale
+                func bY(_ s: Double) -> CGFloat { centerY - CGFloat(s) * scale }
+                func bX(_ x: Double) -> CGFloat { boomX   + CGFloat(x) * scale }
 
-                    ctx.stroke(Path { p in
-                        p.move(to: CGPoint(x: x, y: cy - half))
-                        p.addLine(to: CGPoint(x: x, y: cy + half))
-                    }, with: .color(color), lineWidth: 2.5)
+                // Fixe Spreizer-Endpunkte links und rechts
+                let rTip = CGPoint(x: bX(spreizer_m),  y: centerY)
+                let lTip = CGPoint(x: bX(-spreizer_m), y: centerY)
 
-                    let shortTyp: String
-                    switch el.typ {
-                    case "Strahler":   shortTyp = "Str"
-                    case "Reflektor":  shortTyp = "Ref"
-                    default:           shortTyp = el.typ.replacingOccurrences(of: "Direktor ", with: "D")
-                    }
-                    ctx.draw(Text(shortTyp).font(.system(size: 9)).bold().foregroundStyle(color),
-                             at: CGPoint(x: x, y: cy - half - 10), anchor: .center)
-                    ctx.draw(Text(band).font(.system(size: 9)).foregroundStyle(color.opacity(0.85)),
-                             at: CGPoint(x: x, y: cy + half + 10), anchor: .center)
+                // Hilfsfunktion: Punkt von base in Richtung target, Abstand = meters
+                func tipPt(from base: CGPoint, toward target: CGPoint, meters: Double) -> CGPoint {
+                    let dx = target.x - base.x, dy = target.y - base.y
+                    let dist = (dx*dx + dy*dy).squareRoot()
+                    guard dist > 0.001 else { return base }
+                    let len = CGFloat(meters) * scale
+                    return CGPoint(x: base.x + dx/dist * len, y: base.y + dy/dist * len)
                 }
 
-                // Legende (Bänder)
-                var legX: CGFloat = marginL
-                let legY: CGFloat = H - 6
-                for band in activeBands {
+                // ── Boom ────────────────────────────────────────────────────
+                let boomTop    = bY(maxSabs + 0.25)
+                let boomBottom = bY(-(maxSabs + 0.25))
+                ctx.stroke(Path { p in
+                    p.move(to: CGPoint(x: boomX, y: boomTop))
+                    p.addLine(to: CGPoint(x: boomX, y: boomBottom))
+                }, with: .color(.gray.opacity(0.55)), style: StrokeStyle(lineWidth: 2.5))
+
+                // ── Spreizer-Arme (horizontal gestrichelt, S=0-Linie) ────────
+                ctx.stroke(Path { p in p.move(to: lTip); p.addLine(to: rTip) },
+                           with: .color(.gray.opacity(0.35)),
+                           style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                for tip in [lTip, rTip] {
+                    ctx.fill(Path(ellipseIn: CGRect(x: tip.x-5, y: tip.y-5, width: 10, height: 10)),
+                             with: .color(.gray.opacity(0.5)))
+                }
+
+                // ── Richtungstexte ───────────────────────────────────────────
+                ctx.draw(Text("▲").font(.system(size: 11, weight: .bold)).foregroundStyle(Color.primary),
+                         at: CGPoint(x: boomX, y: boomTop - 14), anchor: .center)
+                ctx.draw(Text("Hauptstrahlrichtung").font(.caption2).foregroundStyle(Color.secondary),
+                         at: CGPoint(x: boomX, y: boomTop - 26), anchor: .center)
+                ctx.draw(Text("Reflektor-Seite").font(.caption2).foregroundStyle(Color.secondary),
+                         at: CGPoint(x: boomX, y: boomBottom + 16), anchor: .center)
+
+                // ── Maßstab (2 m) ─────────────────────────────────────────
+                let barLen: CGFloat = 2.0 * scale
+                let barX0: CGFloat  = 12
+                let barY:  CGFloat  = boomTop - 16
+                ctx.stroke(Path { p in
+                    p.move(to: CGPoint(x: barX0, y: barY))
+                    p.addLine(to: CGPoint(x: barX0 + barLen, y: barY))
+                    p.move(to: CGPoint(x: barX0, y: barY-3)); p.addLine(to: CGPoint(x: barX0, y: barY+3))
+                    p.move(to: CGPoint(x: barX0+barLen, y: barY-3)); p.addLine(to: CGPoint(x: barX0+barLen, y: barY+3))
+                }, with: .color(.primary), lineWidth: 1.5)
+                ctx.draw(Text("2 m").font(.system(size: 9)).foregroundStyle(Color.primary),
+                         at: CGPoint(x: barX0 + barLen/2, y: barY - 9), anchor: .center)
+
+                let sorted = allEls.sorted { $0.el.S > $1.el.S }
+
+                // ── Schnüre (dünne Linien von Drahtspitze zum Spreizer-Endpunkt) ──
+                for (_, el) in sorted {
+                    let base  = CGPoint(x: boomX, y: bY(el.S))
+                    let rWire = tipPt(from: base, toward: rTip, meters: el.Lel / 2)
+                    let lWire = tipPt(from: base, toward: lTip, meters: el.Lel / 2)
+                    let schnur = StrokeStyle(lineWidth: 0.8, dash: [3, 3])
+                    ctx.stroke(Path { p in p.move(to: rWire); p.addLine(to: rTip) },
+                               with: .color(.gray.opacity(0.28)), style: schnur)
+                    ctx.stroke(Path { p in p.move(to: lWire); p.addLine(to: lTip) },
+                               with: .color(.gray.opacity(0.28)), style: schnur)
+                }
+
+                // ── Elementdrähte (farbig, vom Boom zum Drahtende) ───────────
+                for (idx, (band, el)) in sorted.enumerated() {
+                    let color = SB_BAND_COLORS[band] ?? .primary
+                    let base  = CGPoint(x: boomX, y: bY(el.S))
+                    let rWire = tipPt(from: base, toward: rTip, meters: el.Lel / 2)
+                    let lWire = tipPt(from: base, toward: lTip, meters: el.Lel / 2)
+
+                    ctx.stroke(Path { p in p.move(to: base); p.addLine(to: rWire) },
+                               with: .color(color), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    ctx.stroke(Path { p in p.move(to: base); p.addLine(to: lWire) },
+                               with: .color(color), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+
+                    let dr: CGFloat = el.typ == "Strahler" ? 4.5 : 3.0
+                    ctx.fill(Path(ellipseIn: CGRect(x: boomX-dr, y: base.y-dr,
+                                                    width: dr*2, height: dr*2)),
+                             with: .color(color))
+
+                    // Labels: alternierend links/rechts, y = Boom-Befestigungshöhe
+                    let short: String
+                    switch el.typ {
+                    case "Strahler":  short = "Str"
+                    case "Reflektor": short = "Ref"
+                    default:          short = el.typ.replacingOccurrences(of: "Direktor ", with: "D")
+                    }
+                    let sStr = el.S == 0 ? "S=0.00 m"
+                             : el.S > 0  ? "S=+\(String(format: "%.2f", el.S)) m"
+                                         : "S=\(String(format: "%.2f", el.S)) m"
+                    let ly = base.y
+                    if idx % 2 == 0 {
+                        ctx.draw(Text("\(band) \(short)").font(.system(size: 9, weight: .bold)).foregroundStyle(color),
+                                 at: CGPoint(x: W - mR + 4, y: ly - 6), anchor: .leading)
+                        ctx.draw(Text(sStr).font(.system(size: 8)).foregroundStyle(Color.secondary),
+                                 at: CGPoint(x: W - mR + 4, y: ly + 5), anchor: .leading)
+                    } else {
+                        ctx.draw(Text("\(band) \(short)").font(.system(size: 9, weight: .bold)).foregroundStyle(color),
+                                 at: CGPoint(x: mL - 4, y: ly - 6), anchor: .trailing)
+                        ctx.draw(Text(sStr).font(.system(size: 8)).foregroundStyle(Color.secondary),
+                                 at: CGPoint(x: mL - 4, y: ly + 5), anchor: .trailing)
+                    }
+                }
+
+                // ── Band-Legende ───────────────────────────────────────────
+                let legBands = activeBands
+                let legItemW: CGFloat = 68
+                var legX = (W - CGFloat(legBands.count) * legItemW) / 2
+                let legY  = H - 10
+                for band in legBands {
                     let col = SB_BAND_COLORS[band] ?? .primary
                     ctx.stroke(Path { p in
                         p.move(to: CGPoint(x: legX, y: legY - 4))
-                        p.addLine(to: CGPoint(x: legX + 14, y: legY - 4))
+                        p.addLine(to: CGPoint(x: legX + 16, y: legY - 4))
                     }, with: .color(col), lineWidth: 3)
-                    ctx.draw(Text(band).font(.system(size: 9)).foregroundStyle(col),
-                             at: CGPoint(x: legX + 16, y: legY - 4), anchor: .leading)
-                    legX += 46
+                    ctx.draw(Text(band).font(.system(size: 9, weight: .semibold)).foregroundStyle(col),
+                             at: CGPoint(x: legX + 18, y: legY - 4), anchor: .leading)
+                    legX += legItemW
                 }
             }
-            .frame(height: 260)
+            .frame(height: 500)
         }
     }
 
