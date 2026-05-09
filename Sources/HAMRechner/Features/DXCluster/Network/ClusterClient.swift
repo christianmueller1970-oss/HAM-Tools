@@ -92,6 +92,9 @@ final class ClusterClient {
             [weak self] data, _, isDone, error in
             guard let self else { return }
             if let data, !data.isEmpty {
+                if !self.loggedIn {
+                    self.appendLog("[NET] \(data.count) Bytes empfangen")
+                }
                 let cleaned = Self.stripIAC(data)
                 let text = String(bytes: cleaned, encoding: .utf8)
                        ?? String(bytes: cleaned, encoding: .isoLatin1)
@@ -134,18 +137,26 @@ final class ClusterClient {
                 continue
             }
             if callsignSent && !loggedIn {
+                let isSpot = lower.hasPrefix("dx de")
                 if line.uppercased().contains(callsign) ||
-                   lower.contains("connected") || lower.contains("hello") {
+                   lower.contains("connected") || lower.contains("hello") || isSpot {
                     loggedIn = true
                     setStatus(.connected)
                     appendLog("[\(ts())] >>> EINGELOGGT als \(callsign) <<<")
-                    connection?.send(content: "sh/dx 50\r\n".data(using: .utf8),
-                                     completion: .idempotent)
+                    if !isSpot {
+                        connection?.send(content: "sh/dx 50\r\n".data(using: .utf8),
+                                         completion: .idempotent)
+                        continue
+                    }
+                    // DX-Spot erkannt → durchfallen zu Spot-Verarbeitung
+                } else {
+                    continue
                 }
-                continue
             }
             if loggedIn, let spot = SpotParser.parse(line, source: host) {
                 DispatchQueue.main.async { self.onSpot?(spot) }
+            } else if loggedIn && lower.hasPrefix("dx de") {
+                appendLog("[!] Parse-Fehler: \(line.prefix(80))")
             }
         }
     }

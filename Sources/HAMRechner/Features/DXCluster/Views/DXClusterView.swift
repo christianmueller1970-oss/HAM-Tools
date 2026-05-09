@@ -31,6 +31,7 @@ struct DXClusterView: View {
                 )
                 .frame(minWidth: 220, idealWidth: 280, maxWidth: 360)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.bgApp)
@@ -169,6 +170,7 @@ struct DXClusterView: View {
             ClusterLogView(messages: vm.logMessages, theme: theme)
                 .frame(minHeight: 80, idealHeight: 160)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     // MARK: - Tab bar
