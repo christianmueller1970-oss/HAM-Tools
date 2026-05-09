@@ -90,3 +90,39 @@ func freqToMode(_ khz: Double, comment: String) -> String {
 func allBandNames() -> [String] {
     BANDS.map(\.name) + ["OOB"]
 }
+
+// MARK: - Geo utilities
+
+/// Maidenhead-Locator → (lat, lon) in Grad. Unterstützt 4- und 6-stellige Locatoren.
+func locatorToLatLon(_ loc: String) -> (lat: Double, lon: Double)? {
+    let s = loc.uppercased()
+    guard s.count >= 4 else { return nil }
+    let c = Array(s)
+    guard let f0 = c[0].asciiValue, let f1 = c[1].asciiValue,
+          let d0 = c[2].asciiValue, let d1 = c[3].asciiValue,
+          c[0].isLetter, c[1].isLetter,
+          c[2].isNumber, c[3].isNumber else { return nil }
+
+    let lonBase = Double(f0 - 65) * 20.0 - 180.0 + Double(d0 - 48) * 2.0
+    let latBase = Double(f1 - 65) * 10.0 - 90.0  + Double(d1 - 48) * 1.0
+
+    if s.count >= 6,
+       let s0 = c[4].asciiValue, let s1 = c[5].asciiValue,
+       c[4].isLetter, c[5].isLetter {
+        let lon = lonBase + Double(s0 - 65) * (2.0 / 24.0) + (1.0 / 24.0)
+        let lat = latBase + Double(s1 - 65) * (1.0 / 24.0) + (0.5 / 24.0)
+        return (lat, lon)
+    }
+    return (latBase + 0.5, lonBase + 1.0)
+}
+
+/// Haversine-Distanz zwischen zwei Punkten in Kilometern.
+func haversineKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double) -> Double {
+    let R = 6371.0
+    let dLat = (lat2 - lat1) * .pi / 180
+    let dLon = (lon2 - lon1) * .pi / 180
+    let a = sin(dLat / 2) * sin(dLat / 2)
+           + cos(lat1 * .pi / 180) * cos(lat2 * .pi / 180)
+           * sin(dLon / 2) * sin(dLon / 2)
+    return R * 2 * atan2(sqrt(a), sqrt(1 - a))
+}

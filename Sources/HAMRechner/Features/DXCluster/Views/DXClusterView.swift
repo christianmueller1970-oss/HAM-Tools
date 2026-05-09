@@ -195,6 +195,7 @@ struct DXClusterView: View {
                          selection: $vm.filterMode)
             filterPicker("Kont.", options: ["Alle"] + CONTINENTS,
                          selection: $vm.filterContinent)
+            radiusPicker
 
             Divider().frame(height: 20)
 
@@ -232,6 +233,23 @@ struct DXClusterView: View {
             }
             .pickerStyle(.menu)
             .frame(width: 90)
+        }
+    }
+
+    private var radiusPicker: some View {
+        HStack(spacing: 2) {
+            Image(systemName: "location.circle")
+                .font(.caption)
+                .foregroundStyle(vm.spotterRadiusKm > 0 ? theme.accentBlue : theme.textSecondary)
+            Picker("", selection: $vm.spotterRadiusKm) {
+                Text("Alle").tag(0)
+                Text("500 km").tag(500)
+                Text("1000 km").tag(1000)
+                Text("2500 km").tag(2500)
+                Text("5000 km").tag(5000)
+            }
+            .pickerStyle(.menu)
+            .frame(width: 82)
         }
     }
 

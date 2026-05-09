@@ -22,12 +22,14 @@ final class DXClusterViewModel: ObservableObject {
     @Published var showSOTA  = true
     @Published var showPOTA  = true
     @Published var showWWFF  = true
-    @Published var searchText = ""
+    @Published var searchText        = ""
+    @Published var spotterRadiusKm   = 0   // 0 = kein Filter
 
     // MARK: - Settings (persisted)
     @AppStorage("callsign")    private var storedCallsign = "HB9HJI"
-    @AppStorage("clusterHost") private var clusterHost   = "dxspider.funkwelt.net"
-    @AppStorage("clusterPort") private var clusterPort   = 7300
+    @AppStorage("qthLocator")  private var qthLocator     = "JN47PN"
+    @AppStorage("clusterHost") private var clusterHost    = "dxspider.funkwelt.net"
+    @AppStorage("clusterPort") private var clusterPort    = 7300
 
     var myCallsign: String { storedCallsign }
 
@@ -44,7 +46,12 @@ final class DXClusterViewModel: ObservableObject {
     // MARK: - Computed
 
     var filteredSpots: [DXSpot] {
-        spots.filter { spot in
+        // Compute QTH position once per call (cheap string parse)
+        let myPos: (lat: Double, lon: Double)? = spotterRadiusKm > 0
+            ? locatorToLatLon(qthLocator)
+            : nil
+
+        return spots.filter { spot in
             if filterBand != "Alle" && spot.band != filterBand { return false }
             if filterMode != "Alle" && spot.mode != filterMode { return false }
             if filterContinent != "Alle" && spot.continent != filterContinent { return false }
@@ -59,6 +66,13 @@ final class DXClusterViewModel: ObservableObject {
                 if !spot.dxCall.uppercased().contains(q) &&
                    !spot.comment.uppercased().contains(q) &&
                    !spot.spotter.uppercased().contains(q) { return false }
+            }
+            // Spotter-Radius: Spots ohne Spotter-Koordinaten passieren immer
+            if let pos = myPos,
+               (spot.spotterLat != 0 || spot.spotterLon != 0) {
+                let dist = haversineKm(lat1: pos.lat, lon1: pos.lon,
+                                       lat2: spot.spotterLat, lon2: spot.spotterLon)
+                if dist > Double(spotterRadiusKm) { return false }
             }
             return true
         }
@@ -152,7 +166,7 @@ final class DXClusterViewModel: ObservableObject {
     func resetFilters() {
         filterBand = "Alle"; filterMode = "Alle"; filterContinent = "Alle"
         showDX = true; showSOTA = true; showPOTA = true; showWWFF = true
-        searchText = ""
+        searchText = ""; spotterRadiusKm = 0
     }
 
     /// Send a DX spot to the connected cluster node.
