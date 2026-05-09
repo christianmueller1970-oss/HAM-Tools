@@ -6,7 +6,7 @@ Entwickelt von **Christian Mueller HB9HJI**
 
 ---
 
-## Funktionen (V1.1)
+## Funktionen (V1.3)
 
 ### Live-Tools (NEU in V1.1)
 
@@ -80,7 +80,7 @@ Vollständige DX-Cluster-Workstation mit TCP-Verbindung zu DXSpider-Knoten und R
 | Pegel-Umrechner | dBm / dBW / V / µV / W |
 | SWR-Simulator | SWR-Kurve und Rückflussdämpfung |
 | Linkbudget / Reichweite | Friis-Formel, Freiraumdämpfung, Link-Margin |
-| QTH-Locator | Maidenhead-Locator ↔ Koordinaten, Distanz & Richtung |
+| QTH-Locator | Maidenhead (6/8-stellig) ↔ Koordinaten, Karte, SOTA/POTA, Höhenprofil, Fresnel-Zonen, LOS mit Erdkrümmung (NEU in V1.3) |
 
 ---
 

@@ -5,6 +5,35 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.3.0] — 2026-05-09
+
+### Neu: QTH-Locator Erweiterungen
+
+Umfassender Ausbau des QTH-Locator-Werkzeugs zu einer vollständigen Standort- und Ausbreitungsanalyse-Station.
+
+#### Interaktive Karte & Locator
+- MapKit-Karte direkt in den „Karte & Locator"-Tab integriert (NSViewRepresentable-Workaround für macOS-Gestenkonflikte)
+- Klickbarer Pins für Quelle und Ziel direkt auf der Karte setzbar (Fadenkreuz-Cursor)
+- Koordinaten-Panel oben im Tab: Locator, Lat/Lon, Distanz, Richtung für Quelle und Ziel
+- 8-stelliger Maidenhead Extended Square (~500 m Auflösung, Raster 2/240° × 1/240°)
+- Prominente Quelle→Ziel-Linie auf der Karte (weisser 6 px Halo + orangefarbener 3 px Kern)
+
+#### SOTA / POTA Suche auf Karte
+- SOTA-Gipfel und POTA-Parks in einstellbarem Radius um Quelle anzeigen
+- Vergrösserte, gut lesbare Marker mit dunklem Hintergrund-Label auf der Karte
+- VSplitView: Karte oben, Ergebnisliste unten (kollabierbar)
+- Konverter-Funktionalität (Koordinaten ↔ Locator) direkt in Karte & Locator integriert (eigener Tab entfernt)
+
+#### Höhenprofil & Sichtlinie
+- Sichtverbindungs-Linie (LOS) von Quelle zu Ziel mit Erdkrümmungs-Korrektur (k = 4/3, Standardatmosphäre)
+- Erdkrümmungsformel: `bulge(d) = d × (D−d) / (2 × Re × k)` über dem linearen Interpolationspfad
+- Fresnel-Zonen-Visualisierung für 70 cm, 2 m, 4 m, 6 m (einzeln ein-/ausblendbar)
+- Fresnel-Radius-Formel: `r = sqrt(λ × d1 × d2 / D)`
+- Darstellung als LineMark-Paare (obere + untere Grenze) je Band — kein AreaMark-Artefakt
+- Statistik-Kacheln (2×2 LazyVGrid): Min. Höhe, Max. Höhe, Differenz, Distanz
+
+---
+
 ## [1.1.0] — 2026-05-09
 
 ### Neu: DX-Cluster Live-Workstation

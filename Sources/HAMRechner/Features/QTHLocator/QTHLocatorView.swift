@@ -1,6 +1,48 @@
 import SwiftUI
 import MapKit
 import Charts
+import AppKit
+
+// MARK: - Map click capture (macOS: SwiftUI tap gestures are swallowed by MapKit's AppKit recognizers)
+
+private class MapClickNSView: NSView {
+    var isCapturing = false
+    var onTap: ((CGPoint) -> Void)?
+
+    override var isFlipped: Bool { true }   // top-left origin — matches SwiftUI .local space
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        // Transparent when idle so map pan/zoom events pass through
+        isCapturing ? super.hitTest(point) : nil
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard isCapturing else { return }
+        let loc = convert(event.locationInWindow, from: nil)
+        onTap?(CGPoint(x: loc.x, y: loc.y))
+    }
+
+    override func resetCursorRects() {
+        if isCapturing { addCursorRect(bounds, cursor: .crosshair) }
+    }
+}
+
+private struct MapClickCapture: NSViewRepresentable {
+    var isCapturing: Bool
+    var onTap: (CGPoint) -> Void
+
+    func makeNSView(context: Context) -> MapClickNSView {
+        let v = MapClickNSView()
+        v.onTap = onTap
+        return v
+    }
+
+    func updateNSView(_ v: MapClickNSView, context: Context) {
+        v.isCapturing = isCapturing
+        v.onTap = onTap
+        v.window?.invalidateCursorRects(for: v)
+    }
+}
 
 // MARK: - Maidenhead
 
@@ -15,8 +57,17 @@ private enum Maidenhead {
         var lon = Double(f0-65)*20.0 - 180.0 + Double(c2)*2.0
         var lat = Double(f1-65)*10.0 -  90.0 + Double(c3)*1.0
         if s.count >= 6, let av = c[4].asciiValue, let bv = c[5].asciiValue, av >= 65, bv >= 65 {
-            lon += Double(av-65)*(2.0/24.0) + (1.0/24.0)
-            lat += Double(bv-65)*(1.0/24.0) + (0.5/24.0)
+            lon += Double(av-65)*(2.0/24.0)
+            lat += Double(bv-65)*(1.0/24.0)
+            if s.count >= 8, let d6 = c[6].wholeNumberValue, let d7 = c[7].wholeNumberValue {
+                // Extended square center
+                lon += Double(d6)*(2.0/240.0) + (1.0/240.0)
+                lat += Double(d7)*(1.0/240.0) + (0.5/240.0)
+            } else {
+                // Subsquare center
+                lon += 1.0/24.0
+                lat += 0.5/24.0
+            }
         } else { lon += 1.0; lat += 0.5 }
         return (lat, lon)
     }
@@ -28,9 +79,12 @@ private enum Maidenhead {
         let c2 = Int(lo/2);  lo -= Double(c2)*2.0
         let c3 = Int(la/1);  la -= Double(c3)*1.0
         let s4 = Int(lo/(2.0/24.0)); lo -= Double(s4)*(2.0/24.0)
-        let s5 = Int(la/(1.0/24.0))
+        let s5 = Int(la/(1.0/24.0)); la -= Double(s5)*(1.0/24.0)
+        // Extended square: each subsquare split 10×10 → digits 0–9
+        let e6 = min(9, Int(lo / (2.0/240.0)))
+        let e7 = min(9, Int(la / (1.0/240.0)))
         let L = Array("ABCDEFGHIJKLMNOPQRSTUVWX")
-        return "\(L[f0])\(L[f1])\(c2)\(c3)\(L[s4].lowercased())\(L[s5].lowercased())"
+        return "\(L[f0])\(L[f1])\(c2)\(c3)\(L[s4].lowercased())\(L[s5].lowercased())\(e6)\(e7)"
     }
 
     static func distKm(_ a: (lat: Double, lon: Double), _ b: (lat: Double, lon: Double)) -> Double {
@@ -61,6 +115,15 @@ private struct MapGrid {
     let labels: [GridLabel]
 }
 
+// MARK: - LOS / Fresnel helpers
+
+private struct LOSPt: Identifiable {
+    let id: Int; let distKm: Double; let losM: Double
+}
+private struct FresnelPt: Identifiable {
+    let id: String; let distKm: Double; let upper: Double; let lower: Double
+}
+
 // MARK: - Stat tile
 
 private struct StatTile: View {
@@ -84,9 +147,9 @@ struct QTHLocatorView: View {
     @State private var selectedTab = 0
 
     // — Map & Locator (Tab 0) —
-    @State private var locSource  = ""
-    @State private var locDest    = "IO51"
-    @State private var clickMode  = 0          // 0 = Quelle setzen, 1 = Ziel setzen
+    @State private var locSource     = ""
+    @State private var locDest       = "IO51"
+    @State private var captureTarget: Int? = nil   // nil=idle, 0=set source, 1=set dest
     @State private var mapCamera: MapCameraPosition = .automatic
 
     // — Overlays —
@@ -98,19 +161,21 @@ struct QTHLocatorView: View {
     @State private var overlayBusy   = false
     @State private var overlayError: String?
 
-    // — Converter (Tab 1) —
-    @State private var convModus = 0
-    @State private var locText   = "JN47"
-    @State private var latText   = "47.5"
-    @State private var lonText   = "8.5"
-    @State private var loc1Text  = ""
-    @State private var loc2Text  = "IO51"
+    // — Elevation (Tab 1) —
+    @State private var elevPoints:  [ElevPoint] = []
+    @State private var losPoints:   [LOSPt]     = []
+    @State private var elevBusy     = false
+    @State private var elevError:   String?
+    @State private var elevDist     = 0.0
+    @State private var showFresnel  = false
+    @State private var activeBands: Set<String> = ["2m", "70cm"]
 
-    // — Elevation (Tab 2) —
-    @State private var elevPoints: [ElevPoint] = []
-    @State private var elevBusy   = false
-    @State private var elevError: String?
-    @State private var elevDist   = 0.0
+    private let bandDefs: [(name: String, freqMHz: Double, color: Color)] = [
+        ("6m",   50.5, .purple),
+        ("4m",   70.2, .teal),
+        ("2m",  144.3, .green),
+        ("70cm", 432.1, .orange),
+    ]
 
     // MARK: Helpers
 
@@ -182,11 +247,6 @@ struct QTHLocatorView: View {
                 karteTab.frame(maxWidth: .infinity, maxHeight: .infinity)
             case 1:
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) { converterTab }
-                        .padding(24)
-                }
-            case 2:
-                ScrollView {
                     VStack(alignment: .leading, spacing: 20) { elevationTab }
                         .padding(24)
                 }
@@ -196,7 +256,6 @@ struct QTHLocatorView: View {
         .navigationTitle("QTH-Locator")
         .onAppear {
             locSource = homeLocator
-            loc1Text  = homeLocator
             if let coord = sourceCoord {
                 mapCamera = .region(MKCoordinateRegion(
                     center: coord,
@@ -209,9 +268,8 @@ struct QTHLocatorView: View {
 
     private var tabBar: some View {
         HStack(spacing: 0) {
-            tabBtn("Karte & Locator",  icon: "map",                        idx: 0)
-            tabBtn("Konverter",        icon: "arrow.left.arrow.right",      idx: 1)
-            tabBtn("Höhenprofil",      icon: "chart.line.uptrend.xyaxis",   idx: 2)
+            tabBtn("Karte & Locator", icon: "map",                       idx: 0)
+            tabBtn("Höhenprofil",     icon: "chart.line.uptrend.xyaxis", idx: 1)
             Spacer()
         }
         .background(.bar)
@@ -235,16 +293,22 @@ struct QTHLocatorView: View {
 
     // MARK: Tab 0 – Karte & Locator
 
-    @ViewBuilder
     private var karteTab: some View {
-        VStack(spacing: 0) {
+        let hasInfo    = sourceLL != nil || destLL != nil
+        let hasResults = (showSOTA && !sotaResults.isEmpty) || (showPOTA && !potaResults.isEmpty)
+        return VStack(spacing: 0) {
             controlBar
+            if hasInfo {
+                Divider()
+                koordinatenPanel
+            }
             Divider()
-            let hasResults = (showSOTA && !sotaResults.isEmpty) || (showPOTA && !potaResults.isEmpty)
             if hasResults {
                 VSplitView {
-                    interactiveMap.frame(minHeight: 260)
-                    resultsPanel.frame(minHeight: 80, idealHeight: 200, maxHeight: 260)
+                    interactiveMap.frame(minHeight: 220)
+                    resultsContent
+                        .frame(minHeight: 80, idealHeight: 180, maxHeight: 260)
+                        .background(.bar)
                 }
             } else {
                 interactiveMap
@@ -255,24 +319,25 @@ struct QTHLocatorView: View {
     // Control bar
     private var controlBar: some View {
         HStack(spacing: 8) {
-            // Click-mode picker
-            Picker("", selection: $clickMode) {
-                Label("Quelle", systemImage: "mappin").tag(0)
-                Label("Ziel",   systemImage: "mappin.circle").tag(1)
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 160)
-            .help("Bestimmt, was per Kartenklick gesetzt wird")
-
-            Divider().frame(height: 28)
-
-            // Source field
-            VStack(alignment: .leading, spacing: 1) {
+            // Source locator
+            VStack(alignment: .leading, spacing: 2) {
                 Text("Quelle").font(.caption2).foregroundStyle(.blue)
-                TextField("JN47PN", text: $locSource)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.callout.monospaced())
-                    .frame(width: 90)
+                HStack(spacing: 4) {
+                    TextField("JN47PN", text: $locSource)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.callout.monospaced())
+                        .frame(width: 84)
+                    Button {
+                        captureTarget = captureTarget == 0 ? nil : 0
+                    } label: {
+                        Label("Karte", systemImage: captureTarget == 0 ? "mappin.circle.fill" : "mappin.circle")
+                            .font(.caption.bold())
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(captureTarget == 0 ? .blue : nil)
+                    .controlSize(.small)
+                    .help(captureTarget == 0 ? "Kartenklick abbrechen" : "Quelle auf Karte klicken")
+                }
             }
 
             // Distance / bearing readout
@@ -288,13 +353,25 @@ struct QTHLocatorView: View {
             }
             .frame(minWidth: 80)
 
-            // Dest field
-            VStack(alignment: .leading, spacing: 1) {
+            // Dest locator
+            VStack(alignment: .leading, spacing: 2) {
                 Text("Ziel").font(.caption2).foregroundStyle(.red)
-                TextField("IO51", text: $locDest)
-                    .textFieldStyle(.roundedBorder)
-                    .font(.callout.monospaced())
-                    .frame(width: 90)
+                HStack(spacing: 4) {
+                    TextField("IO51", text: $locDest)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.callout.monospaced())
+                        .frame(width: 84)
+                    Button {
+                        captureTarget = captureTarget == 1 ? nil : 1
+                    } label: {
+                        Label("Karte", systemImage: captureTarget == 1 ? "mappin.circle.fill" : "mappin.circle")
+                            .font(.caption.bold())
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(captureTarget == 1 ? .red : nil)
+                    .controlSize(.small)
+                    .help(captureTarget == 1 ? "Kartenklick abbrechen" : "Ziel auf Karte klicken")
+                }
             }
 
             Divider().frame(height: 28)
@@ -399,10 +476,12 @@ struct QTHLocatorView: View {
                     }
                 }
 
-                // Line source → dest
+                // Line source → dest — thick, high-contrast
                 if let s = sourceCoord, let d = destCoord {
                     MapPolyline(coordinates: [s, d])
-                        .stroke(.purple.opacity(0.5), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                        .stroke(.white.opacity(0.6), lineWidth: 6)
+                    MapPolyline(coordinates: [s, d])
+                        .stroke(Color(red: 1.0, green: 0.45, blue: 0.0), lineWidth: 3)
                 }
 
                 // Radius circle around source
@@ -437,14 +516,14 @@ struct QTHLocatorView: View {
                         Annotation(s.code,
                                    coordinate: CLLocationCoordinate2D(latitude: s.lat, longitude: s.lng),
                                    anchor: .bottom) {
-                            VStack(spacing: 1) {
+                            VStack(spacing: 2) {
                                 Image(systemName: "triangle.fill")
-                                    .font(.system(size: 10)).foregroundStyle(.orange)
+                                    .font(.system(size: 14)).foregroundStyle(.orange)
                                 Text(s.code)
-                                    .font(.system(size: 7, design: .monospaced))
+                                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
                                     .foregroundStyle(.orange)
-                                    .padding(1)
-                                    .background(.white.opacity(0.75), in: RoundedRectangle(cornerRadius: 2))
+                                    .padding(.horizontal, 3).padding(.vertical, 1)
+                                    .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 3))
                             }
                         }
                     }
@@ -456,34 +535,118 @@ struct QTHLocatorView: View {
                         Annotation(p.reference,
                                    coordinate: CLLocationCoordinate2D(latitude: p.lat, longitude: p.lng),
                                    anchor: .bottom) {
-                            VStack(spacing: 1) {
+                            VStack(spacing: 2) {
                                 Image(systemName: "leaf.fill")
-                                    .font(.system(size: 10)).foregroundStyle(.green)
+                                    .font(.system(size: 14)).foregroundStyle(.green)
                                 Text(p.reference)
-                                    .font(.system(size: 7, design: .monospaced))
+                                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
                                     .foregroundStyle(.green)
-                                    .padding(1)
-                                    .background(.white.opacity(0.75), in: RoundedRectangle(cornerRadius: 2))
+                                    .padding(.horizontal, 3).padding(.vertical, 1)
+                                    .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 3))
                             }
                         }
                     }
                 }
             }
             .mapStyle(.standard(pointsOfInterest: .excludingAll))
-            .onTapGesture { screenPt in
-                guard let coord = proxy.convert(screenPt, from: .local) else { return }
-                let loc = String(Maidenhead.fromLatLon(lat: coord.latitude, lon: coord.longitude).prefix(6))
-                if clickMode == 0 { locSource = loc }
-                else              { locDest   = loc }
+            .overlay {
+                MapClickCapture(isCapturing: captureTarget != nil) { pt in
+                    guard let coord = proxy.convert(pt, from: .local) else { return }
+                    // Full 8-char extended square (~500 m resolution)
+                    let loc = Maidenhead.fromLatLon(lat: coord.latitude, lon: coord.longitude)
+                    if captureTarget == 0      { locSource = loc }
+                    else if captureTarget == 1 { locDest   = loc }
+                    captureTarget = nil
+                }
             }
+            .overlay(alignment: .top) {
+                if captureTarget != nil {
+                    Text(captureTarget == 0 ? "📍 Klicken um Quelle zu setzen — Esc oder 📍 zum Abbrechen"
+                                            : "📍 Klicken um Ziel zu setzen — Esc oder 📍 zum Abbrechen")
+                        .font(.caption.bold())
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+                        .padding(.top, 8)
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.15), value: captureTarget)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // Compact results panel (below map)
-    private var resultsPanel: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+    // Compact coordinate / distance strip — sits between control bar and map
+    private var koordinatenPanel: some View {
+        HStack(spacing: 0) {
+            // Source info
+            if let ll = sourceLL {
+                HStack(spacing: 10) {
+                    Label(locSource, systemImage: "mappin.circle.fill")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.blue)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(String(format: "%.5f° %@  %.5f° %@",
+                                    abs(ll.lat), ll.lat >= 0 ? "N" : "S",
+                                    abs(ll.lon), ll.lon >= 0 ? "E" : "W"))
+                            .font(.system(size: 10, design: .monospaced))
+                        Text("\(dms(ll.lat, isLat: true))   \(dms(ll.lon, isLat: false))")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 12).padding(.vertical, 6)
+            }
+
+            // Distance / bearing — center
+            if let a = sourceLL, let b = destLL {
+                let dist = Maidenhead.distKm(a, b)
+                let bear = Maidenhead.bearing(a, b)
+                let rev  = (bear + 180).truncatingRemainder(dividingBy: 360)
+                Divider().frame(height: 36)
+                VStack(spacing: 1) {
+                    HStack(spacing: 6) {
+                        Text(String(format: "%.0f km", dist))
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.blue)
+                        Text(String(format: "▶ %.0f° %@", bear, compassDir(bear)))
+                            .font(.system(size: 10, design: .monospaced))
+                        Text(String(format: "◀ %.0f° %@", rev, compassDir(rev)))
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 14).padding(.vertical, 6)
+                Divider().frame(height: 36)
+            }
+
+            // Dest info
+            if let ll = destLL {
+                HStack(spacing: 10) {
+                    Label(locDest, systemImage: "mappin.circle.fill")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.red)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(String(format: "%.5f° %@  %.5f° %@",
+                                    abs(ll.lat), ll.lat >= 0 ? "N" : "S",
+                                    abs(ll.lon), ll.lon >= 0 ? "E" : "W"))
+                            .font(.system(size: 10, design: .monospaced))
+                        Text("\(dms(ll.lat, isLat: true))   \(dms(ll.lon, isLat: false))")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 12).padding(.vertical, 6)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
+        .background(.bar)
+    }
+
+    // SOTA / POTA result rows (no outer ScrollView — lives inside bottomPanel)
+    private var resultsContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
                 if showSOTA && !sotaResults.isEmpty {
                     HStack {
                         Image(systemName: "triangle.fill").foregroundStyle(.orange).font(.caption)
@@ -543,9 +706,7 @@ struct QTHLocatorView: View {
                         .background(idx % 2 == 0 ? Color.clear : Color.secondary.opacity(0.04))
                     }
                 }
-            }
         }
-        .background(.bar)
     }
 
     private func loadOverlays() async {
@@ -587,180 +748,203 @@ struct QTHLocatorView: View {
         }
     }
 
-    // MARK: Tab 1 – Converter
-
-    private var converterTab: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            SectionCard(title: "Konvertierung") {
-                Picker("", selection: $convModus) {
-                    Text("Locator → Koordinaten").tag(0)
-                    Text("Koordinaten → Locator").tag(1)
-                }
-                .pickerStyle(.segmented)
-            }
-            if convModus == 0 { locToCoordSection } else { coordToLocSection }
-            distanzSection
-        }
-    }
-
-    private var locToCoordSection: some View {
-        let res = Maidenhead.toLatLon(locText)
-        return SectionCard(title: "Locator → Koordinaten") {
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Maidenhead-Locator").font(.caption).foregroundStyle(.secondary)
-                    TextField("z.B. JN47QM", text: $locText)
-                        .textFieldStyle(.roundedBorder).font(.title3.monospaced()).frame(maxWidth: 200)
-                    Text("4 oder 6 Zeichen").font(.caption2).foregroundStyle(.secondary)
-                }
-                Divider()
-                if let r = res {
-                    ResultRow(label: "Breitengrad",
-                              value: String(format: "%.5f°  %@", abs(r.lat), r.lat >= 0 ? "N" : "S"), highlight: true)
-                    ResultRow(label: "Längengrad",
-                              value: String(format: "%.5f°  %@", abs(r.lon), r.lon >= 0 ? "E" : "W"), highlight: true)
-                    ResultRow(label: "DMS Lat", value: dms(r.lat, isLat: true))
-                    ResultRow(label: "DMS Lon", value: dms(r.lon, isLat: false))
-                    ResultRow(label: "6-stelliger Locator", value: Maidenhead.fromLatLon(lat: r.lat, lon: r.lon))
-                } else if !locText.isEmpty {
-                    Text("Ungültiger Locator").foregroundStyle(.red)
-                }
-            }
-        }
-    }
-
-    private var coordToLocSection: some View {
-        let lat = Double(latText.replacingOccurrences(of: ",", with: ".")) ?? 0
-        let lon = Double(lonText.replacingOccurrences(of: ",", with: ".")) ?? 0
-        return SectionCard(title: "Koordinaten → Locator") {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Breitengrad (N+, S−)").font(.caption).foregroundStyle(.secondary)
-                        HStack {
-                            TextField("47.5", text: $latText).textFieldStyle(.roundedBorder)
-                            Text("°").font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Längengrad (E+, W−)").font(.caption).foregroundStyle(.secondary)
-                        HStack {
-                            TextField("8.5", text: $lonText).textFieldStyle(.roundedBorder)
-                            Text("°").font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                Divider()
-                ResultRow(label: "Locator (6-stlg.)", value: Maidenhead.fromLatLon(lat: lat, lon: lon), highlight: true)
-                ResultRow(label: "Locator (4-stlg.)", value: String(Maidenhead.fromLatLon(lat: lat, lon: lon).prefix(4)))
-            }
-        }
-    }
-
-    private var distanzSection: some View {
-        let a = Maidenhead.toLatLon(loc1Text)
-        let b = Maidenhead.toLatLon(loc2Text)
-        return SectionCard(title: "Distanz & Richtung") {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Locator 1 (Quelle)").font(.caption).foregroundStyle(.secondary)
-                        TextField("JN47PN", text: $loc1Text)
-                            .textFieldStyle(.roundedBorder).font(.body.monospaced())
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Locator 2 (Ziel)").font(.caption).foregroundStyle(.secondary)
-                        TextField("IO51", text: $loc2Text)
-                            .textFieldStyle(.roundedBorder).font(.body.monospaced())
-                    }
-                }
-                Divider()
-                if let pa = a, let pb = b {
-                    let dist = Maidenhead.distKm(pa, pb)
-                    let bear = Maidenhead.bearing(pa, pb)
-                    ResultRow(label: "Distanz", value: String(format: "%.1f km", dist), highlight: true)
-                    ResultRow(label: "Richtung (Bearing)",
-                              value: String(format: "%.1f°  %@", bear, compassDir(bear)))
-                    ResultRow(label: "Gegenrichtung",
-                              value: String(format: "%.1f°  %@",
-                                           (bear+180).truncatingRemainder(dividingBy: 360),
-                                           compassDir((bear+180).truncatingRemainder(dividingBy: 360))))
-                } else {
-                    Text("Bitte beide Locatoren eingeben").foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
-
-    // MARK: Tab 2 – Elevation Profile
+    // MARK: Tab 1 – Elevation Profile
 
     private var elevationTab: some View {
         let aValid = Maidenhead.toLatLon(locSource) != nil
         let bValid = Maidenhead.toLatLon(locDest)   != nil
         return VStack(alignment: .leading, spacing: 20) {
+
+            // — Controls card —
             SectionCard(title: "Geländeprofil – Quelle → Ziel") {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Quelle").font(.caption).foregroundStyle(.blue)
-                            Text(locSource.isEmpty ? "–" : locSource)
-                                .font(.body.monospaced().bold())
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
+                        // Source / Dest
+                        HStack(spacing: 6) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Quelle").font(.caption2).foregroundStyle(.blue)
+                                Text(locSource.isEmpty ? "–" : locSource)
+                                    .font(.callout.monospaced().bold())
+                            }
+                            Image(systemName: "arrow.right").foregroundStyle(.secondary).font(.caption)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Ziel").font(.caption2).foregroundStyle(.red)
+                                Text(locDest.isEmpty ? "–" : locDest)
+                                    .font(.callout.monospaced().bold())
+                            }
+                            Text("(Karte)").font(.caption2).foregroundStyle(.secondary)
                         }
-                        Image(systemName: "arrow.right").foregroundStyle(.secondary)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Ziel").font(.caption).foregroundStyle(.red)
-                            Text(locDest.isEmpty ? "–" : locDest)
-                                .font(.body.monospaced().bold())
+
+                        Divider().frame(height: 28)
+
+                        // Fresnel toggle
+                        Toggle(isOn: $showFresnel) {
+                            Label("Fresnel-Zonen", systemImage: "waveform.path")
+                                .font(.caption)
                         }
-                        Text("(auf Karte auswählbar)")
-                            .font(.caption).foregroundStyle(.secondary)
+                        .toggleStyle(.checkbox)
+                        .help("Fresnel-Zonen & LOS mit Erdkrümmung anzeigen")
+
+                        // Band selector (visible only when Fresnel active)
+                        if showFresnel {
+                            ForEach(bandDefs, id: \.name) { band in
+                                Toggle(isOn: Binding(
+                                    get: { activeBands.contains(band.name) },
+                                    set: { if $0 { activeBands.insert(band.name) }
+                                           else  { activeBands.remove(band.name) } }
+                                )) {
+                                    HStack(spacing: 3) {
+                                        RoundedRectangle(cornerRadius: 2)
+                                            .fill(band.color)
+                                            .frame(width: 10, height: 10)
+                                        Text(band.name).font(.caption)
+                                    }
+                                }
+                                .toggleStyle(.checkbox)
+                            }
+                        }
+
                         Spacer()
+
+                        // Load button
                         Button {
                             Task { await computeElevation() }
                         } label: {
                             if elevBusy {
-                                HStack(spacing: 4) { ProgressView().controlSize(.small); Text("Berechne...") }
+                                HStack(spacing: 4) { ProgressView().controlSize(.mini); Text("Lädt...") }
                             } else {
                                 Label("Profil laden", systemImage: "chart.line.uptrend.xyaxis")
                             }
                         }
                         .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
                         .disabled(elevBusy || !aValid || !bValid)
                     }
+
                     if let err = elevError {
-                        Label(err, systemImage: "exclamationmark.triangle").foregroundStyle(.red).font(.callout)
+                        Label(err, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.red).font(.callout)
                     }
                     Text("Höhendaten: open-elevation.com (NASA SRTM, global 90 m Raster)")
                         .font(.caption2).foregroundStyle(.secondary)
+                    if showFresnel {
+                        Text("Gelbe Linie = Sichtverbindung mit Erdkrümmungskorrektur (k = 4/3). Farbige Bänder = 1. Fresnel-Zone.")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
             }
 
+            // — Profile card (only when data is loaded) —
             if !elevPoints.isEmpty {
-                SectionCard(title: "Geländeprofil – \(String(format: "%.1f km", elevDist)) Distanz") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Chart(elevPoints) { pt in
-                            AreaMark(x: .value("Distanz (km)", pt.distKm),
-                                     y: .value("Höhe (m)", pt.elevM))
-                                .foregroundStyle(LinearGradient(
-                                    colors: [.brown.opacity(0.5), .brown.opacity(0.05)],
-                                    startPoint: .top, endPoint: .bottom))
-                            LineMark(x: .value("Distanz (km)", pt.distKm),
-                                     y: .value("Höhe (m)", pt.elevM))
-                                .foregroundStyle(.brown)
-                                .lineStyle(StrokeStyle(lineWidth: 2))
+                SectionCard(title: "Geländeprofil – \(String(format: "%.1f km", elevDist))") {
+                    VStack(alignment: .leading, spacing: 10) {
+
+                        // Chart
+                        let elevs  = elevPoints.map { $0.elevM }
+                        let losMax = losPoints.map { $0.losM }.max() ?? 0
+                        let frMax  = showFresnel
+                            ? bandDefs.filter { activeBands.contains($0.name) }
+                                .flatMap { b in fresnelSeries(freqMHz: b.freqMHz, tag: b.name).map { $0.upper } }
+                                .max() ?? losMax
+                            : losMax
+                        let yMin = (elevs.min() ?? 0) - 20
+                        let yMax = max(elevs.max() ?? 0, frMax) + 50
+
+                        Chart {
+                            // 1. Terrain (drawn first as base)
+                            ForEach(elevPoints) { pt in
+                                AreaMark(x: .value("Distanz (km)", pt.distKm),
+                                         y: .value("Höhe (m)", pt.elevM))
+                                    .foregroundStyle(LinearGradient(
+                                        colors: [.brown.opacity(0.75), .brown.opacity(0.15)],
+                                        startPoint: .top, endPoint: .bottom))
+                                LineMark(x: .value("Distanz (km)", pt.distKm),
+                                         y: .value("Höhe (m)", pt.elevM))
+                                    .foregroundStyle(.brown)
+                                    .lineStyle(StrokeStyle(lineWidth: 2))
+                                    .interpolationMethod(.catmullRom)
+                            }
+                            // 2. LOS line
+                            ForEach(losPoints) { pt in
+                                LineMark(x: .value("d", pt.distKm),
+                                         y: .value("h", pt.losM),
+                                         series: .value("S", "LOS"))
+                                    .foregroundStyle(.yellow.opacity(0.9))
+                                    .lineStyle(StrokeStyle(lineWidth: 2, dash: [6, 3]))
+                            }
+                            // 3. Fresnel zone boundary lines per band (upper + lower)
+                            if showFresnel {
+                                ForEach(bandDefs.filter { activeBands.contains($0.name) }, id: \.name) { band in
+                                    let series = fresnelSeries(freqMHz: band.freqMHz, tag: band.name)
+                                    ForEach(series) { pt in
+                                        LineMark(
+                                            x: .value("d", pt.distKm),
+                                            y: .value("h", min(pt.upper, yMax)),
+                                            series: .value("S", "\(band.name)_hi")
+                                        )
+                                        .foregroundStyle(band.color)
+                                        .lineStyle(StrokeStyle(lineWidth: 1.5))
+                                    }
+                                    ForEach(series) { pt in
+                                        LineMark(
+                                            x: .value("d", pt.distKm),
+                                            y: .value("h", max(pt.lower, yMin)),
+                                            series: .value("S", "\(band.name)_lo")
+                                        )
+                                        .foregroundStyle(band.color)
+                                        .lineStyle(StrokeStyle(lineWidth: 1.5))
+                                    }
+                                }
+                            }
                         }
                         .chartXAxisLabel("Distanz (km)")
                         .chartYAxisLabel("Höhe (m ü. NN)")
-                        .chartYScale(domain: .automatic(includesZero: false))
-                        .frame(height: 220)
+                        .chartYScale(domain: yMin...yMax)
+                        .chartLegend(.hidden)
+                        .clipped()
+                        .frame(height: 260)
 
-                        let elevs = elevPoints.map { $0.elevM }
-                        HStack(spacing: 8) {
-                            StatTile(value: String(format: "%.0f m", elevs.min() ?? 0), label: "Min. Höhe")
-                            StatTile(value: String(format: "%.0f m", elevs.max() ?? 0), label: "Max. Höhe")
-                            StatTile(value: String(format: "%.0f m", (elevs.max() ?? 0) - (elevs.min() ?? 0)),
-                                     label: "Differenz")
-                            StatTile(value: String(format: "%.1f km", elevDist), label: "Distanz")
+                        // Legend
+                        HStack(spacing: 14) {
+                            HStack(spacing: 5) {
+                                // LOS: dashed yellow line
+                                Canvas { ctx, sz in
+                                    var p = Path(); p.move(to: .init(x: 0, y: sz.height/2))
+                                    p.addLine(to: .init(x: sz.width, y: sz.height/2))
+                                    ctx.stroke(p, with: .color(.yellow.opacity(0.9)),
+                                               style: StrokeStyle(lineWidth: 2, dash: [5,3]))
+                                }
+                                .frame(width: 24, height: 8)
+                                Text("LOS (k=4/3)").font(.caption2).foregroundStyle(.secondary)
+                            }
+                            if showFresnel {
+                                ForEach(bandDefs.filter { activeBands.contains($0.name) }, id: \.name) { band in
+                                    HStack(spacing: 4) {
+                                        Canvas { ctx, sz in
+                                            let y = sz.height/2
+                                            var top = Path(); top.move(to: .init(x: 0, y: y-3))
+                                            top.addLine(to: .init(x: sz.width, y: y-3))
+                                            var bot = Path(); bot.move(to: .init(x: 0, y: y+3))
+                                            bot.addLine(to: .init(x: sz.width, y: y+3))
+                                            ctx.stroke(top, with: .color(band.color), lineWidth: 1.5)
+                                            ctx.stroke(bot, with: .color(band.color), lineWidth: 1.5)
+                                        }
+                                        .frame(width: 24, height: 10)
+                                        Text("1.FZ \(band.name)").font(.caption2).foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            Spacer()
+                        }
+
+                        // Stats: 2×2 grid (no overflow)
+                        let eMin = elevs.min() ?? 0
+                        let eMax = elevs.max() ?? 0
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                            StatTile(value: String(format: "%.0f m", eMin),        label: "Min. Höhe")
+                            StatTile(value: String(format: "%.0f m", eMax),        label: "Max. Höhe")
+                            StatTile(value: String(format: "%.0f m", eMax - eMin), label: "Differenz")
+                            StatTile(value: String(format: "%.1f km", elevDist),   label: "Distanz")
                         }
                     }
                 }
@@ -777,12 +961,35 @@ struct QTHLocatorView: View {
         do {
             let pts = try await QTHService.shared.elevationProfile(
                 lat1: llA.lat, lng1: llA.lon, lat2: llB.lat, lng2: llB.lon)
+            let dist = Maidenhead.distKm(llA, llB)
             elevPoints = pts
-            elevDist   = Maidenhead.distKm(llA, llB)
+            elevDist   = dist
+            // LOS with earth-curvature correction (k=4/3 standard atmosphere)
+            let h0 = pts.first?.elevM ?? 0
+            let hN = pts.last?.elevM  ?? 0
+            let D  = dist * 1000          // km → m
+            losPoints = pts.enumerated().map { i, pt in
+                let d = pt.distKm * 1000
+                let linear = D > 0 ? h0 + (hN - h0) * (d / D) : h0
+                let bulge  = D > 0 ? d * (D - d) / (2 * 6_371_000 * 1.333) : 0
+                return LOSPt(id: i, distKm: pt.distKm, losM: linear + bulge)
+            }
         } catch {
             elevError = "Fehler: \(error.localizedDescription). Bitte nochmals versuchen."
         }
         elevBusy = false
+    }
+
+    private func fresnelSeries(freqMHz: Double, tag: String) -> [FresnelPt] {
+        guard !losPoints.isEmpty, elevDist > 0 else { return [] }
+        let D = elevDist * 1000
+        let lambda = 3e8 / (freqMHz * 1e6)
+        return losPoints.map { pt in
+            let d = pt.distKm * 1000, d2 = D - d
+            let r = (d > 0 && d2 > 0) ? sqrt(lambda * d * d2 / (d + d2)) : 0.0
+            return FresnelPt(id: "\(tag)_\(pt.id)", distKm: pt.distKm,
+                             upper: pt.losM + r, lower: pt.losM - r)
+        }
     }
 
     // MARK: Helpers
