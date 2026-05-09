@@ -56,7 +56,7 @@ actor SOTAFetcher {
             guard !seenIDs.contains(uid) else { continue }
             seenIDs.insert(uid)
             if seenIDs.count > 5000 { seenIDs.removeAll() }
-            let freqMHz = entry["frequency"] as? Double ?? 0
+            let freqMHz = (entry["frequency"] as? Double) ?? Double(entry["frequency"] as? String ?? "") ?? 0
             let dxCall  = (entry["activatorCallsign"] as? String ?? "").uppercased()
             let spotter = (entry["callsign"] as? String ?? "").uppercased()
             let summit  = entry["summitCode"] as? String ?? ""

@@ -111,6 +111,8 @@ struct ContentView: View {
                 CalculatorRouter(calculator: calc)
                     .environmentObject(dxClusterVM)
                     .environmentObject(themeManager)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .preferredColorScheme(themeManager.theme.colorScheme)
             } else {
                 WelcomeView()
             }

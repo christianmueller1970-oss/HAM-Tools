@@ -23,15 +23,16 @@ struct DXClusterView: View {
             Divider()
             HSplitView {
                 leftPanel
-                    .frame(minWidth: 500)
+                    .frame(minWidth: 480)
                 PropagationPanelView(
                     propagation: vm.propagation,
                     bandMatrix:  vm.bandMatrix(minutes: heatmapMinutes),
                     theme:       theme
                 )
-                .frame(minWidth: 240, idealWidth: 300, maxWidth: 380)
+                .frame(minWidth: 220, idealWidth: 280, maxWidth: 360)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.bgApp)
         .preferredColorScheme(theme.colorScheme)
         .navigationTitle("DX-Cluster")
@@ -158,12 +159,15 @@ struct DXClusterView: View {
         VSplitView {
             VStack(spacing: 0) {
                 tabBar
+                    .fixedSize(horizontal: false, vertical: true)
                 filterBar
+                    .fixedSize(horizontal: false, vertical: true)
                 tabContent
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             ClusterLogView(messages: vm.logMessages, theme: theme)
-                .frame(minHeight: 100, idealHeight: 200)
+                .frame(minHeight: 80, idealHeight: 160)
         }
     }
 
@@ -177,6 +181,7 @@ struct DXClusterView: View {
             tabButton("Statistik",  index: 3)
             Spacer()
         }
+        .frame(maxWidth: .infinity)
         .background(theme.bgPanel)
     }
 

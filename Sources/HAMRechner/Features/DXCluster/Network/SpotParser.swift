@@ -3,12 +3,15 @@ import Foundation
 // Parses DXSpider telnet lines.
 // Format: DX de SPOTTER: FREQ  DX_CALL  COMMENT  HHMZ
 struct SpotParser {
+    // Allow # @ _ in callsigns — DXSpider uses OE5XFM-# for routed spots
+    private static let callChar = #"[A-Z0-9/\-#@_]+"#
+
     private static let pattern = try! NSRegularExpression(
-        pattern: #"^DX\s+de\s+([A-Z0-9/\-]+)\s*:\s*(\d+\.?\d*)\s+([A-Z0-9/\-]+)\s+(.*?)\s+(\d{4}Z)\s*$"#,
+        pattern: #"^DX\s+de\s+([A-Z0-9/\-#@_]+)\s*:\s*(\d+\.?\d*)\s+([A-Z0-9/\-#@_]+)\s+(.*?)\s+(\d{4}Z)\s*$"#,
         options: [.caseInsensitive]
     )
     private static let patternSimple = try! NSRegularExpression(
-        pattern: #"^DX\s+de\s+([A-Z0-9/\-]+)\s*:\s*(\d+\.?\d*)\s+([A-Z0-9/\-]+)\s*(.*?)$"#,
+        pattern: #"^DX\s+de\s+([A-Z0-9/\-#@_]+)\s*:\s*(\d+\.?\d*)\s+([A-Z0-9/\-#@_]+)\s*(.*?)$"#,
         options: [.caseInsensitive]
     )
 

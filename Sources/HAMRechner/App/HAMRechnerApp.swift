@@ -12,9 +12,11 @@ struct HAMRechnerApp: App {
                 .environmentObject(themeManager)
                 .environmentObject(clusterStore)
                 .environmentObject(watchList)
+                .frame(minWidth: 900, minHeight: 580)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
+        .defaultSize(width: 1280, height: 760)
         .commands {
             CommandGroup(replacing: .newItem) {}
         }

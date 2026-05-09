@@ -156,6 +156,18 @@ final class ClusterClient {
         connection?.send(content: "\(callsign)\r\n".data(using: .utf8),
                          completion: .idempotent)
         appendLog("[\(ts())] Sende Rufzeichen: \(callsign)")
+        scheduleLoginFallback()
+    }
+
+    private func scheduleLoginFallback() {
+        queue.asyncAfter(deadline: .now() + 8) { [weak self] in
+            guard let self, self.callsignSent, !self.loggedIn, !self.stopFlag else { return }
+            self.loggedIn = true
+            self.setStatus(.connected)
+            self.appendLog("[\(ts())] >>> EINGELOGGT (\(self.callsign)) — Timeout-Fallback <<<")
+            self.connection?.send(content: "sh/dx 50\r\n".data(using: .utf8),
+                                  completion: .idempotent)
+        }
     }
 
     private func scheduleCallsignFallback() {
