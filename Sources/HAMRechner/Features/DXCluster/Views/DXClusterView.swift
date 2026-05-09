@@ -6,7 +6,7 @@ struct DXClusterView: View {
     @EnvironmentObject var clusterStore: ClusterSettingsStore
     @EnvironmentObject var watchList:    WatchListStore
 
-    @Environment(\.openSettings) private var openSettings
+    @AppStorage("qthLocator") private var qthLocator = "JN47PN"
 
     @State private var selectedTab    = 0
     @State private var heatmapMinutes = 60
@@ -70,7 +70,7 @@ struct DXClusterView: View {
 
             Spacer()
 
-            Text("QTH: JN47PN")
+            Text("QTH: \(qthLocator)")
                 .font(.caption)
                 .foregroundStyle(theme.textSecondary)
 
@@ -107,8 +107,6 @@ struct DXClusterView: View {
                     }
                 }
             }
-            Divider()
-            Button("Cluster-Einstellungen…") { openSettings() }
         } label: {
             HStack(spacing: 5) {
                 Circle()

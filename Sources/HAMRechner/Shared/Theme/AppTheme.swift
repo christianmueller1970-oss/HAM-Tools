@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 // MARK: - AppTheme
 
@@ -189,11 +190,18 @@ final class ThemeManager: ObservableObject {
 
     init() {
         let raw = UserDefaults.standard.string(forKey: "appTheme") ?? AppTheme.hamStyle.rawValue
-        theme = AppTheme(rawValue: raw) ?? .hamStyle
+        let t = AppTheme(rawValue: raw) ?? .hamStyle
+        theme = t
+        applyNSAppearance(t)
     }
 
     func setTheme(_ newTheme: AppTheme) {
         theme = newTheme
         UserDefaults.standard.set(newTheme.rawValue, forKey: "appTheme")
+        applyNSAppearance(newTheme)
+    }
+
+    private func applyNSAppearance(_ t: AppTheme) {
+        NSApp.appearance = NSAppearance(named: t.colorScheme == .dark ? .darkAqua : .aqua)
     }
 }

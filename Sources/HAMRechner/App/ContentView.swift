@@ -103,6 +103,8 @@ struct ContentView: View {
     @StateObject private var dxClusterVM = DXClusterViewModel()
     @State private var selectedCalculator: Calculator? = .dxCluster
 
+    private var theme: AppTheme { themeManager.theme }
+
     var body: some View {
         NavigationSplitView {
             SidebarView(selectedCalculator: $selectedCalculator)
@@ -112,13 +114,16 @@ struct ContentView: View {
                     .environmentObject(dxClusterVM)
                     .environmentObject(themeManager)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .preferredColorScheme(themeManager.theme.colorScheme)
+                    .background(theme.bgApp)
+                    .preferredColorScheme(theme.colorScheme)
             } else {
                 WelcomeView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(theme.bgApp)
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .preferredColorScheme(themeManager.theme.colorScheme)
+        .preferredColorScheme(theme.colorScheme)
     }
 }
 
@@ -127,12 +132,15 @@ struct ContentView: View {
 struct SidebarView: View {
     @Binding var selectedCalculator: Calculator?
     @EnvironmentObject var themeManager: ThemeManager
+    @Environment(\.openSettings) private var openSettings
 
     private let categories = [
         "Live-Tools",
         "Drahtantennen", "Richtstrahler", "Spezialantennen",
         "Spulen & Transformatoren", "Anpassung & Leitungen", "Signale & Tools"
     ]
+
+    private var theme: AppTheme { themeManager.theme }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -141,36 +149,32 @@ struct SidebarView: View {
                     Section(category) {
                         ForEach(Calculator.allCases.filter { $0.category == category }) { calc in
                             Label(calc.rawValue, systemImage: calc.icon)
+                                .foregroundStyle(theme.textPrimary)
                                 .tag(calc)
                         }
                     }
                 }
             }
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+            .background(theme.bgPanel)
 
             Divider()
-            themePicker
+            settingsButton
         }
+        .background(theme.bgPanel)
         .navigationTitle("HAM-Tools")
         .navigationSubtitle("HB9HJI Funkwelt")
         .navigationSplitViewColumnWidth(min: 220, ideal: 230, max: 320)
     }
 
-    private var themePicker: some View {
-        HStack {
-            Image(systemName: "paintpalette")
-                .foregroundStyle(.secondary)
-                .font(.caption)
-            Picker("", selection: Binding(
-                get: { themeManager.theme },
-                set: { themeManager.setTheme($0) }
-            )) {
-                ForEach(AppTheme.allCases) { t in
-                    Text(t.displayName).tag(t)
-                }
-            }
-            .pickerStyle(.menu)
+    private var settingsButton: some View {
+        Button { openSettings() } label: {
+            Label("Einstellungen", systemImage: "gear")
+                .frame(maxWidth: .infinity)
         }
+        .buttonStyle(.bordered)
+        .controlSize(.regular)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }

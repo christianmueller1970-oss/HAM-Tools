@@ -14,7 +14,7 @@ struct EinstellungenView: View {
             AlertsTab()
                 .tabItem { Label("Alerts", systemImage: "bell.badge") }
         }
-        .frame(width: 560, height: 460)
+        .frame(width: 560, height: 420)
     }
 }
 
@@ -25,29 +25,36 @@ private struct StationTab: View {
     @AppStorage("qthLocator") private var qthLocator = "JN47PN"
 
     var body: some View {
-        Form {
-            Section("Eigene Station") {
-                LabeledContent("Rufzeichen") {
-                    TextField("z.B. HB9HJI", text: $callsign)
-                        .frame(width: 140)
-                        .font(.system(.body, design: .monospaced))
-                        .onChange(of: callsign) { callsign = callsign.uppercased() }
-                }
-                LabeledContent("QTH-Locator") {
-                    TextField("z.B. JN47PN", text: $qthLocator)
-                        .frame(width: 140)
-                        .font(.system(.body, design: .monospaced))
-                        .onChange(of: qthLocator) { qthLocator = qthLocator.uppercased() }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                GroupBox("Eigene Station") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("Rufzeichen").frame(width: 110, alignment: .leading)
+                            TextField("HB9HJI", text: $callsign)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(width: 160)
+                                .onChange(of: callsign) { callsign = callsign.uppercased() }
+                        }
+                        HStack {
+                            Text("QTH-Locator").frame(width: 110, alignment: .leading)
+                            TextField("JN47PN", text: $qthLocator)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(width: 160)
+                                .onChange(of: qthLocator) { qthLocator = qthLocator.uppercased() }
+                        }
+                        Text("Das Rufzeichen wird für den Cluster-Login und das Senden von DX-Spots verwendet.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(4)
                 }
             }
-            Section {
-                Text("Das Rufzeichen wird für den Cluster-Login und das Senden von DX-Spots verwendet.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            .padding(16)
         }
-        .formStyle(.grouped)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
@@ -194,20 +201,26 @@ private struct NodeEditSheet: View {
 
             // Form
             Form {
-                LabeledContent("Name") {
-                    TextField("z.B. DXSpider Schweiz", text: $node.name)
-                        .frame(width: 220)
+                Section {
+                    HStack {
+                        Text("Name").frame(width: 60, alignment: .leading)
+                        TextField("z.B. DXSpider Schweiz", text: $node.name)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    HStack {
+                        Text("Host").frame(width: 60, alignment: .leading)
+                        TextField("z.B. dxspider.funkwelt.net", text: $node.host)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(.body, design: .monospaced))
+                    }
+                    HStack {
+                        Text("Port").frame(width: 60, alignment: .leading)
+                        TextField("7300", value: $node.port, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                    }
+                    Toggle("Automatisch verbinden beim Start", isOn: $node.autoConnect)
                 }
-                LabeledContent("Host") {
-                    TextField("z.B. dxspider.funkwelt.net", text: $node.host)
-                        .frame(width: 220)
-                        .font(.system(.body, design: .monospaced))
-                }
-                LabeledContent("Port") {
-                    TextField("7300", value: $node.port, format: .number)
-                        .frame(width: 70)
-                }
-                Toggle("Automatisch verbinden beim Start", isOn: $node.autoConnect)
             }
             .formStyle(.grouped)
 
@@ -238,39 +251,32 @@ private struct DarstellungTab: View {
     var body: some View {
         Form {
             Section("Design-Variante") {
-                ForEach(AppTheme.allCases) { theme in
+                ForEach(AppTheme.allCases) { t in
                     HStack(spacing: 12) {
-                        // Mini-Swatch
                         ZStack {
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(theme.bgApp)
+                                .fill(t.bgApp)
                                 .frame(width: 36, height: 22)
                             RoundedRectangle(cornerRadius: 4)
-                                .strokeBorder(theme.accentBlue, lineWidth: 1.5)
+                                .strokeBorder(t.accentBlue, lineWidth: 1.5)
                                 .frame(width: 36, height: 22)
                             HStack(spacing: 2) {
-                                Rectangle().fill(theme.bgLog)   .frame(width: 12, height: 14)
-                                Rectangle().fill(theme.bgPanel) .frame(width: 10, height: 14)
+                                Rectangle().fill(t.bgLog)   .frame(width: 12, height: 14)
+                                Rectangle().fill(t.bgPanel) .frame(width: 10, height: 14)
                             }
                             .cornerRadius(2)
                         }
-
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(theme.displayName).font(.body)
-                            Text(themeSubtitle(theme))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            Text(t.displayName).font(.body)
+                            Text(themeSubtitle(t)).font(.caption).foregroundStyle(.secondary)
                         }
-
                         Spacer()
-
-                        if themeManager.theme == theme {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.blue)
+                        if themeManager.theme == t {
+                            Image(systemName: "checkmark.circle.fill").foregroundStyle(.blue)
                         }
                     }
                     .contentShape(Rectangle())
-                    .onTapGesture { themeManager.setTheme(theme) }
+                    .onTapGesture { themeManager.setTheme(t) }
                     .padding(.vertical, 4)
                 }
             }
@@ -295,15 +301,17 @@ private struct AlertsTab: View {
     @State private var newEntry = ""
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                Section("Watch-Liste") {
-                    if watchList.entries.isEmpty {
-                        Text("Noch keine Einträge")
-                            .foregroundStyle(.secondary)
-                            .font(.callout)
-                    } else {
-                        List {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+
+                GroupBox("Watch-Liste") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if watchList.entries.isEmpty {
+                            Text("Noch keine Einträge")
+                                .foregroundStyle(.secondary)
+                                .font(.callout)
+                                .padding(.vertical, 4)
+                        } else {
                             ForEach(watchList.entries, id: \.self) { entry in
                                 HStack {
                                     Text(entry)
@@ -314,46 +322,51 @@ private struct AlertsTab: View {
                                             watchList.remove(at: IndexSet(integer: idx))
                                         }
                                     } label: {
-                                        Image(systemName: "trash")
-                                            .foregroundStyle(.red)
+                                        Image(systemName: "trash").foregroundStyle(.red)
                                     }
                                     .buttonStyle(.borderless)
                                 }
+                                .padding(.vertical, 2)
+                                Divider()
                             }
                         }
-                        .frame(height: min(CGFloat(watchList.entries.count) * 28 + 8, 140))
-                    }
 
-                    HStack(spacing: 6) {
-                        TextField("Rufzeichen oder Präfix (z.B. DL, HB9HJI)", text: $newEntry)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.system(.body, design: .monospaced))
-                            .onSubmit { addEntry() }
-                        Button("Hinzufügen", action: addEntry)
-                            .disabled(newEntry.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
+                        HStack(spacing: 8) {
+                            TextField("Rufzeichen oder Präfix (z.B. DL, HB9HJI)", text: $newEntry)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(.body, design: .monospaced))
+                                .onSubmit { addEntry() }
+                            Button("Hinzufügen", action: addEntry)
+                                .disabled(newEntry.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
 
-                    Text("Spots mit übereinstimmendem DX-Rufzeichen werden gold markiert.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        Text("Spots mit übereinstimmendem DX-Rufzeichen werden gold markiert.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(4)
                 }
 
-                Section("Benachrichtigungen") {
-                    Toggle("macOS-Benachrichtigungen aktivieren", isOn: $watchList.notificationsEnabled)
-                    Text("Beim Erscheinen eines überwachten Spots wird eine System-Benachrichtigung gesendet.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                GroupBox("Benachrichtigungen") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Toggle("macOS-Benachrichtigungen aktivieren",
+                               isOn: $watchList.notificationsEnabled)
+                        Text("Beim Erscheinen eines überwachten Spots wird eine System-Benachrichtigung gesendet.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(4)
                 }
             }
-            .formStyle(.grouped)
+            .padding(16)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func addEntry() {
         let trimmed = newEntry.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return }
-        watchList.add(trimmed)
+        watchList.add(trimmed.uppercased())
         newEntry = ""
     }
 }

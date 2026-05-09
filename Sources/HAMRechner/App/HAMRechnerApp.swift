@@ -13,6 +13,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(clusterStore)
                 .environmentObject(watchList)
                 .frame(minWidth: 900, minHeight: 580)
+                .preferredColorScheme(themeManager.theme.colorScheme)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
@@ -26,6 +27,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(themeManager)
                 .environmentObject(clusterStore)
                 .environmentObject(watchList)
+                .preferredColorScheme(themeManager.theme.colorScheme)
         }
     }
 }

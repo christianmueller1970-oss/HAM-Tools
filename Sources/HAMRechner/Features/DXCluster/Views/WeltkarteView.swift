@@ -26,12 +26,14 @@ struct WeltkarteView: View {
     let spots: [DXSpot]
     let theme: AppTheme
 
+    @AppStorage("qthLocator") private var qthLocator = "JN47PN"
+
     @State private var selectedSpot:     DXSpot? = nil
     @State private var showSpotterLines  = false
     @State private var timeMinutes       = 60
     @State private var cameraPosition    = MapCameraPosition.region(
         MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: 20, longitude: 10),
+            center: CLLocationCoordinate2D(latitude: 47, longitude: 8),
             span:   MKCoordinateSpan(latitudeDelta: 160, longitudeDelta: 340)
         )
     )
@@ -51,6 +53,16 @@ struct WeltkarteView: View {
             }
         }
         .background(theme.bgApp)
+        .onAppear { centerOnQTH() }
+        .onChange(of: qthLocator) { centerOnQTH() }
+    }
+
+    private func centerOnQTH() {
+        guard let (lat, lon) = locatorToLatLon(qthLocator) else { return }
+        cameraPosition = .region(MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+            span:   MKCoordinateSpan(latitudeDelta: 160, longitudeDelta: 340)
+        ))
     }
 
     // MARK: - Map
