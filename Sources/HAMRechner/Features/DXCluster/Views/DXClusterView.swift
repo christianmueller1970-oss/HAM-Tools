@@ -4,6 +4,7 @@ struct DXClusterView: View {
     @EnvironmentObject var vm:           DXClusterViewModel
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var clusterStore: ClusterSettingsStore
+    @EnvironmentObject var watchList:    WatchListStore
 
     @Environment(\.openSettings) private var openSettings
 
@@ -36,7 +37,7 @@ struct DXClusterView: View {
         .navigationTitle("DX-Cluster")
         .onAppear {
             updateClock()
-            vm.setup()   // lädt persistierte Spots, einmalig
+            vm.setup(watchStore: watchList)
             if let node = clusterStore.activeNode {
                 vm.connect(host: node.host, port: node.port)
             } else {
@@ -70,6 +71,13 @@ struct DXClusterView: View {
             Text("QTH: JN47PN")
                 .font(.caption)
                 .foregroundStyle(theme.textSecondary)
+
+            if vm.alertCount > 0 {
+                Label("\(vm.alertCount)", systemImage: "bell.fill")
+                    .font(.caption.bold())
+                    .foregroundStyle(.yellow)
+                    .onTapGesture { vm.alertCount = 0 }
+            }
 
             dxSpotButton
 
@@ -216,6 +224,11 @@ struct DXClusterView: View {
                 .controlSize(.small)
                 .tint(theme.accentRed)
 
+            Button("Leeren") { vm.clearSpots() }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .tint(theme.textDim)
+
             Spacer()
             Text("\(vm.spotCount) Spots")
                 .font(.caption.bold())
@@ -266,7 +279,7 @@ struct DXClusterView: View {
     @ViewBuilder
     private var tabContent: some View {
         switch selectedTab {
-        case 0: SpotListView(spots:  vm.filteredSpots, theme: theme)
+        case 0: SpotListView(spots: vm.filteredSpots, theme: theme, watchList: watchList)
         case 1: BandmapView(spots:   vm.filteredSpots, theme: theme)
         case 2: WeltkarteView(spots: vm.filteredSpots, theme: theme)
         case 3: StatistikView(spots: vm.spots,         theme: theme)

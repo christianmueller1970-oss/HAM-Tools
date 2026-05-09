@@ -33,6 +33,11 @@ final class DXClusterViewModel: ObservableObject {
 
     var myCallsign: String { storedCallsign }
 
+    // MARK: - Watch list
+    var watchStore: WatchListStore?
+    @Published var alertCount = 0
+    private var notifiedThisSession = Set<String>()
+
     // MARK: - Persistence
     private var didSetup     = false
     private var unsavedCount = 0
@@ -98,7 +103,8 @@ final class DXClusterViewModel: ObservableObject {
 
     // MARK: - Persistence setup (einmalig aus DXClusterView.onAppear)
 
-    func setup() {
+    func setup(watchStore: WatchListStore? = nil) {
+        if let ws = watchStore { self.watchStore = ws }
         guard !didSetup else { return }
         didSetup = true
         let loaded = SpotPersistence.load()
@@ -182,6 +188,15 @@ final class DXClusterViewModel: ObservableObject {
         searchText = ""; spotterRadiusKm = 0
     }
 
+    func clearSpots() {
+        spots = []
+        unsavedCount = 0
+        SpotPersistence.save([])
+        notifiedThisSession.removeAll()
+        alertCount = 0
+        appendLog("[INFO] Spot-Liste geleert")
+    }
+
     func sendSpot(freq: Double, call: String, comment: String) {
         let cmd = "DX \(String(format: "%.1f", freq)) \(call.uppercased()) \(comment)"
         client?.sendCommand(cmd)
@@ -194,6 +209,12 @@ final class DXClusterViewModel: ObservableObject {
         if spots.count > SpotPersistence.maxSpots { spots.removeLast() }
         unsavedCount += 1
         if unsavedCount >= 25 { savePending() }
+        if let ws = watchStore, ws.matches(spot.dxCall) {
+            alertCount += 1
+            if notifiedThisSession.insert(spot.dxCall + spot.displayFreq).inserted {
+                ws.sendNotification(for: spot)
+            }
+        }
     }
 
     private func appendLog(_ msg: String) {

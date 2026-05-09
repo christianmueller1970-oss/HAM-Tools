@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct SpotListView: View {
-    let spots: [DXSpot]
-    let theme: AppTheme
+    let spots:     [DXSpot]
+    let theme:     AppTheme
+    var watchList: WatchListStore? = nil
 
     @State private var sortOrder = [KeyPathComparator(\DXSpot.timestamp, order: .reverse)]
     @State private var selection: DXSpot.ID? = nil
@@ -25,6 +26,15 @@ struct SpotListView: View {
 
     private var spotTable: some View {
         Table(sortedSpots, selection: $selection, sortOrder: $sortOrder) {
+            TableColumn("") { s in
+                if watchList?.matches(s.dxCall) == true {
+                    Text("★")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Color.yellow)
+                }
+            }
+            .width(18)
+
             TableColumn("Zeit", value: \.spotTime) { s in
                 cell(s.displayTime, s)
             }
@@ -49,9 +59,10 @@ struct SpotListView: View {
             .width(min: 45, ideal: 55)
 
             TableColumn("DX-Rufz.", value: \.dxCall) { s in
+                let watched = watchList?.matches(s.dxCall) == true
                 Text(s.dxCall)
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(bandColor(for: s.band))
+                    .foregroundStyle(watched ? Color(red: 1, green: 0.8, blue: 0) : bandColor(for: s.band))
             }
             .width(min: 80, ideal: 100)
 
@@ -74,11 +85,6 @@ struct SpotListView: View {
                 cell(s.spotter, s)
             }
             .width(min: 70, ideal: 95)
-
-            TableColumn("Cluster", value: \.source) { s in
-                cell(s.source, s)
-            }
-            .width(min: 80, ideal: 120)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .font(.system(size: 12))
@@ -86,9 +92,10 @@ struct SpotListView: View {
 
     @ViewBuilder
     private func cell(_ text: String, _ spot: DXSpot) -> some View {
+        let watched = watchList?.matches(spot.dxCall) == true
         Text(text)
             .font(.system(size: 12, design: .monospaced))
-            .foregroundStyle(bandColor(for: spot.band))
+            .foregroundStyle(watched ? Color(red: 1, green: 0.8, blue: 0) : bandColor(for: spot.band))
             .lineLimit(1)
     }
 

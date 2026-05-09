@@ -11,8 +11,10 @@ struct EinstellungenView: View {
                 .tabItem { Label("Cluster", systemImage: "server.rack") }
             DarstellungTab()
                 .tabItem { Label("Darstellung", systemImage: "paintpalette") }
+            AlertsTab()
+                .tabItem { Label("Alerts", systemImage: "bell.badge") }
         }
-        .frame(width: 560, height: 420)
+        .frame(width: 560, height: 460)
     }
 }
 
@@ -283,5 +285,75 @@ private struct DarstellungTab: View {
         case .dark:       return "Dunkles Design — blau-grauer Hintergrund"
         case .hamClassic: return "Ham Classic — bernsteinfarbenes Terminal"
         }
+    }
+}
+
+// MARK: - Alerts
+
+private struct AlertsTab: View {
+    @EnvironmentObject var watchList: WatchListStore
+    @State private var newEntry = ""
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section("Watch-Liste") {
+                    if watchList.entries.isEmpty {
+                        Text("Noch keine Einträge")
+                            .foregroundStyle(.secondary)
+                            .font(.callout)
+                    } else {
+                        List {
+                            ForEach(watchList.entries, id: \.self) { entry in
+                                HStack {
+                                    Text(entry)
+                                        .font(.system(.body, design: .monospaced))
+                                    Spacer()
+                                    Button {
+                                        if let idx = watchList.entries.firstIndex(of: entry) {
+                                            watchList.remove(at: IndexSet(integer: idx))
+                                        }
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .foregroundStyle(.red)
+                                    }
+                                    .buttonStyle(.borderless)
+                                }
+                            }
+                        }
+                        .frame(height: min(CGFloat(watchList.entries.count) * 28 + 8, 140))
+                    }
+
+                    HStack(spacing: 6) {
+                        TextField("Rufzeichen oder Präfix (z.B. DL, HB9HJI)", text: $newEntry)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(.body, design: .monospaced))
+                            .onSubmit { addEntry() }
+                        Button("Hinzufügen", action: addEntry)
+                            .disabled(newEntry.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+
+                    Text("Spots mit übereinstimmendem DX-Rufzeichen werden gold markiert.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Benachrichtigungen") {
+                    Toggle("macOS-Benachrichtigungen aktivieren", isOn: $watchList.notificationsEnabled)
+                    Text("Beim Erscheinen eines überwachten Spots wird eine System-Benachrichtigung gesendet.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .formStyle(.grouped)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private func addEntry() {
+        let trimmed = newEntry.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        watchList.add(trimmed)
+        newEntry = ""
     }
 }
