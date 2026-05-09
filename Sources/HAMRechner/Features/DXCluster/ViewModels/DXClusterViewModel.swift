@@ -4,9 +4,9 @@ import SwiftUI
 @MainActor
 final class DXClusterViewModel: ObservableObject {
     // MARK: - Data
-    @Published var spots:       [DXSpot] = []
-    @Published var logMessages: [String] = []
-    @Published var propagation  = PropagationData()
+    @Published var spots:         [DXSpot] = []
+    @Published var logMessages:   [String] = []
+    @Published var propagation    = PropagationData()
     @Published var clusterStatus: ClusterClient.Status = .disconnected
 
     // MARK: - API status (true = reached at least once)
@@ -15,15 +15,15 @@ final class DXClusterViewModel: ObservableObject {
     @Published var wwffActive = false
 
     // MARK: - Filter state
-    @Published var filterBand:       String = "Alle"
-    @Published var filterMode:       String = "Alle"
-    @Published var filterContinent:  String = "Alle"
+    @Published var filterBand:      String = "Alle"
+    @Published var filterMode:      String = "Alle"
+    @Published var filterContinent: String = "Alle"
     @Published var showDX    = true
     @Published var showSOTA  = true
     @Published var showPOTA  = true
     @Published var showWWFF  = true
-    @Published var searchText        = ""
-    @Published var spotterRadiusKm   = 0   // 0 = kein Filter
+    @Published var searchText      = ""
+    @Published var spotterRadiusKm = 0
 
     // MARK: - Settings (persisted)
     @AppStorage("callsign")    private var storedCallsign = "HB9HJI"
@@ -33,6 +33,11 @@ final class DXClusterViewModel: ObservableObject {
 
     var myCallsign: String { storedCallsign }
 
+    // MARK: - Persistence
+    private var didSetup     = false
+    private var unsavedCount = 0
+
+    // MARK: - Network
     private var client:    ClusterClient?
     private var propTask:  Task<Void, Never>?
     private var sotaTask:  Task<Void, Never>?
@@ -46,7 +51,6 @@ final class DXClusterViewModel: ObservableObject {
     // MARK: - Computed
 
     var filteredSpots: [DXSpot] {
-        // Compute QTH position once per call (cheap string parse)
         let myPos: (lat: Double, lon: Double)? = spotterRadiusKm > 0
             ? locatorToLatLon(qthLocator)
             : nil
@@ -67,9 +71,7 @@ final class DXClusterViewModel: ObservableObject {
                    !spot.comment.uppercased().contains(q) &&
                    !spot.spotter.uppercased().contains(q) { return false }
             }
-            // Spotter-Radius: Spots ohne Spotter-Koordinaten passieren immer
-            if let pos = myPos,
-               (spot.spotterLat != 0 || spot.spotterLon != 0) {
+            if let pos = myPos, spot.spotterLat != 0 || spot.spotterLon != 0 {
                 let dist = haversineKm(lat1: pos.lat, lon1: pos.lon,
                                        lat2: spot.spotterLat, lon2: spot.spotterLon)
                 if dist > Double(spotterRadiusKm) { return false }
@@ -80,7 +82,6 @@ final class DXClusterViewModel: ObservableObject {
 
     var spotCount: Int { filteredSpots.count }
 
-    /// Band × Continent matrix for heatmap
     func bandMatrix(minutes: Int) -> [[Int]] {
         let cutoff = Date().addingTimeInterval(-Double(minutes) * 60)
         let recent = spots.filter { $0.timestamp >= cutoff }
@@ -95,14 +96,26 @@ final class DXClusterViewModel: ObservableObject {
         return matrix
     }
 
+    // MARK: - Persistence setup (einmalig aus DXClusterView.onAppear)
+
+    func setup() {
+        guard !didSetup else { return }
+        didSetup = true
+        let loaded = SpotPersistence.load()
+        spots = loaded
+        if !loaded.isEmpty {
+            appendLog("[DB] \(loaded.count) gespeicherte Spots geladen")
+        }
+    }
+
     // MARK: - Lifecycle
 
     func connect(host: String? = nil, port: Int? = nil) {
-        let host = host ?? clusterHost
-        let port = UInt16(port ?? clusterPort)
+        let h    = host ?? clusterHost
+        let p    = UInt16(port ?? clusterPort)
         let call = storedCallsign
 
-        client = ClusterClient(host: host, port: port, callsign: call, name: host)
+        client = ClusterClient(host: h, port: p, callsign: call, name: h)
         client?.onSpot    = { [weak self] spot in self?.addSpot(spot) }
         client?.onStatus  = { [weak self] status in self?.clusterStatus = status }
         client?.onMessage = { [weak self] msg in self?.appendLog(msg) }
@@ -145,6 +158,7 @@ final class DXClusterViewModel: ObservableObject {
     }
 
     func disconnect() {
+        savePending()
         client?.disconnect()
         propTask?.cancel()
         sotaTask?.cancel()
@@ -152,7 +166,6 @@ final class DXClusterViewModel: ObservableObject {
         wwffTask?.cancel()
     }
 
-    /// Switch to a different cluster node mid-session.
     func reconnect(to node: ClusterNode) {
         clusterHost = node.host
         clusterPort = node.port
@@ -169,7 +182,6 @@ final class DXClusterViewModel: ObservableObject {
         searchText = ""; spotterRadiusKm = 0
     }
 
-    /// Send a DX spot to the connected cluster node.
     func sendSpot(freq: Double, call: String, comment: String) {
         let cmd = "DX \(String(format: "%.1f", freq)) \(call.uppercased()) \(comment)"
         client?.sendCommand(cmd)
@@ -179,11 +191,19 @@ final class DXClusterViewModel: ObservableObject {
 
     private func addSpot(_ spot: DXSpot) {
         spots.insert(spot, at: 0)
-        if spots.count > 500 { spots.removeLast() }
+        if spots.count > SpotPersistence.maxSpots { spots.removeLast() }
+        unsavedCount += 1
+        if unsavedCount >= 25 { savePending() }
     }
 
     private func appendLog(_ msg: String) {
         logMessages.append(msg)
         if logMessages.count > 200 { logMessages.removeFirst(10) }
+    }
+
+    private func savePending() {
+        guard unsavedCount > 0 else { return }
+        SpotPersistence.save(spots)
+        unsavedCount = 0
     }
 }

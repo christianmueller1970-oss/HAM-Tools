@@ -5,12 +5,12 @@ struct DXClusterView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var clusterStore: ClusterSettingsStore
 
+    @Environment(\.openSettings) private var openSettings
+
     @State private var selectedTab    = 0
     @State private var heatmapMinutes = 60
     @State private var utcTime        = ""
     @State private var showSendSpot   = false
-
-    @Environment(\.openSettings) private var openSettings
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -36,6 +36,7 @@ struct DXClusterView: View {
         .navigationTitle("DX-Cluster")
         .onAppear {
             updateClock()
+            vm.setup()   // lädt persistierte Spots, einmalig
             if let node = clusterStore.activeNode {
                 vm.connect(host: node.host, port: node.port)
             } else {

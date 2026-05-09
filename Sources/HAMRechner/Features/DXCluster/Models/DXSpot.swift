@@ -1,6 +1,6 @@
 import Foundation
 
-struct DXSpot: Identifiable, Equatable {
+struct DXSpot: Identifiable, Equatable, Codable {
     let id = UUID()
     var spotter:     String
     var frequency:   Double
