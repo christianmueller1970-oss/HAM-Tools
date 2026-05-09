@@ -25,7 +25,7 @@ struct SpulenWicklerView: View {
                 if let r = ergebnis {
                     SpulenSkizze(ergebnis: r)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 220)
+                        .frame(height: 180)
                         .background(Color(nsColor: .controlBackgroundColor))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     ergebnisBereich(r)
@@ -150,49 +150,57 @@ struct SpulenSkizze: View {
     }
 
     private func draw(ctx: GraphicsContext, size: CGSize) {
-        let W = size.width
-        let H = size.height
+        let W = size.width, H = size.height
 
         let maxTurnsVis = 30
-        let n = ergebnis.windungen
-        let nVis = min(Int(ceil(n)), maxTurnsVis)
-        let D    = ergebnis.D_mm
-        let dw   = ergebnis.dw_mm
-        let s    = ergebnis.s_mm
+        let n     = ergebnis.windungen
+        let nVis  = min(Int(ceil(n)), maxTurnsVis)
+        let D     = ergebnis.D_mm
+        let dw    = ergebnis.dw_mm
+        let s     = ergebnis.s_mm
         let pitch = dw + s
 
-        // Layout
-        let leadLen: CGFloat = 36
-        let marginL: CGFloat = leadLen + 12
-        let marginR: CGFloat = 90
-        let marginT: CGFloat = 22
-        let marginB: CGFloat = 38
+        let leadLen: CGFloat = 32
+        let marginL: CGFloat = leadLen + 10
+        let marginR: CGFloat = 88
+        let marginT: CGFloat = 20
+        let marginB: CGFloat = 34
 
-        let availW = W - marginL - marginR
-        let availH = H - marginT - marginB
+        let availW  = W - marginL - marginR
+        let availH  = H - marginT - marginB
 
-        let bodyH   = min(availH * 0.55, 100.0)
-        let pitchPx = availW / CGFloat(nVis)
-        let wireThick = max(2, min(8, bodyH * CGFloat(dw / D) * 0.8))
-        let ex      = max(3, pitchPx * 0.38)
-        let ey      = bodyH / 2 + wireThick * 0.5
+        // Körperhöhe in Pixel (repräsentiert Durchmesser D)
+        let bodyH = min(availH * 0.5, 70.0)
 
-        let bodyX = marginL
-        let bodyW = CGFloat(nVis) * pitchPx
+        // Physisch-proportionale Körperbreite: Länge/Durchmesser-Verhältnis beibehalten
+        let coilLenMm  = n * pitch
+        let aspect     = CGFloat(coilLenMm / D)
+        let idealBodyW = bodyH * aspect
+        let bodyW      = max(80.0, min(idealBodyW, availW))
+
+        // Spule horizontal zentrieren
+        let bodyX = marginL + (availW - bodyW) / 2.0
         let cy    = marginT + availH * 0.5
+        let bTop  = cy - bodyH / 2.0
+        let bBot  = cy + bodyH / 2.0
 
-        let bTop = cy - bodyH / 2
-        let bBot = cy + bodyH / 2
+        let pitchPx       = bodyW / CGFloat(nVis)
+        let dw_over_pitch = CGFloat(dw / pitch)
+        // Bei s=0: wireThick ≈ pitchPx → dicht; bei s>0: Lücken sichtbar
+        let wireThick: CGFloat = max(1.5, min(pitchPx * dw_over_pitch, 10.0))
+        let ey: CGFloat        = bodyH / 2.0
 
         let accent      = Color(red: 0.83, green: 0.33, blue: 0.0)
         let accentDark  = Color(red: 0.55, green: 0.18, blue: 0.0)
         let bodyStroke  = Color(red: 0.60, green: 0.69, blue: 0.78)
 
         // ── Hintergrund ──
-        ctx.fill(RoundedRectangle(cornerRadius: 10).path(in: CGRect(x: 0, y: 0, width: W, height: H)),
-                 with: .color(Color(nsColor: .controlBackgroundColor)))
+        ctx.fill(
+            RoundedRectangle(cornerRadius: 10).path(in: CGRect(x: 0, y: 0, width: W, height: H)),
+            with: .color(Color(nsColor: .controlBackgroundColor))
+        )
 
-        // ── Spulenkörper ──
+        // ── Spulenkörper (Zylinder-Querschnitt) ──
         let bodyRect = CGRect(x: bodyX, y: bTop, width: bodyW, height: bodyH)
         ctx.fill(Path(bodyRect), with: .linearGradient(
             Gradient(colors: [Color(red: 0.92, green: 0.95, blue: 0.98),
@@ -203,91 +211,71 @@ struct SpulenSkizze: View {
         ))
         ctx.stroke(Path(bodyRect), with: .color(bodyStroke), lineWidth: 1.5)
 
-        // Endkappen
-        drawEllipse(ctx: ctx, cx: bodyX, cy: cy, rx: ex * 0.7, ry: bodyH / 2,
-                    fill: Color(red: 0.75, green: 0.83, blue: 0.91),
-                    stroke: bodyStroke, strokeWidth: 1.5)
-        drawEllipse(ctx: ctx, cx: bodyX + bodyW, cy: cy, rx: ex * 0.7, ry: bodyH / 2,
-                    fill: Color(red: 0.78, green: 0.87, blue: 0.94),
-                    stroke: bodyStroke, strokeWidth: 1.5)
+        let capRx: CGFloat = ey * 0.22
+        drawEllipse(ctx: ctx, cx: bodyX, cy: cy, rx: capRx, ry: bodyH / 2,
+                    fill: Color(red: 0.75, green: 0.83, blue: 0.91), stroke: bodyStroke, strokeWidth: 1.5)
+        drawEllipse(ctx: ctx, cx: bodyX + bodyW, cy: cy, rx: capRx, ry: bodyH / 2,
+                    fill: Color(red: 0.78, green: 0.87, blue: 0.94), stroke: bodyStroke, strokeWidth: 1.5)
 
-        // ── Hintere Bögen (obere Halbellipse, dunkler) ──
-        for i in 0..<nVis {
-            let cx = bodyX + (CGFloat(i) + 0.5) * pitchPx
-            var p = Path()
-            p.move(to: CGPoint(x: cx - ex, y: cy))
-            p.addArc(center: CGPoint(x: cx, y: cy),
-                     radius: ex,
-                     startAngle: .degrees(180),
-                     endAngle: .degrees(0),
-                     clockwise: false)
-            // Skaliere Y mit ey/ex
-            let t = CGAffineTransform(scaleX: 1, y: ey / ex)
-                .concatenating(CGAffineTransform(translationX: 0, y: cy - cy * (ey / ex)))
-            ctx.stroke(p.applying(t), with: .color(accentDark.opacity(0.5)), lineWidth: wireThick)
+        // ── Helix-Wicklung ──
+        //
+        // Parametrische Helix, auf die 2D-Seitenansicht projiziert:
+        //   x(t) = bodyX + (t / (2π·nVis)) · bodyW   → Fortschritt entlang Zylinderachse
+        //   y(t) = cy − ey · cos(t)                   → vertikale Sinusschwingung
+        //
+        // Sichtbarkeit (Draht vor oder hinter dem Zylinder):
+        //   sin(t) ≥ 0  → Vorderseite  (Draht kommt zum Betrachter)
+        //   sin(t) <  0 → Rückseite    (Draht geht vom Betrachter weg)
+        //
+        // t = 0       → Draht oben (y = cy−ey), Helix-Start = Anschluss linke Zuleitung
+        // t = 2π·nVis → Draht oben (y = cy−ey), Helix-Ende  = Anschluss rechte Zuleitung
+        //
+        // Ergebnis: ein durchgehender Draht, der sich spiralförmig um den Körper windet –
+        // keine getrennten Ringe, sondern eine echte Wicklung.
+
+        let stepsPerTurn = 100
+        let totalSteps   = nVis * stepsPerTurn
+        var frontPath    = Path()
+        var backPath     = Path()
+        var prevFront: Bool? = nil
+
+        for step in 0...totalSteps {
+            let tNorm   = CGFloat(step) / CGFloat(totalSteps)
+            let t       = tNorm * CGFloat(nVis) * 2.0 * .pi
+            let px      = bodyX + tNorm * bodyW
+            let py      = cy - ey * cos(t)
+            let isFront = sin(t) >= 0
+            let pt      = CGPoint(x: px, y: py)
+            if isFront {
+                if prevFront != true  { frontPath.move(to: pt) } else { frontPath.addLine(to: pt) }
+            } else {
+                if prevFront != false { backPath.move(to: pt)  } else { backPath.addLine(to: pt)  }
+            }
+            prevFront = isFront
         }
 
-        // ── Verbindungslinien oben (vorne) ──
-        for i in 0..<(nVis - 1) {
-            let cx1 = bodyX + (CGFloat(i) + 0.5) * pitchPx + ex
-            let cx2 = bodyX + (CGFloat(i) + 1.5) * pitchPx - ex
-            let yTop = cy - ey
-            var p = Path()
-            p.move(to: CGPoint(x: cx1, y: yTop))
-            p.addLine(to: CGPoint(x: cx2, y: yTop))
-            ctx.stroke(p, with: .color(accent), lineWidth: wireThick)
-        }
-
-        // ── Vordere Bögen (untere Halbellipse, heller) ──
-        for i in 0..<nVis {
-            let cx = bodyX + (CGFloat(i) + 0.5) * pitchPx
-            var p = Path()
-            p.move(to: CGPoint(x: cx - ex, y: cy))
-            p.addArc(center: CGPoint(x: cx, y: cy),
-                     radius: ex,
-                     startAngle: .degrees(180),
-                     endAngle: .degrees(0),
-                     clockwise: true)
-            let t = CGAffineTransform(scaleX: 1, y: ey / ex)
-                .concatenating(CGAffineTransform(translationX: 0, y: cy - cy * (ey / ex)))
-            ctx.stroke(p.applying(t),
-                       with: .linearGradient(
-                           Gradient(colors: [Color(red: 0.94, green: 0.56, blue: 0.31), accent]),
-                           startPoint: CGPoint(x: cx, y: cy),
-                           endPoint:   CGPoint(x: cx, y: cy + ey)
-                       ),
-                       lineWidth: wireThick)
-        }
-
-        // ── Verbindungslinien unten (hinten, halbtransparent) ──
-        for i in 0..<(nVis - 1) {
-            let cx1 = bodyX + (CGFloat(i) + 0.5) * pitchPx + ex
-            let cx2 = bodyX + (CGFloat(i) + 1.5) * pitchPx - ex
-            let yBot = cy + ey
-            var p = Path()
-            p.move(to: CGPoint(x: cx1, y: yBot))
-            p.addLine(to: CGPoint(x: cx2, y: yBot))
-            ctx.stroke(p, with: .color(accentDark.opacity(0.4)), lineWidth: wireThick)
-        }
+        // Rückseite zuerst (dunkler, etwas dünner), dann Vorderseite darüber
+        ctx.stroke(backPath,  with: .color(accentDark.opacity(0.40)), lineWidth: wireThick * 0.70)
+        ctx.stroke(frontPath, with: .color(accent),                   lineWidth: wireThick)
 
         // ── Zuleitungen ──
+        // Helix beginnt und endet bei y = cy−ey (oben am Zylinder)
         let yLead = cy - ey
-        var leadL = Path()
-        leadL.move(to: CGPoint(x: bodyX - leadLen, y: yLead))
-        leadL.addLine(to: CGPoint(x: bodyX - ex, y: yLead))
-        ctx.stroke(leadL, with: .color(accent), lineWidth: wireThick)
+        ctx.stroke(Path { p in
+            p.move(to: CGPoint(x: bodyX - leadLen, y: yLead))
+            p.addLine(to: CGPoint(x: bodyX, y: yLead))
+        }, with: .color(accent), lineWidth: wireThick)
+        ctx.stroke(Path { p in
+            p.move(to: CGPoint(x: bodyX + bodyW, y: yLead))
+            p.addLine(to: CGPoint(x: bodyX + bodyW + leadLen, y: yLead))
+        }, with: .color(accent), lineWidth: wireThick)
 
-        var leadR = Path()
-        leadR.move(to: CGPoint(x: bodyX + bodyW + ex, y: yLead))
-        leadR.addLine(to: CGPoint(x: bodyX + bodyW + leadLen, y: yLead))
-        ctx.stroke(leadR, with: .color(accent), lineWidth: wireThick)
-
-        // ── Bemaassung: Länge (unten) ──
+        // ── Bemaßung: Länge (unten) ──
         let arrY = bBot + 16
         drawDimensionH(ctx: ctx, x1: bodyX, x2: bodyX + bodyW, y: arrY, yFrom: bBot + 4,
                        label: String(format: "%.1f mm", ergebnis.spulenlaenge_mm))
 
-        // ── Bemaassung: Durchmesser (rechts) ──
+        // ── Bemaßung: Durchmesser (rechts) ──
         let dax = bodyX + bodyW + leadLen + 14
         drawDimensionV(ctx: ctx, x: dax, y1: bTop, y2: bBot, xFrom: bodyX + bodyW + 4,
                        label: String(format: "Ø %.0f mm", D))
@@ -296,10 +284,9 @@ struct SpulenSkizze: View {
         let topLabel = "\(Int(ceil(n))) Windungen · Pitch \(String(format: "%.1f", pitch)) mm"
         drawLabel(ctx: ctx, text: topLabel, x: bodyX + bodyW / 2, y: bTop - 8, anchor: .center)
 
-        // ── Hinweis wenn Windungen gekürzt ──
         if Int(ceil(n)) > maxTurnsVis {
-            let hint = "Skizze: \(maxTurnsVis) von \(Int(ceil(n))) Windungen"
-            drawLabel(ctx: ctx, text: hint, x: W / 2, y: H - 8, anchor: .center, color: .secondary)
+            drawLabel(ctx: ctx, text: "Skizze: \(maxTurnsVis) von \(Int(ceil(n))) Windungen",
+                      x: W / 2, y: H - 8, anchor: .center, color: .secondary)
         }
     }
 

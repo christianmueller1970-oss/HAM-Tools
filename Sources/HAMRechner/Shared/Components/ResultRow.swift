@@ -14,7 +14,7 @@ struct ResultRow: View {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(value)
                     .fontWeight(highlight ? .bold : .regular)
-                    .foregroundStyle(highlight ? Color.accentColor : .primary)
+                    .foregroundStyle(highlight ? Color.accentColor : Color.primary)
                 if !unit.isEmpty {
                     Text(unit)
                         .foregroundStyle(.secondary)
