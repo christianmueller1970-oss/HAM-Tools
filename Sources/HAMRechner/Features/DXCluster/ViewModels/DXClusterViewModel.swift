@@ -9,6 +9,11 @@ final class DXClusterViewModel: ObservableObject {
     @Published var propagation  = PropagationData()
     @Published var clusterStatus: ClusterClient.Status = .disconnected
 
+    // MARK: - API status (true = reached at least once)
+    @Published var sotaActive = false
+    @Published var potaActive = false
+    @Published var wwffActive = false
+
     // MARK: - Filter state
     @Published var filterBand:       String = "Alle"
     @Published var filterMode:       String = "Alle"
@@ -20,12 +25,21 @@ final class DXClusterViewModel: ObservableObject {
     @Published var searchText = ""
 
     // MARK: - Settings (persisted)
-    @AppStorage("callsign")    private var callsign    = "HB9HJI"
-    @AppStorage("clusterHost") private var clusterHost = "dxspider.funkwelt.net"
-    @AppStorage("clusterPort") private var clusterPort = 7300
+    @AppStorage("callsign")    private var storedCallsign = "HB9HJI"
+    @AppStorage("clusterHost") private var clusterHost   = "dxspider.funkwelt.net"
+    @AppStorage("clusterPort") private var clusterPort   = 7300
 
-    private var client: ClusterClient?
-    private var propTask: Task<Void, Never>?
+    var myCallsign: String { storedCallsign }
+
+    private var client:    ClusterClient?
+    private var propTask:  Task<Void, Never>?
+    private var sotaTask:  Task<Void, Never>?
+    private var potaTask:  Task<Void, Never>?
+    private var wwffTask:  Task<Void, Never>?
+
+    private let sotaFetcher = SOTAFetcher()
+    private let potaFetcher = POTAFetcher()
+    private let wwffFetcher = WWFFFetcher()
 
     // MARK: - Computed
 
@@ -69,10 +83,10 @@ final class DXClusterViewModel: ObservableObject {
 
     // MARK: - Lifecycle
 
-    func connect() {
-        let host = clusterHost
-        let port = UInt16(clusterPort)
-        let call = callsign
+    func connect(host: String? = nil, port: Int? = nil) {
+        let host = host ?? clusterHost
+        let port = UInt16(port ?? clusterPort)
+        let call = storedCallsign
 
         client = ClusterClient(host: host, port: port, callsign: call, name: host)
         client?.onSpot    = { [weak self] spot in self?.addSpot(spot) }
@@ -83,9 +97,35 @@ final class DXClusterViewModel: ObservableObject {
         propTask = Task {
             let fetcher = PropagationFetcher()
             while !Task.isCancelled {
-                let data = await fetcher.fetchOnce()
-                propagation = data
+                propagation = await fetcher.fetchOnce()
                 try? await Task.sleep(for: .seconds(900))
+            }
+        }
+
+        sotaTask = Task {
+            while !Task.isCancelled {
+                let newSpots = await sotaFetcher.fetchNew()
+                if !newSpots.isEmpty { sotaActive = true }
+                for spot in newSpots { addSpot(spot) }
+                try? await Task.sleep(for: .seconds(SOTAFetcher.pollInterval))
+            }
+        }
+
+        potaTask = Task {
+            while !Task.isCancelled {
+                let newSpots = await potaFetcher.fetchNew()
+                if !newSpots.isEmpty { potaActive = true }
+                for spot in newSpots { addSpot(spot) }
+                try? await Task.sleep(for: .seconds(POTAFetcher.pollInterval))
+            }
+        }
+
+        wwffTask = Task {
+            while !Task.isCancelled {
+                let newSpots = await wwffFetcher.fetchNew()
+                if !newSpots.isEmpty { wwffActive = true }
+                for spot in newSpots { addSpot(spot) }
+                try? await Task.sleep(for: .seconds(WWFFFetcher.pollInterval))
             }
         }
     }
@@ -93,12 +133,32 @@ final class DXClusterViewModel: ObservableObject {
     func disconnect() {
         client?.disconnect()
         propTask?.cancel()
+        sotaTask?.cancel()
+        potaTask?.cancel()
+        wwffTask?.cancel()
+    }
+
+    /// Switch to a different cluster node mid-session.
+    func reconnect(to node: ClusterNode) {
+        clusterHost = node.host
+        clusterPort = node.port
+        disconnect()
+        Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            connect(host: node.host, port: node.port)
+        }
     }
 
     func resetFilters() {
         filterBand = "Alle"; filterMode = "Alle"; filterContinent = "Alle"
         showDX = true; showSOTA = true; showPOTA = true; showWWFF = true
         searchText = ""
+    }
+
+    /// Send a DX spot to the connected cluster node.
+    func sendSpot(freq: Double, call: String, comment: String) {
+        let cmd = "DX \(String(format: "%.1f", freq)) \(call.uppercased()) \(comment)"
+        client?.sendCommand(cmd)
     }
 
     // MARK: - Private

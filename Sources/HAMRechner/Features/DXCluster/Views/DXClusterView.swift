@@ -1,12 +1,16 @@
 import SwiftUI
 
 struct DXClusterView: View {
-    @EnvironmentObject var vm: DXClusterViewModel
+    @EnvironmentObject var vm:           DXClusterViewModel
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var clusterStore: ClusterSettingsStore
 
-    @State private var selectedTab = 0
+    @State private var selectedTab    = 0
     @State private var heatmapMinutes = 60
-    @State private var utcTime = ""
+    @State private var utcTime        = ""
+    @State private var showSendSpot   = false
+
+    @Environment(\.openSettings) private var openSettings
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -32,24 +36,42 @@ struct DXClusterView: View {
         .navigationTitle("DX-Cluster")
         .onAppear {
             updateClock()
-            vm.connect()
+            if let node = clusterStore.activeNode {
+                vm.connect(host: node.host, port: node.port)
+            } else {
+                vm.connect()
+            }
         }
         .onDisappear { /* keep connection alive while app runs */ }
         .onReceive(timer) { _ in updateClock() }
+        .sheet(isPresented: $showSendSpot) {
+            SendSpotSheet(callsign: vm.myCallsign) { freq, call, comment in
+                vm.sendSpot(freq: freq, call: call, comment: comment)
+            }
+        }
     }
 
     // MARK: - Connection bar
 
     private var connectionBar: some View {
-        HStack(spacing: 16) {
-            statusDot(vm.clusterStatus, label: "dxspider.funkwelt.net")
-            statusDot(.disconnected, label: "SOTAwatch3", dimmed: true)
-            statusDot(.disconnected, label: "POTA", dimmed: true)
+        HStack(spacing: 12) {
+            // Cluster-Auswahlmenü
+            clusterMenu
+
+            Divider().frame(height: 16)
+
+            apiDot(vm.sotaActive, label: "SOTAwatch3")
+            apiDot(vm.potaActive, label: "POTA")
+            apiDot(vm.wwffActive, label: "WWFF")
+
             Spacer()
+
             Text("QTH: JN47PN")
                 .font(.caption)
                 .foregroundStyle(theme.textSecondary)
+
             dxSpotButton
+
             Text(utcTime + " UTC")
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .foregroundStyle(theme.textPrimary)
@@ -59,19 +81,52 @@ struct DXClusterView: View {
         .background(theme.bgSubPanel)
     }
 
-    private func statusDot(_ status: ClusterClient.Status, label: String, dimmed: Bool = false) -> some View {
+    private var clusterMenu: some View {
+        Menu {
+            ForEach(clusterStore.nodes) { node in
+                Button {
+                    clusterStore.activeNodeID = node.id
+                    vm.reconnect(to: node)
+                } label: {
+                    HStack {
+                        Text(node.name)
+                        if clusterStore.activeNodeID == node.id {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+            Divider()
+            Button("Cluster-Einstellungen…") { openSettings() }
+        } label: {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(clusterStatusColor(vm.clusterStatus))
+                    .frame(width: 8, height: 8)
+                Text(clusterStore.activeNode?.name ?? "kein Cluster")
+                    .font(.caption)
+                    .foregroundStyle(theme.textSecondary)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8))
+                    .foregroundStyle(theme.textDim)
+            }
+        }
+        .buttonStyle(.plain)
+        .menuStyle(.button)
+    }
+
+    private func apiDot(_ active: Bool, label: String) -> some View {
         HStack(spacing: 4) {
             Circle()
-                .fill(statusColor(status, dimmed: dimmed))
+                .fill(active ? theme.accentGreen : theme.textDim)
                 .frame(width: 8, height: 8)
             Text(label)
                 .font(.caption)
-                .foregroundStyle(dimmed ? theme.textDim : theme.textSecondary)
+                .foregroundStyle(active ? theme.textSecondary : theme.textDim)
         }
     }
 
-    private func statusColor(_ s: ClusterClient.Status, dimmed: Bool) -> Color {
-        if dimmed { return theme.textDim }
+    private func clusterStatusColor(_ s: ClusterClient.Status) -> Color {
         switch s {
         case .connected:               return theme.accentGreen
         case .connecting, .loggingIn:  return theme.accentYellow
@@ -81,10 +136,11 @@ struct DXClusterView: View {
     }
 
     private var dxSpotButton: some View {
-        Button("▶ DX SPOT") {}
+        Button("▶ DX SPOT") { showSendSpot = true }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
             .tint(theme.accentBlue)
+            .disabled(vm.clusterStatus != .connected)
     }
 
     // MARK: - Left panel (tabs + log)
@@ -191,16 +247,11 @@ struct DXClusterView: View {
     @ViewBuilder
     private var tabContent: some View {
         switch selectedTab {
-        case 0:
-            SpotListView(spots: vm.filteredSpots, theme: theme)
-        case 1:
-            PlaceholderView(title: "Bandmap", icon: "waveform.path.ecg")
-        case 2:
-            PlaceholderView(title: "Weltkarte", icon: "map")
-        case 3:
-            PlaceholderView(title: "Statistik", icon: "chart.bar")
-        default:
-            EmptyView()
+        case 0: SpotListView(spots:  vm.filteredSpots, theme: theme)
+        case 1: BandmapView(spots:   vm.filteredSpots, theme: theme)
+        case 2: WeltkarteView(spots: vm.filteredSpots, theme: theme)
+        case 3: StatistikView(spots: vm.spots,         theme: theme)
+        default: EmptyView()
         }
     }
 
