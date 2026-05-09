@@ -1,6 +1,9 @@
 import SwiftUI
 
 enum Calculator: String, CaseIterable, Identifiable {
+    // Live-Tools
+    case dxCluster = "DX-Cluster"
+
     // Antennen – Drahtantennen
     case dipol            = "Dipol"
     case groundplane      = "Groundplane / Vertikal"
@@ -42,6 +45,7 @@ enum Calculator: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
+        case .dxCluster:           return "dot.radiowaves.left.and.right.circle"
         case .dipol:               return "antenna.radiowaves.left.and.right"
         case .groundplane:         return "arrow.up.to.line"
         case .jpole:               return "j.square"
@@ -72,6 +76,8 @@ enum Calculator: String, CaseIterable, Identifiable {
 
     var category: String {
         switch self {
+        case .dxCluster:
+            return "Live-Tools"
         case .dipol, .groundplane, .jpole, .sperrtopf, .windom,
              .efhwVerkuerzung, .loopRechner:
             return "Drahtantennen"
@@ -90,8 +96,12 @@ enum Calculator: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - ContentView
+
 struct ContentView: View {
-    @State private var selectedCalculator: Calculator? = .dipol
+    @EnvironmentObject var themeManager: ThemeManager
+    @StateObject private var dxClusterVM = DXClusterViewModel()
+    @State private var selectedCalculator: Calculator? = .dxCluster
 
     var body: some View {
         NavigationSplitView {
@@ -99,45 +109,80 @@ struct ContentView: View {
         } detail: {
             if let calc = selectedCalculator {
                 CalculatorRouter(calculator: calc)
+                    .environmentObject(dxClusterVM)
+                    .environmentObject(themeManager)
             } else {
                 WelcomeView()
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .preferredColorScheme(themeManager.theme.colorScheme)
     }
 }
 
+// MARK: - SidebarView
+
 struct SidebarView: View {
     @Binding var selectedCalculator: Calculator?
+    @EnvironmentObject var themeManager: ThemeManager
 
     private let categories = [
+        "Live-Tools",
         "Drahtantennen", "Richtstrahler", "Spezialantennen",
         "Spulen & Transformatoren", "Anpassung & Leitungen", "Signale & Tools"
     ]
 
     var body: some View {
-        List(selection: $selectedCalculator) {
-            ForEach(categories, id: \.self) { category in
-                Section(category) {
-                    ForEach(Calculator.allCases.filter { $0.category == category }) { calc in
-                        Label(calc.rawValue, systemImage: calc.icon)
-                            .tag(calc)
+        VStack(spacing: 0) {
+            List(selection: $selectedCalculator) {
+                ForEach(categories, id: \.self) { category in
+                    Section(category) {
+                        ForEach(Calculator.allCases.filter { $0.category == category }) { calc in
+                            Label(calc.rawValue, systemImage: calc.icon)
+                                .tag(calc)
+                        }
                     }
                 }
             }
+            .listStyle(.sidebar)
+
+            Divider()
+            themePicker
         }
-        .listStyle(.sidebar)
-        .navigationTitle("HAM-Rechner")
+        .navigationTitle("HAM-Tools")
         .navigationSubtitle("HB9HJI Funkwelt")
         .navigationSplitViewColumnWidth(min: 220, ideal: 230, max: 320)
     }
+
+    private var themePicker: some View {
+        HStack {
+            Image(systemName: "paintpalette")
+                .foregroundStyle(.secondary)
+                .font(.caption)
+            Picker("", selection: Binding(
+                get: { themeManager.theme },
+                set: { themeManager.setTheme($0) }
+            )) {
+                ForEach(AppTheme.allCases) { t in
+                    Text(t.displayName).tag(t)
+                }
+            }
+            .pickerStyle(.menu)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
 }
+
+// MARK: - CalculatorRouter
 
 struct CalculatorRouter: View {
     let calculator: Calculator
 
     var body: some View {
         switch calculator {
+        // Live-Tools
+        case .dxCluster:             DXClusterView()
         // Drahtantennen
         case .dipol:             DipolView()
         case .groundplane:       GroundplaneView()
@@ -173,15 +218,17 @@ struct CalculatorRouter: View {
     }
 }
 
+// MARK: - WelcomeView
+
 struct WelcomeView: View {
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "antenna.radiowaves.left.and.right")
                 .font(.system(size: 64))
                 .foregroundStyle(.blue)
-            Text("HAM-Rechner")
+            Text("HAM-Tools")
                 .font(.largeTitle.bold())
-            Text("Wähle einen Rechner aus der Seitenleiste")
+            Text("Wähle ein Tool aus der Seitenleiste")
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
