@@ -25,6 +25,7 @@ final class ClusterClient {
     private var loggedIn      = false
     private var callsignSent  = false
     private var stopFlag      = false
+    private var keepaliveWork: DispatchWorkItem?
 
     init(host: String, port: UInt16, callsign: String, name: String = "") {
         self.host     = host
@@ -42,6 +43,8 @@ final class ClusterClient {
 
     func disconnect() {
         stopFlag = true
+        keepaliveWork?.cancel()
+        keepaliveWork = nil
         connection?.cancel()
         connection = nil
         setStatus(.disconnected)
@@ -58,6 +61,7 @@ final class ClusterClient {
 
     private func _connect() {
         buffer = ""; loggedIn = false; callsignSent = false
+        keepaliveWork?.cancel(); keepaliveWork = nil
         setStatus(.connecting)
 
         let conn = NWConnection(
@@ -155,6 +159,7 @@ final class ClusterClient {
                     loggedIn = true
                     setStatus(.connected)
                     appendLog("[\(ts())] >>> EINGELOGGT als \(callsign) <<<")
+                    scheduleKeepalive()
                     if !isSpot {
                         connection?.send(content: "sh/dx 50\r\n".data(using: .utf8),
                                          completion: .idempotent)
@@ -186,6 +191,7 @@ final class ClusterClient {
             self.loggedIn = true
             self.setStatus(.connected)
             self.appendLog("[\(ts())] >>> EINGELOGGT (\(self.callsign)) — Timeout-Fallback <<<")
+            self.scheduleKeepalive()
             self.connection?.send(content: "sh/dx 50\r\n".data(using: .utf8),
                                   completion: .idempotent)
         }
@@ -196,6 +202,17 @@ final class ClusterClient {
             guard let self, !self.callsignSent else { return }
             self.sendCallsign()
         }
+    }
+
+    private func scheduleKeepalive() {
+        keepaliveWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.loggedIn, !self.stopFlag else { return }
+            self.connection?.send(content: "\r\n".data(using: .utf8), completion: .idempotent)
+            self.scheduleKeepalive()
+        }
+        keepaliveWork = work
+        queue.asyncAfter(deadline: .now() + 120, execute: work)
     }
 
     private func scheduleReconnect() {

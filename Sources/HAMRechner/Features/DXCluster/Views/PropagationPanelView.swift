@@ -9,6 +9,8 @@ struct PropagationPanelView: View {
 
     @State private var heatmapMinutes = 60
 
+    private let gold = Color(red: 1.0, green: 0.82, blue: 0.2)
+
     var body: some View {
         VStack(spacing: 0) {
             propagationSection
@@ -21,30 +23,27 @@ struct PropagationPanelView: View {
     // MARK: Propagation gauges
 
     private var propagationSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .foregroundStyle(theme.accentBlue)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "cloud.bolt.fill")
+                    .foregroundStyle(gold)
                 Text("Propagation")
                     .font(.headline)
-                    .foregroundStyle(theme.textPrimary)
+                    .foregroundStyle(gold)
             }
 
-            HStack(spacing: 16) {
+            HStack(spacing: 4) {
                 SemiCircleGauge(
-                    value: Double(propagation.sfi ?? 0),
+                    value:    Double(propagation.sfi ?? 0),
                     maxValue: 300,
-                    label: "Solar Activity",
-                    sublabel: "SFI: \(propagation.sfi.map(String.init) ?? "?")",
-                    theme: theme
+                    label:    "Solar Activity",
+                    sublabel: "SFI: \(propagation.sfi.map(String.init) ?? "?")"
                 )
                 SemiCircleGauge(
-                    value: propagation.kp ?? 0,
+                    value:    propagation.kp ?? 0,
                     maxValue: 9,
-                    label: "Magnetic Activity",
-                    sublabel: "K: \(propagation.kp.map { String(format: "%.1f", $0) } ?? "?")  A: \(propagation.aIndex.map(String.init) ?? "?")",
-                    theme: theme,
-                    invertColors: true   // low Kp = good (green)
+                    label:    "Magnetic Activity",
+                    sublabel: "K: \(propagation.kp.map { String(format: "%.1f", $0) } ?? "?")  A: \(propagation.aIndex.map(String.init) ?? "?")"
                 )
             }
             .frame(maxWidth: .infinity)
@@ -57,11 +56,11 @@ struct PropagationPanelView: View {
     private var bandActivitySection: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Image(systemName: "chart.bar.fill")
-                    .foregroundStyle(theme.accentBlue)
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .foregroundStyle(gold)
                 Text("Band Activity")
                     .font(.headline)
-                    .foregroundStyle(theme.textPrimary)
+                    .foregroundStyle(gold)
                 Spacer()
                 Picker("", selection: $heatmapMinutes) {
                     Text("15 min").tag(15)
@@ -104,68 +103,95 @@ struct PropagationPanelView: View {
 // MARK: - SemiCircle Gauge
 
 struct SemiCircleGauge: View {
-    let value:        Double
-    let maxValue:     Double
-    let label:        String
-    let sublabel:     String
-    let theme:        AppTheme
-    var invertColors: Bool = false
+    let value:    Double
+    let maxValue: Double
+    let label:    String
+    let sublabel: String
+    var invertColors: Bool = false  // kept for API compat
 
     private var ratio: Double { max(0, min(1, value / maxValue)) }
-
-    private var arcColor: Color {
-        let r = invertColors ? (1 - ratio) : ratio
-        if r < 0.33 { return invertColors ? theme.accentGreen : theme.accentRed }
-        if r < 0.66 { return theme.accentYellow }
-        return invertColors ? theme.accentRed : theme.accentGreen
-    }
+    private let gold = Color(red: 1.0, green: 0.82, blue: 0.2)
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 3) {
             Canvas { ctx, size in
-                let cx = size.width / 2
-                let cy = size.height
-                let r  = min(cx, cy) * 0.9
+                let cx: CGFloat = size.width / 2
+                let cy: CGFloat = size.height - 6
+                let lw: CGFloat = 15
+                let r:  CGFloat = min(cx - 2, cy - lw / 2 - 2)
 
-                // Background arc
-                var bg = Path()
-                bg.addArc(center: CGPoint(x: cx, y: cy),
-                          radius: r, startAngle: .degrees(180),
-                          endAngle: .degrees(0), clockwise: false)
-                ctx.stroke(bg, with: .color(theme.separator), lineWidth: 8)
+                // Gradient arc — 80 segments green → yellow → orange → red
+                for i in 0..<80 {
+                    let t0 = Double(i)     / 80.0
+                    let t1 = Double(i + 1) / 80.0
+                    var seg = Path()
+                    seg.addArc(center: CGPoint(x: cx, y: cy),
+                               radius: r,
+                               startAngle: .degrees(180 + t0 * 180),
+                               endAngle:   .degrees(180 + t1 * 180),
+                               clockwise: false)
+                    ctx.stroke(seg, with: .color(arcGradientColor(t: t0)),
+                               style: StrokeStyle(lineWidth: lw, lineCap: .butt))
+                }
 
-                // Value arc
-                let endDeg = 180 + ratio * 180
-                var fg = Path()
-                fg.addArc(center: CGPoint(x: cx, y: cy),
-                          radius: r, startAngle: .degrees(180),
-                          endAngle: .degrees(endDeg), clockwise: false)
-                ctx.stroke(fg, with: .color(arcColor), lineWidth: 8)
+                // Tick marks (9 ticks at even intervals)
+                for i in 0...8 {
+                    let t = Double(i) / 8.0
+                    let a = CGFloat((180 + t * 180) * .pi / 180)
+                    var tick = Path()
+                    tick.move(to:    CGPoint(x: cx + (r - lw / 2 - 2) * cos(a),
+                                            y: cy + (r - lw / 2 - 2) * sin(a)))
+                    tick.addLine(to: CGPoint(x: cx + (r + lw / 2 + 3) * cos(a),
+                                            y: cy + (r + lw / 2 + 3) * sin(a)))
+                    ctx.stroke(tick, with: .color(.black.opacity(0.6)), lineWidth: 2)
+                }
 
-                // Needle
-                let angle = (180 + ratio * 180) * .pi / 180
-                let nx = cx + (r - 4) * cos(angle)
-                let ny = cy + (r - 4) * sin(angle)
-                var needle = Path()
-                needle.move(to: CGPoint(x: cx, y: cy))
-                needle.addLine(to: CGPoint(x: nx, y: ny))
-                ctx.stroke(needle, with: .color(theme.textPrimary), lineWidth: 2)
+                // Needle — white line from center to arc
+                let na = CGFloat((180 + ratio * 180) * .pi / 180)
+                var ndl = Path()
+                ndl.move(to:    CGPoint(x: cx, y: cy))
+                ndl.addLine(to: CGPoint(x: cx + r * cos(na), y: cy + r * sin(na)))
+                ctx.stroke(ndl, with: .color(.white),
+                           style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
 
-                // Center dot
-                let dot = Path(ellipseIn: CGRect(x: cx-4, y: cy-4, width: 8, height: 8))
-                ctx.fill(dot, with: .color(theme.textPrimary))
+                // Center dot — gold
+                let dr: CGFloat = 6
+                let dot = Path(ellipseIn: CGRect(x: cx - dr, y: cy - dr,
+                                                 width: dr * 2, height: dr * 2))
+                ctx.fill(dot,   with: .color(Color(red: 1.0, green: 0.82, blue: 0.2)))
+                ctx.stroke(dot, with: .color(.black.opacity(0.35)), lineWidth: 1)
             }
-            .frame(width: 90, height: 50)
+            .frame(width: 110, height: 72)
 
-            Text(String(format: "%.0f", value))
-                .font(.title3.bold())
-                .foregroundStyle(arcColor)
+            Text(value > 0 ? String(format: "%.0f", value) : "–")
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(gold)
             Text(label)
-                .font(.system(size: 9))
-                .foregroundStyle(theme.textSecondary)
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
             Text(sublabel)
-                .font(.system(size: 9))
-                .foregroundStyle(theme.textDim)
+                .font(.system(size: 9, design: .monospaced))
+                .foregroundStyle(.secondary.opacity(0.7))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // Green (left/low) → Yellow → Orange → Red (right/high)
+    private func arcGradientColor(t: Double) -> Color {
+        switch t {
+        case ..<0.25:
+            let f = t / 0.25
+            return Color(red: f * 0.85, green: 0.75, blue: 0.0)
+        case ..<0.50:
+            let f = (t - 0.25) / 0.25
+            return Color(red: 0.85 + f * 0.15, green: 0.75 - f * 0.15, blue: 0.0)
+        case ..<0.75:
+            let f = (t - 0.50) / 0.25
+            return Color(red: 1.0, green: 0.60 - f * 0.25, blue: 0.0)
+        default:
+            let f = (t - 0.75) / 0.25
+            return Color(red: 1.0 - f * 0.25, green: 0.35 - f * 0.35, blue: 0.0)
         }
     }
 }
