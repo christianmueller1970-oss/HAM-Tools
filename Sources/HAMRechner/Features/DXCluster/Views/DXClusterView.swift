@@ -11,7 +11,6 @@ struct DXClusterView: View {
     @State private var selectedTab    = 0
     @State private var heatmapMinutes = 60
     @State private var utcTime        = ""
-    @State private var showSendSpot   = false
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -27,7 +26,10 @@ struct DXClusterView: View {
                 PropagationPanelView(
                     propagation: vm.propagation,
                     bandMatrix:  vm.bandMatrix(minutes: heatmapMinutes),
-                    theme:       theme
+                    theme:       theme,
+                    callsign:    vm.myCallsign,
+                    connected:   vm.clusterStatus == .connected,
+                    onSend:      { freq, call, comment in vm.sendSpot(freq: freq, call: call, comment: comment) }
                 )
                 .frame(minWidth: 220, idealWidth: 280, maxWidth: 360, maxHeight: .infinity)
             }
@@ -48,11 +50,6 @@ struct DXClusterView: View {
         }
         .onDisappear { /* keep connection alive while app runs */ }
         .onReceive(timer) { _ in updateClock() }
-        .sheet(isPresented: $showSendSpot) {
-            SendSpotSheet(callsign: vm.myCallsign) { freq, call, comment in
-                vm.sendSpot(freq: freq, call: call, comment: comment)
-            }
-        }
     }
 
     // MARK: - Connection bar
@@ -81,7 +78,6 @@ struct DXClusterView: View {
                     .onTapGesture { vm.alertCount = 0 }
             }
 
-            dxSpotButton
 
             Text(utcTime + " UTC")
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
@@ -142,14 +138,6 @@ struct DXClusterView: View {
         case .error:                   return theme.accentRed
         default:                       return theme.textDim
         }
-    }
-
-    private var dxSpotButton: some View {
-        Button("▶ DX SPOT") { showSendSpot = true }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .tint(theme.accentBlue)
-            .disabled(vm.clusterStatus != .connected)
     }
 
     // MARK: - Left panel (tabs + log)

@@ -6,13 +6,32 @@ struct PropagationPanelView: View {
     let propagation: PropagationData
     let bandMatrix:  [[Int]]       // HEATMAP_BANDS × CONTINENTS
     let theme:       AppTheme
+    var callsign:    String = ""
+    var connected:   Bool   = false
+    var onSend:      (Double, String, String) -> Void = { _, _, _ in }
 
     @State private var heatmapMinutes = 60
+    @State private var dxCall    = ""
+    @State private var frequency = ""
+    @State private var mode      = "FT8"
+    @State private var comment   = ""
 
-    private let gold = Color(red: 1.0, green: 0.82, blue: 0.2)
+    private let gold  = Color(red: 1.0, green: 0.82, blue: 0.2)
+    private let modes = ["FT8","FT4","CW","SSB","RTTY","PSK31","JS8","WSPR","DIGI"]
+    private let quickBands: [(label: String, freq: Double)] = [
+        ("160m", 1840.0), ("80m", 3573.0), ("40m", 7074.0),
+        ("20m", 14074.0), ("15m", 21074.0), ("10m", 28074.0)
+    ]
+
+    private var isValid: Bool {
+        !dxCall.trimmingCharacters(in: .whitespaces).isEmpty &&
+        Double(frequency.replacingOccurrences(of: ",", with: ".")) != nil
+    }
 
     var body: some View {
         VStack(spacing: 0) {
+            sendSpotSection
+            Divider()
             propagationSection
             Divider()
             bandActivitySection
@@ -49,6 +68,100 @@ struct PropagationPanelView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(12)
+    }
+
+    // MARK: DX-Spot senden
+
+    private var sendSpotSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "dot.radiowaves.right")
+                    .foregroundStyle(gold)
+                Text("DX-Spot senden")
+                    .font(.headline)
+                    .foregroundStyle(gold)
+            }
+
+            // DX-Call
+            HStack {
+                Text("DX-Call")
+                    .font(.caption)
+                    .foregroundStyle(theme.textSecondary)
+                    .frame(width: 56, alignment: .trailing)
+                TextField("z.B. VK2AB", text: $dxCall)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+            }
+
+            // Frequenz
+            HStack {
+                Text("Freq kHz")
+                    .font(.caption)
+                    .foregroundStyle(theme.textSecondary)
+                    .frame(width: 56, alignment: .trailing)
+                TextField("z.B. 14074.0", text: $frequency)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+            }
+
+            // Band-Schnellwahl
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    ForEach(quickBands, id: \.label) { b in
+                        Button(b.label) { frequency = String(b.freq) }
+                            .buttonStyle(.bordered)
+                            .controlSize(.mini)
+                            .tint(.blue)
+                    }
+                }
+            }
+
+            // Mode + Kommentar
+            HStack {
+                Text("Mode")
+                    .font(.caption)
+                    .foregroundStyle(theme.textSecondary)
+                    .frame(width: 56, alignment: .trailing)
+                Picker("", selection: $mode) {
+                    ForEach(modes, id: \.self) { Text($0).tag($0) }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity)
+            }
+
+            HStack {
+                Text("Komm.")
+                    .font(.caption)
+                    .foregroundStyle(theme.textSecondary)
+                    .frame(width: 56, alignment: .trailing)
+                TextField("Optional", text: $comment)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption)
+            }
+
+            // Info + Senden
+            HStack {
+                Text("Von: \(callsign.isEmpty ? "–" : callsign)")
+                    .font(.caption2)
+                    .foregroundStyle(theme.textDim)
+                Spacer()
+                Button("Senden ▶") { sendSpot() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .tint(theme.accentBlue)
+                    .disabled(!isValid || !connected)
+            }
+        }
+        .padding(12)
+    }
+
+    private func sendSpot() {
+        let call    = dxCall.trimmingCharacters(in: .whitespaces).uppercased()
+        let freqStr = frequency.replacingOccurrences(of: ",", with: ".")
+        guard let freq = Double(freqStr) else { return }
+        let fullComment = "\(mode) \(comment)".trimmingCharacters(in: .whitespaces)
+        onSend(freq, call, fullComment)
+        dxCall = ""; frequency = ""; comment = ""
     }
 
     // MARK: Band Activity heatmap
