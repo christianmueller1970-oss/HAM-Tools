@@ -92,9 +92,6 @@ final class ClusterClient {
             [weak self] data, _, isDone, error in
             guard let self else { return }
             if let data, !data.isEmpty {
-                if !self.loggedIn {
-                    self.appendLog("[NET] \(data.count) Bytes empfangen")
-                }
                 // Normalize CR/CRLF → LF at byte level before string conversion.
                 // Swift String replacingOccurrences is unreliable when mixed
                 // with Latin-1 data; byte-level is guaranteed.
@@ -170,8 +167,6 @@ final class ClusterClient {
             }
             if loggedIn, let spot = SpotParser.parse(line, source: host) {
                 DispatchQueue.main.async { self.onSpot?(spot) }
-            } else if loggedIn && lower.hasPrefix("dx de") {
-                appendLog("[!] Parse-Fehler: \(line.prefix(80))")
             }
         }
     }
