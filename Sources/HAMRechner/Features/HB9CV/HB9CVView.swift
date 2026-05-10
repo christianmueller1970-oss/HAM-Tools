@@ -65,6 +65,7 @@ struct HB9CVView: View {
                     anpassungBereich(r)
                     bauhinweisBereich(r)
                 }
+                RechnerBeschreibung(resourceName: "hb9cv")
             }
             .padding(24)
         }

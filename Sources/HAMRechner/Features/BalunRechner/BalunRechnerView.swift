@@ -35,6 +35,7 @@ struct BalunRechnerView: View {
                     warnBereich(r)
                     detailBereich(r)
                 }
+                RechnerBeschreibung(resourceName: "balun")
             }
             .padding(24)
         }

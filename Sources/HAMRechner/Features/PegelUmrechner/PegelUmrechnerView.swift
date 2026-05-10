@@ -28,6 +28,7 @@ struct PegelUmrechnerView: View {
                         .foregroundStyle(.red)
                         .font(.callout)
                 }
+                RechnerBeschreibung(resourceName: "pegelrechner")
             }
             .padding(24)
         }

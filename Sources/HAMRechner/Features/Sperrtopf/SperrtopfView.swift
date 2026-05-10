@@ -19,6 +19,7 @@ struct SperrtopfView: View {
             VStack(alignment: .leading, spacing: 20) {
                 eingabeBereich
                 if f > 0 { ergebnisBereich; skizzeBereich; hinweisBereich }
+                RechnerBeschreibung(resourceName: "sperrtopf")
             }
             .padding(24)
         }

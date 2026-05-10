@@ -74,6 +74,7 @@ struct AnpassnetzwerkView: View {
                     }
                 }
                 hinweisBereich
+                RechnerBeschreibung(resourceName: "anpassnetz")
             }
             .padding(24)
         }

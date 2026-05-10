@@ -12,7 +12,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .hamStyle:   return "HAM Style"
+        case .hamStyle:   return "Light"
         case .dark:       return "Dark"
         case .hamClassic: return "Ham Classic"
         }
@@ -28,42 +28,42 @@ enum AppTheme: String, CaseIterable, Identifiable {
     // MARK: Backgrounds
     var bgApp: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#ffffff")
+        case .hamStyle:   return Color(hex: "#E8EEF4")   // kühles Blaugrau – Hintergrund-Canvas
         case .dark:       return Color(hex: "#1a1a2e")
         case .hamClassic: return Color(hex: "#0d0d00")
         }
     }
     var bgCard: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#ffffff")
+        case .hamStyle:   return Color(hex: "#FFFFFF")   // Karten: reines Weiß hebt sich ab
         case .dark:       return Color(hex: "#16213e")
         case .hamClassic: return Color(hex: "#111100")
         }
     }
     var bgCard2: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#f9f9f9")
+        case .hamStyle:   return Color(hex: "#F3F7FB")   // innere Karten – leicht blaugrau
         case .dark:       return Color(hex: "#1a2244")
         case .hamClassic: return Color(hex: "#161600")
         }
     }
     var bgPanel: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#f5f5f5")
+        case .hamStyle:   return Color(hex: "#D6DFE9")   // Sidebar – deutlich dunkler als Canvas
         case .dark:       return Color(hex: "#1e293b")
         case .hamClassic: return Color(hex: "#151500")
         }
     }
     var bgSubPanel: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#f0f0f0")
+        case .hamStyle:   return Color(hex: "#C8D4E0")   // Sub-Panels – noch eine Stufe tiefer
         case .dark:       return Color(hex: "#273549")
         case .hamClassic: return Color(hex: "#1c1c00")
         }
     }
     var bgHover: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#e6f3ff")
+        case .hamStyle:   return Color(hex: "#D6EAFF")   // Hover: kräftiges Blau
         case .dark:       return Color(hex: "#2a3f5e")
         case .hamClassic: return Color(hex: "#222200")
         }
@@ -77,7 +77,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     }
     var separator: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#e0e0e0")
+        case .hamStyle:   return Color(hex: "#B4C4D4")   // klar sichtbare Trennlinien
         case .dark:       return Color(hex: "#334155")
         case .hamClassic: return Color(hex: "#2d2d00")
         }
@@ -86,21 +86,21 @@ enum AppTheme: String, CaseIterable, Identifiable {
     // MARK: Text
     var textPrimary: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#1D1D1F")
+        case .hamStyle:   return Color(hex: "#0F1923")   // fast Schwarz – hoher Kontrast
         case .dark:       return Color(hex: "#e2e8f0")
         case .hamClassic: return Color(hex: "#ffcc33")
         }
     }
     var textSecondary: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#6E6E73")
+        case .hamStyle:   return Color(hex: "#3D5166")   // dunkles Blaugrau statt blassgem Grau
         case .dark:       return Color(hex: "#94a3b8")
         case .hamClassic: return Color(hex: "#cc9922")
         }
     }
     var textDim: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#86868B")
+        case .hamStyle:   return Color(hex: "#5E7487")   // sichtbar aber zurückgesetzt
         case .dark:       return Color(hex: "#64748b")
         case .hamClassic: return Color(hex: "#997711")
         }
@@ -116,35 +116,35 @@ enum AppTheme: String, CaseIterable, Identifiable {
     // MARK: Accents
     var accentBlue: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#007AFF")
+        case .hamStyle:   return Color(hex: "#0060CC")   // kräftiges Blau
         case .dark:       return Color(hex: "#60a5fa")
         case .hamClassic: return Color(hex: "#ffaa00")
         }
     }
     var accentGreen: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#34C759")
+        case .hamStyle:   return Color(hex: "#1A9E40")   // satteres Grün
         case .dark:       return Color(hex: "#4ade80")
         case .hamClassic: return Color(hex: "#88dd00")
         }
     }
     var accentRed: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#FF3B30")
+        case .hamStyle:   return Color(hex: "#D92B22")   // tiefes Rot
         case .dark:       return Color(hex: "#f87171")
         case .hamClassic: return Color(hex: "#ff2200")
         }
     }
     var accentYellow: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#FFCC00")
+        case .hamStyle:   return Color(hex: "#E6A800")   // goldenes Gelb statt blass
         case .dark:       return Color(hex: "#fbbf24")
         case .hamClassic: return Color(hex: "#ffdd00")
         }
     }
     var accentOrange: Color {
         switch self {
-        case .hamStyle:   return Color(hex: "#FF9500")
+        case .hamStyle:   return Color(hex: "#E07000")   // sattes Orange
         case .dark:       return Color(hex: "#fb923c")
         case .hamClassic: return Color(hex: "#ff8800")
         }
@@ -186,11 +186,11 @@ extension Color {
 // MARK: - ThemeManager
 
 final class ThemeManager: ObservableObject {
-    @Published var theme: AppTheme = .hamStyle
+    @Published var theme: AppTheme = .hamClassic
 
     init() {
-        let raw = UserDefaults.standard.string(forKey: "appTheme") ?? AppTheme.hamStyle.rawValue
-        let t = AppTheme(rawValue: raw) ?? .hamStyle
+        let raw = UserDefaults.standard.string(forKey: "appTheme") ?? AppTheme.hamClassic.rawValue
+        let t = AppTheme(rawValue: raw) ?? .hamClassic
         theme = t
         applyNSAppearance(t)
     }

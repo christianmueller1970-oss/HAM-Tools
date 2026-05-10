@@ -80,6 +80,7 @@ struct EFHWVerkuerzungView: View {
                     }
                 }
                 infoBereich
+                RechnerBeschreibung(resourceName: "efhwv")
             }
             .padding(24)
         }

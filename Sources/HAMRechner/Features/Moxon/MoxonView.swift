@@ -52,6 +52,7 @@ struct MoxonView: View {
             VStack(alignment: .leading, spacing: 20) {
                 eingabeBereich
                 if let r = ergebnis { ergebnisBereich(r); skizzeBereich(r); hinweisBereich }
+                RechnerBeschreibung(resourceName: "moxon")
             }
             .padding(24)
         }

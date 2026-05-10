@@ -35,6 +35,7 @@ struct KabeldaempfungView: View {
                     warnungsBereich(r)
                     chartBereich(kabel: kabel)
                 }
+                RechnerBeschreibung(resourceName: "kabeldaempfung")
             }
             .padding(24)
         }

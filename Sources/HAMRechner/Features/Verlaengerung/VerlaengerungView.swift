@@ -92,6 +92,7 @@ struct VerlaengerungView: View {
                     }
                 }
                 infoBereich
+                RechnerBeschreibung(resourceName: "strahlerverl")
             }
             .padding(24)
         }

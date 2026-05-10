@@ -66,6 +66,7 @@ struct LoopRechnerView: View {
                     anpassungBereich(r)
                 }
                 infoBereich
+                RechnerBeschreibung(resourceName: "loop")
             }
             .padding(24)
         }

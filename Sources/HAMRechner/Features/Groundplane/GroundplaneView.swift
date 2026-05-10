@@ -51,6 +51,7 @@ struct GroundplaneView: View {
             VStack(alignment: .leading, spacing: 20) {
                 eingabeBereich
                 if let r = ergebnis { ergebnisBereich(r); skizzeBereich(r); hinweisBereich }
+                RechnerBeschreibung(resourceName: "groundplane")
             }
             .padding(24)
         }

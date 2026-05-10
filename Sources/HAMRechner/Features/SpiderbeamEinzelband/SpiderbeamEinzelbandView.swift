@@ -109,6 +109,7 @@ struct SpiderbeamEinzelbandView: View {
                     skizzeBereich(r)
                 }
                 infoBereich
+                RechnerBeschreibung(resourceName: "spidereinzel")
             }
             .padding(24)
         }

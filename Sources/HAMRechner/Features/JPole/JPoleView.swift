@@ -52,6 +52,7 @@ struct JPoleView: View {
                 variantWahl
                 eingabeBereich
                 if let r = ergebnis { ergebnisBereich(r); skizzeBereich(r); hinweisBereich(r) }
+                RechnerBeschreibung(resourceName: "jpole")
             }
             .padding(24)
         }

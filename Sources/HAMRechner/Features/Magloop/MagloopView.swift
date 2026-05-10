@@ -126,6 +126,7 @@ struct MagloopView: View {
                     detailBereich(r)
                 }
                 infoBereich
+                RechnerBeschreibung(resourceName: "magloop")
             }
             .padding(24)
         }

@@ -22,3 +22,16 @@ DerivedData/
 
 # SPM
 .build
+
+# Build-Artefakte (App-Bundle, DMGs)
+HAMRechner.app/
+*.dmg
+
+# Icon-Build (aus icon-source.svg generierbar)
+AppIcon.icns
+AppIcon.iconset/
+
+# Web (Vue 3) Build-Output und Dependencies
+web-vue/dist/
+web-vue/node_modules/
+web-vue/.vite/

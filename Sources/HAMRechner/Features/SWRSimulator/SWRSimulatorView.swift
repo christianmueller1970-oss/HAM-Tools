@@ -22,6 +22,7 @@ struct SWRSimulatorView: View {
                 kenngroessenBereich
                 warnBereich
                 kurvenBereich
+                RechnerBeschreibung(resourceName: "swr")
             }
             .padding(24)
         }

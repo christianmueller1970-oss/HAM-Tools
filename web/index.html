@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HAM-Tools Toolbox – HB9HJI</title>
+<link rel="stylesheet" href="style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script src="app.js"></script>
+</head>
+<body x-data="app" x-init="init()">
+
+<!-- ═══════════════════════════════════════════════════════ SIDEBAR -->
+<div id="sidebar">
+  <div class="sb-head">
+    <h1>HAM-Tools</h1>
+    <p>HB9HJI · Toolbox</p>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-cat">Drahtantennen</div>
+    <button class="nav-item" :class="{active:page==='dipol'}"        @click="nav('dipol')">Dipol</button>
+    <button class="nav-item" :class="{active:page==='gp'}"           @click="nav('gp')">Groundplane / Vertikal</button>
+    <button class="nav-item" :class="{active:page==='jp'}"           @click="nav('jp')">J-Pole / Slim Jim</button>
+    <button class="nav-item" :class="{active:page==='spt'}"          @click="nav('spt')">Sperrtopf</button>
+    <button class="nav-item" :class="{active:page==='wd'}"           @click="nav('wd')">Windom (OCFD)</button>
+    <button class="nav-item" :class="{active:page==='efhw'}"         @click="nav('efhw')">EFHW-Antenne</button>
+    <button class="nav-item" :class="{active:page==='efhwV'}"        @click="nav('efhwV')">EFHW-Verkürzung</button>
+    <button class="nav-item" :class="{active:page==='loop'}"         @click="nav('loop')">Loop-Antenne</button>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-cat">Richtstrahler</div>
+    <button class="nav-item" :class="{active:page==='mox'}"          @click="nav('mox')">Moxon Rectangle</button>
+    <button class="nav-item" :class="{active:page==='hb9'}"          @click="nav('hb9')">HB9CV Beam</button>
+    <button class="nav-item" :class="{active:page==='hex'}"          @click="nav('hex')">Hexbeam</button>
+    <button class="nav-item" :class="{active:page==='yagi'}"         @click="nav('yagi')">Yagi-Rechner</button>
+    <button class="nav-item" :class="{active:page==='sbe'}"          @click="nav('sbe')">Spiderbeam Einzelband</button>
+    <button class="nav-item" :class="{active:page==='sbm'}"          @click="nav('sbm')">Spiderbeam Multi-Band</button>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-cat">Spezialantennen</div>
+    <button class="nav-item" :class="{active:page==='mag'}"          @click="nav('mag')">Magnetic Loop</button>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-cat">Spulen &amp; Trafos</div>
+    <button class="nav-item" :class="{active:page==='bal'}"          @click="nav('bal')">Balun / Unun</button>
+    <button class="nav-item" :class="{active:page==='verl'}"         @click="nav('verl')">Strahler-Verlängerung</button>
+    <button class="nav-item" :class="{active:page==='spul'}"         @click="nav('spul')">Spulen-Wickler</button>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-cat">Anpassung &amp; Leitungen</div>
+    <button class="nav-item" :class="{active:page==='anp'}"          @click="nav('anp')">Anpassnetzwerk (L-Netz)</button>
+    <button class="nav-item" :class="{active:page==='kstub'}"        @click="nav('kstub')">Koax-Stub</button>
+    <button class="nav-item" :class="{active:page==='kdae'}"         @click="nav('kdae')">Kabeldämpfung</button>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-cat">Signale &amp; Tools</div>
+    <button class="nav-item" :class="{active:page==='peg'}"          @click="nav('peg')">Pegel-Umrechner</button>
+    <button class="nav-item" :class="{active:page==='swr'}"          @click="nav('swr')">SWR-Simulator</button>
+    <button class="nav-item" :class="{active:page==='lnk'}"          @click="nav('lnk')">Linkbudget / Reichweite</button>
+    <button class="nav-item" :class="{active:page==='qth'}"          @click="nav('qth')">QTH-Locator</button>
+  </div>
+
+  <div class="sb-footer">
+    <p>Theme</p>
+    <div class="theme-row">
+      <button class="theme-btn" :class="{active:theme==='classic'}" @click="setTheme('classic')">Classic</button>
+      <button class="theme-btn" :class="{active:theme==='dark'}"    @click="setTheme('dark')">Dark</button>
+      <button class="theme-btn" :class="{active:theme==='light'}"   @click="setTheme('light')">Light</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ MAIN -->
+<div id="main">
+
+<!-- ─────────────────────────────────────────── 1. DIPOL -->
+<div x-show="page==='dipol'">
+  <div class="calc-title">Dipol</div>
+  <div class="card">
+    <h2>Band-Schnellwahl</h2>
+    <div class="band-grid">
+      <template x-for="[name,freq] in bands" :key="name">
+        <button class="bb" :class="{on:isBandActive(dip.freq,freq)}" @click="dip.freq=String(freq)" x-text="name"></button>
+      </template>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Parameter</h2>
+    <div class="seg" style="margin-bottom:10px">
+      <button class="sb" :class="{on:dip.typ==='klassisch'}" @click="dip.typ='klassisch'">λ/2 Dipol (klassisch)</button>
+      <button class="sb" :class="{on:dip.typ==='falter'}"    @click="dip.typ='falter'">Faltdipol (λ/2)</button>
+    </div>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="dip.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Verkürzungsfaktor VF</label><div class="inp-row"><input type="text" x-model="dip.vf"><span>0.90–1.00</span></div></div>
+    </div>
+  </div>
+  <template x-if="dipR">
+    <div class="card"><h2>Ergebnis</h2>
+      <div class="rr hi"><span class="lbl">Gesamtlänge (λ/2)</span><span class="val" x-text="fmt(dipR.gesamt)+' m'"></span></div>
+      <div class="rr"><span class="lbl">Arm-Länge (je Seite)</span><span class="val" x-text="fmt(dipR.arm)+' m'"></span></div>
+      <div class="rr"><span class="lbl">Speisepunkt-Impedanz</span><span class="val" x-text="dipR.imp"></span></div>
+      <div class="rr"><span class="lbl">Wellenlänge λ</span><span class="val" x-text="fmt(dipR.lambda)+' m'"></span></div>
+    </div>
+  </template>
+  <div class="info">Klassischer λ/2 Dipol. Einspeisung in der Mitte mit 50Ω Koaxkabel über 1:1 Balun. Faltdipol: 2 parallele Drähte (10–25 mm Abstand), 4× höhere Impedanz → 4:1 Balun.</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 2. GROUNDPLANE -->
+<div x-show="page==='gp'">
+  <div class="calc-title">Groundplane / Vertikal</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(gp.freq,freq)}" @click="gp.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid3">
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="gp.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Verkürzungsfaktor VF</label><div class="inp-row"><input type="text" x-model="gp.vf"></div></div>
+      <div class="inp-g"><label>Radial-Neigung</label><div class="inp-row"><input type="text" x-model="gp.tilt"><span>° (0–45)</span></div></div>
+    </div>
+  </div>
+  <template x-if="gpR">
+    <div class="card"><h2>Ergebnis</h2>
+      <div class="rr hi"><span class="lbl">Strahler (λ/4)</span><span class="val" x-text="fmt(gpR.strahler)+' m'"></span></div>
+      <div class="rr"><span class="lbl">Radiale (4×, λ/4 je)</span><span class="val" x-text="fmt(gpR.radial)+' m'"></span></div>
+      <div class="rr"><span class="lbl">Speisepunkt-Impedanz</span><span class="val" x-text="'≈ '+gpR.imp+' Ω'"></span></div>
+      <div class="rr"><span class="lbl">Wellenlänge λ</span><span class="val" x-text="fmt(gpR.lambda)+' m'"></span></div>
+    </div>
+  </template>
+  <div class="info">λ/4 Strahler vertikal, 4 Radiale. Neigung der Radiale 0°→36Ω, 45°→52Ω. Bei 45° Neigung ideale 50Ω Anpassung ohne Balun.</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 3. J-POLE -->
+<div x-show="page==='jp'">
+  <div class="calc-title">J-Pole / Slim Jim</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(jp.freq,freq)}" @click="jp.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="seg" style="margin-bottom:10px">
+      <button class="sb" :class="{on:jp.typ==='jpole'}"   @click="jp.typ='jpole'">J-Pole</button>
+      <button class="sb" :class="{on:jp.typ==='slimjim'}" @click="jp.typ='slimjim'">Slim Jim / Zepp</button>
+    </div>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="jp.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Verkürzungsfaktor VF</label><div class="inp-row"><input type="text" x-model="jp.vf"></div></div>
+    </div>
+  </div>
+  <template x-if="jpR">
+    <div class="card"><h2>Ergebnis</h2>
+      <div class="rr hi"><span class="lbl">Gesamtlänge</span><span class="val" x-text="fmt(jpR.gesamt)+' m'"></span></div>
+      <div class="rr"><span class="lbl" x-text="jp.typ==='jpole'?'Strahler (λ/2)':'Strahler (λ/2)'"></span><span class="val" x-text="fmt(jpR.strahler)+' m'"></span></div>
+      <div class="rr"><span class="lbl" x-text="jp.typ==='jpole'?'Anpassstück (λ/4)':'J-Stub (λ/4)'"></span><span class="val" x-text="fmt(jpR.stub)+' m'"></span></div>
+      <div class="rr"><span class="lbl">Einspeisepunkt</span><span class="val" x-text="fmt(jpR.feed*100,1)+' cm vom Stub-Ende'"></span></div>
+    </div>
+  </template>
+  <div class="info">J-Pole: λ/2 Strahler + λ/4 Anpassstück, Einspeisepunkt ~5% vom Stub-Ende. Slim Jim: 3/4 λ Gesamtlänge, ~3 dB Gewinn über GP, Einspeisepunkt ~4% vom Stub-Ende.</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 4. SPERRTOPF -->
+<div x-show="page==='spt'">
+  <div class="calc-title">Sperrtopf</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(spt.freq,freq)}" @click="spt.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="spt.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Koaxkabel-Typ</label>
+        <select x-model="spt.koax">
+          <option value="rg58">RG-58 (VF 0.66)</option>
+          <option value="rg213">RG-213 (VF 0.66)</option>
+          <option value="h155">H-155 (VF 0.80)</option>
+          <option value="aircell7">Aircell 7 (VF 0.83)</option>
+          <option value="ecoflex10">Ecoflex 10 (VF 0.83)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <template x-if="sptR">
+    <div class="card"><h2>Ergebnis</h2>
+      <div class="rr hi"><span class="lbl">Innenleiter / Strahler (λ/4)</span><span class="val" x-text="fmt(sptR.innen)+' m'"></span></div>
+      <div class="rr"><span class="lbl">Koax-Hülle (λ/4 × VF)</span><span class="val" x-text="fmt(sptR.huelle)+' m'"></span></div>
+      <div class="rr"><span class="lbl">Speisepunkt-Impedanz</span><span class="val">≈ 50 Ω</span></div>
+    </div>
+  </template>
+  <div class="info">Sperrtopf: Innenleiter = λ/4 Strahler (VF≈0.95), Außenmantel durch Koaxhülle abgeschirmt (λ/4 × Koax-VF). Keine Gegengewichte nötig.</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 5. WINDOM -->
+<div x-show="page==='wd'">
+  <div class="calc-title">Windom (OCFD)</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(wd.freq,freq)}" @click="wd.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz (Grundwelle)</label><div class="inp-row"><input type="text" x-model="wd.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Verkürzungsfaktor VF</label><div class="inp-row"><input type="text" x-model="wd.vf"></div></div>
+    </div>
+  </div>
+  <template x-if="wdR">
+    <div>
+      <div class="card"><h2>Ergebnis</h2>
+        <div class="rr hi"><span class="lbl">Gesamtlänge (λ/2)</span><span class="val" x-text="fmt(wdR.gesamt)+' m'"></span></div>
+        <div class="rr"><span class="lbl">Langer Schenkel (64%)</span><span class="val" x-text="fmt(wdR.lang)+' m'"></span></div>
+        <div class="rr"><span class="lbl">Kurzer Schenkel (36%)</span><span class="val" x-text="fmt(wdR.kurz)+' m'"></span></div>
+        <div class="rr"><span class="lbl">Speisepunkt-Impedanz</span><span class="val">≈ 200–300 Ω (4:1 Balun)</span></div>
+      </div>
+      <template x-if="wdR.harmonics.length>0">
+        <div class="card"><h2>Multiband-Nutzung</h2>
+          <div class="tag-grid">
+            <template x-for="b in wdR.harmonics" :key="b"><div class="tag" x-text="b"></div></template>
+          </div>
+        </div>
+      </template>
+    </div>
+  </template>
+  <div class="info">Windom / OCFD: Einspeisung bei 36% vom Ende (kein Symmetriepunkt). Eingangsimpedanz ≈200–300 Ω → 4:1 oder 6:1 Strombalun. Multiband-fähig auf Harmonischen.</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 6. EFHW -->
+<div x-show="page==='efhw'">
+  <div class="calc-title">EFHW-Antenne</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(efhw.freq,freq)}" @click="efhw.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz (Grundwelle)</label><div class="inp-row"><input type="text" x-model="efhw.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Verkürzungsfaktor VF</label><div class="inp-row"><input type="text" x-model="efhw.vf"></div></div>
+    </div>
+  </div>
+  <template x-if="efhwR">
+    <div>
+      <div class="card"><h2>Ergebnis</h2>
+        <div class="rr hi"><span class="lbl">Drahtlänge (λ/2)</span><span class="val" x-text="fmt(efhwR.draht)+' m'"></span></div>
+        <div class="rr"><span class="lbl">Gegengewicht (≈5% λ)</span><span class="val" x-text="fmt(efhwR.gegengew)+' m'"></span></div>
+        <div class="rr"><span class="lbl">Eingangsimpedanz</span><span class="val">≈ 2450 Ω</span></div>
+        <div class="rr"><span class="lbl">Anpass-Transformator</span><span class="val">49:1 Unun</span></div>
+        <div class="rr"><span class="lbl">Trafo-Wicklung</span><span class="val">2 + 14 Windungen (FT240-43)</span></div>
+      </div>
+      <template x-if="efhwR.harmonics.length>0">
+        <div class="card"><h2>Multiband-Nutzung (Harmonische)</h2>
+          <div class="tag-grid">
+            <template x-for="b in efhwR.harmonics" :key="b"><div class="tag" x-text="b"></div></template>
+          </div>
+        </div>
+      </template>
+    </div>
+  </template>
+  <div class="info">EFHW: Einspeisung am Ende, hohe Impedanz ~2450 Ω → 49:1 Unun nötig. FT240-43, 2 Primär + 14 Sekundär-Windungen. 100 pF NP0-Kondensator parallel zur Primärwicklung. Multiband auf Harmonischen ohne Tuner.</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 7. EFHW-VERKÜRZUNG -->
+<div x-show="page==='efhwV'">
+  <div class="calc-title">EFHW-Verkürzung</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(efhwV.freq,freq)}" @click="efhwV.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="efhwV.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Verfügbare Strahler-Länge</label><div class="inp-row"><input type="text" x-model="efhwV.hoehe"><span>m</span></div></div>
+      <div class="inp-g"><label>Spulen-Durchmesser</label><div class="inp-row"><input type="text" x-model="efhwV.D"><span>mm</span></div></div>
+      <div class="inp-g"><label>Drahtdurchmesser</label><div class="inp-row"><input type="text" x-model="efhwV.dw"><span>mm</span></div></div>
+    </div>
+  </div>
+  <template x-if="efhwVR">
+    <div class="card"><h2>Ergebnis</h2>
+      <template x-if="efhwVR.ok">
+        <div class="ok-box">✓ Strahler ist lang genug (≥ <span x-text="fmt(efhwVR.ziel)"></span> m) – keine Spule nötig</div>
+      </template>
+      <template x-if="!efhwVR.ok">
+        <div>
+          <div class="rr"><span class="lbl">Ziel-Länge (λ/2)</span><span class="val" x-text="fmt(efhwVR.ziel)+' m'"></span></div>
+          <div class="rr"><span class="lbl">Fehlende Länge</span><span class="val c-ylw" x-text="fmt(efhwVR.diff)+' m'"></span></div>
+          <div class="rr hi"><span class="lbl">Induktivität</span><span class="val" x-text="fmt(efhwVR.L_uH,2)+' µH'"></span></div>
+          <div class="rr hi"><span class="lbl">Windungen</span><span class="val" x-text="efhwVR.n+' Wdg.'"></span></div>
+          <div class="rr"><span class="lbl">Spulenlänge</span><span class="val" x-text="fmt(efhwVR.laenge_mm,1)+' mm'"></span></div>
+        </div>
+      </template>
+    </div>
+  </template>
+  <div class="info">Verlängerungsspule für zu kurze EFHW-Drähte. Spule am Fußpunkt des Strahlers einschleifen. Wheeler-Formel für Luftspule (Einschicht).</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 8. LOOP -->
+<div x-show="page==='loop'">
+  <div class="calc-title">Loop-Antenne</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(loop.freq,freq)}" @click="loop.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="seg" style="margin-bottom:10px">
+      <button class="sb" :class="{on:loop.typ==='delta'}" @click="loop.typ='delta'">Delta Loop</button>
+      <button class="sb" :class="{on:loop.typ==='quad'}"  @click="loop.typ='quad'">Quad</button>
+    </div>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="loop.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Verkürzungsfaktor VF</label><div class="inp-row"><input type="text" x-model="loop.vf"></div></div>
+    </div>
+  </div>
+  <template x-if="loopR">
+    <div class="card"><h2>Ergebnis</h2>
+      <div class="rr hi"><span class="lbl">Gesamt-Umfang</span><span class="val" x-text="fmt(loopR.umfang)+' m'"></span></div>
+      <div class="rr"><span class="lbl" x-text="loop.typ==='delta'?'Seite (÷3)':'Seite (÷4)'"></span><span class="val" x-text="fmt(loopR.seite)+' m'"></span></div>
+      <div class="rr"><span class="lbl">λ/4 Anpassleitung (Koax)</span><span class="val" x-text="fmt(loopR.matchLen)+' m'"></span></div>
+    </div>
+  </template>
+  <div class="info">Delta Loop / Quad: vollständiger Wellenlängen-Umlauf. Einspeisung über λ/4 Koaxkabel-Transformator (75Ω → 50Ω). Gewinn ~2 dBd gegenüber Dipol.</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 9. MOXON -->
+<div x-show="page==='mox'">
+  <div class="calc-title">Moxon Rectangle</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(mox.freq,freq)}" @click="mox.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="mox.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Verkürzungsfaktor VF</label><div class="inp-row"><input type="text" x-model="mox.vf"></div></div>
+    </div>
+  </div>
+  <template x-if="moxR">
+    <div class="card"><h2>Maße (G3TXQ)</h2>
+      <div class="rr hi"><span class="lbl">A – Seite horizontal</span><span class="val" x-text="fmt(moxR.A)+' m'"></span></div>
+      <div class="rr"><span class="lbl">B – Rücklauf (je Seite)</span><span class="val" x-text="fmt(moxR.B)+' m'"></span></div>
+      <div class="rr"><span class="lbl">C – Lücke (Spalt)</span><span class="val" x-text="fmt(moxR.C)+' m'"></span></div>
+      <div class="rr"><span class="lbl">D – Gesamttiefe (B+C+D')</span><span class="val" x-text="fmt(moxR.tiefe)+' m'"></span></div>
+      <div class="rr"><span class="lbl">Speisepunkt-Impedanz</span><span class="val">≈ 50 Ω</span></div>
+    </div>
+  </template>
+  <div class="info">Moxon: kompaktes 2-Element-Beam. Gewinn ~5 dBd, F/B ≈20 dB. Einfacher aufzubauen als Yagi. G3TXQ-Koeffizienten (A=0.475λ, B=0.050λ, C=0.0156λ, D=0.0624λ).</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 10. HB9CV -->
+<div x-show="page==='hb9'">
+  <div class="calc-title">HB9CV Beam</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(hb9.freq,freq)}" @click="hb9.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="hb9.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Element-Durchmesser</label><div class="inp-row"><input type="text" x-model="hb9.d_mm"><span>mm</span></div></div>
+    </div>
+  </div>
+  <template x-if="hb9R">
+    <div class="card"><h2>Ergebnis</h2>
+      <div class="rr hi"><span class="lbl">Reflektor</span><span class="val" x-text="fmt(hb9R.refl)+' m'"></span></div>
+      <div class="rr hi"><span class="lbl">Direktor</span><span class="val" x-text="fmt(hb9R.dir)+' m'"></span></div>
+      <div class="rr"><span class="lbl">Boom-Länge</span><span class="val" x-text="fmt(hb9R.boom)+' m'"></span></div>
+      <div class="rr"><span class="lbl">Gamma-Match Position</span><span class="val" x-text="fmt(hb9R.gamma)+' m vom Reflektor-Mitte'"></span></div>
+      <div class="rr"><span class="lbl">Verkürzungsfaktor VF</span><span class="val" x-text="fmt(hb9R.vf,4)"></span></div>
+    </div>
+  </template>
+  <div class="info">HB9CV: 2-Element-Yagi mit Gamma-Match-Speisung. Gewinn ~5 dBd, F/B ≈10 dB. Speisung direkt mit 50Ω Koax.</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 11. HEXBEAM -->
+<div x-show="page==='hex'">
+  <div class="calc-title">Hexbeam</div>
+  <div class="card"><h2>Bänder auswählen</h2>
+    <div class="seg">
+      <template x-for="band in ['20m','17m','15m','12m','10m','6m']" :key="band">
+        <button class="sb" :class="{on:hex.bands[band]}" @click="hex.bands[band]=!hex.bands[band]" x-text="band"></button>
+      </template>
+    </div>
+  </div>
+  <template x-if="hexR.length>0">
+    <div class="card"><h2>Maße pro Band</h2>
+      <table class="tbl">
+        <thead><tr><th>Band</th><th>Treiber (m)</th><th>Reflektor (m)</th><th>Arm (m)</th><th>Spreizer (m)</th></tr></thead>
+        <tbody>
+          <template x-for="r in hexR" :key="r.band">
+            <tr>
+              <td class="c-acc fw7" x-text="r.band"></td>
+              <td class="mono" x-text="r.treiber.toFixed(3)"></td>
+              <td class="mono" x-text="r.reflektor.toFixed(3)"></td>
+              <td class="mono" x-text="r.arm.toFixed(3)"></td>
+              <td class="mono" x-text="r.spreizer.toFixed(3)"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </template>
+  <div class="info">Hexbeam: 2-Element-Beam auf mehreren Bändern. Treiber=0.440λ, Reflektor=0.495λ, Arm=0.260λ. Gewinn ~5 dBd je Band.</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 12. YAGI -->
+<div x-show="page==='yagi'">
+  <div class="calc-title">Yagi-Rechner</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(yagi.freq,freq)}" @click="yagi.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="seg" style="margin-bottom:10px">
+      <template x-for="[id,des] in Object.entries(yagiDesigns)" :key="id">
+        <button class="sb" :class="{on:yagi.design===id}" @click="yagi.design=id" x-text="des.label"></button>
+      </template>
+    </div>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="yagi.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Verkürzungsfaktor VF</label><div class="inp-row"><input type="text" x-model="yagi.vf"></div></div>
+    </div>
+  </div>
+  <template x-if="yagiR">
+    <div class="card"><h2>Elemente</h2>
+      <table class="tbl">
+        <thead><tr><th>Element</th><th>Länge (m)</th><th>Arm (m)</th><th>Position (m)</th></tr></thead>
+        <tbody>
+          <template x-for="e in yagiR.elems" :key="e.typ">
+            <tr>
+              <td class="fw7" x-text="e.typ"></td>
+              <td class="mono" x-text="e.laenge.toFixed(3)"></td>
+              <td class="mono" x-text="(e.laenge/2).toFixed(3)"></td>
+              <td class="mono" x-text="e.pos.toFixed(3)"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <div style="margin-top:8px" class="small">Boom-Länge: <span class="c-acc" x-text="yagiR.boom.toFixed(3)+' m'"></span> · Wellenlänge: <span x-text="yagiR.lambda.toFixed(3)+' m'"></span></div>
+    </div>
+  </template>
+</div>
+
+<!-- ─────────────────────────────────────────── 13. SB EINZELBAND -->
+<div x-show="page==='sbe'">
+  <div class="calc-title">Spiderbeam Einzelband</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(sbe.freq,freq)}" @click="sbe.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Frequenz</h2>
+    <div class="inp-g" style="max-width:200px"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="sbe.freq"><span>MHz</span></div></div>
+  </div>
+  <template x-if="sbeR">
+    <div class="card"><h2>Elementdaten</h2>
+      <template x-if="sbeR.warn"><div class="warn" style="margin-bottom:8px">⚠ Arm-Länge &gt; 5 m – prüfe Spreizer-Länge!</div></template>
+      <table class="tbl">
+        <thead><tr><th>Element</th><th>L_el (m)</th><th>Arm-Zuschnitt (mm)</th><th>Position (m)</th></tr></thead>
+        <tbody>
+          <template x-for="e in sbeR.elems" :key="e.typ">
+            <tr>
+              <td class="fw7" x-text="e.typ"></td>
+              <td class="mono" x-text="e.len.toFixed(2)"></td>
+              <td class="mono" x-text="e.arm"></td>
+              <td class="mono" x-text="(e.pos>=0?'+':'')+e.pos.toFixed(2)"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <div class="small mt8">Wellenlänge: <span x-text="sbeR.lambda.toFixed(3)+' m'"></span> · Spreizer: <span x-text="sbeR.spreizer+' m'"></span></div>
+    </div>
+  </template>
+  <div class="info">Spiderbeam Einzelband: 3-Element Yagi auf Glasfaser-Spreizern. Strahler=0.466λ. Originalmaße für CuLi-Draht ausgelegt.</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 14. SB MULTI-BAND -->
+<div x-show="page==='sbm'">
+  <div class="calc-title">Spiderbeam Multi-Band</div>
+  <div class="card"><h2>Version</h2>
+    <div class="seg">
+      <template x-for="[id,ver] in Object.entries(sbmVersions)" :key="id">
+        <button class="sb" :class="{on:sbm.version===id}" @click="sbmSelectVersion(id)" x-text="ver.label"></button>
+      </template>
+    </div>
+    <div class="small mt8" x-text="sbmVersions[sbm.version].label"></div>
+  </div>
+  <div class="card"><h2>Bänder</h2>
+    <div class="seg">
+      <template x-for="band in sbmVersions[sbm.version].bands" :key="band">
+        <button class="sb" :class="{on:sbm.bands[band]}" @click="sbm.bands[band]=!sbm.bands[band]" x-text="band"></button>
+      </template>
+    </div>
+  </div>
+  <div class="card"><h2>Drahtlängen (DF4SA Originaldaten)</h2>
+    <table class="tbl">
+      <thead><tr><th>Band</th><th>Element</th><th>L_el (m)</th><th>Arm (mm)</th><th>S (m)</th></tr></thead>
+      <tbody>
+        <template x-for="(r,i) in sbmRows" :key="i">
+          <tr>
+            <td class="c-acc fw7" x-text="r.band"></td>
+            <td x-text="r.typ"></td>
+            <td class="mono" x-text="r.Lel.toFixed(2)"></td>
+            <td class="mono" x-text="r.arm"></td>
+            <td class="mono" x-text="sbmPosStr(r.S)"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+    <div class="small mt8">S: Boom-Position (+= Direktor-Seite, −= Reflektor-Seite)</div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────── 15. MAGLOOP -->
+<div x-show="page==='mag'">
+  <div class="calc-title">Magnetic Loop</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(mag.freq,freq)}" @click="mag.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="mag.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Schleifendurchmesser</label><div class="inp-row"><input type="text" x-model="mag.D_m"><span>m</span></div></div>
+      <div class="inp-g"><label>Form</label>
+        <select x-model="mag.shape">
+          <option value="kreis">Kreis</option>
+          <option value="quadrat">Quadrat</option>
+        </select>
+      </div>
+      <div class="inp-g"><label>Leiter</label>
+        <select x-model="mag.mat">
+          <option value="cu25">Cu-Rohr 25mm</option>
+          <option value="cu15">Cu-Rohr 15mm</option>
+          <option value="cu10">Cu-Rohr 10mm</option>
+          <option value="al25">Al-Rohr 25mm</option>
+        </select>
+      </div>
+      <div class="inp-g"><label>Sendeleistung</label><div class="inp-row"><input type="text" x-model="mag.P_W"><span>W</span></div></div>
+    </div>
+  </div>
+  <template x-if="magR">
+    <div class="card"><h2>Ergebnis</h2>
+      <div class="rr hi"><span class="lbl">Induktivität</span><span class="val" x-text="fmt(magR.L_uH,2)+' µH'"></span></div>
+      <div class="rr hi"><span class="lbl">Abstimmkondensator</span><span class="val" x-text="fmt(magR.C_pF,1)+' pF'"></span></div>
+      <div class="rr"><span class="lbl">Spannungs-Spitze am C</span><span class="val" x-text="fmt(magR.V_rms,0)+' V'"></span></div>
+      <div class="rr"><span class="lbl">Güte Q</span><span class="val" x-text="magR.Q"></span></div>
+      <div class="rr"><span class="lbl">Wirkungsgrad η</span><span class="val" x-text="fmt(magR.eta,1)+' %'"></span></div>
+      <div class="rr"><span class="lbl">Bandbreite (-3 dB)</span><span class="val" x-text="fmt(magR.BW_kHz,2)+' kHz'"></span></div>
+    </div>
+  </template>
+  <div class="warn">Kondensator-Spannung kann sehr hoch sein! Vakuum-Kondensator oder Airspaced-C verwenden. Berühren während Sendebetrieb lebensgefahrlich!</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 16. BALUN -->
+<div x-show="page==='bal'">
+  <div class="calc-title">Balun / Unun</div>
+  <div class="card"><h2>Typ</h2>
+    <div class="seg">
+      <template x-for="t in balTypen" :key="t.id">
+        <button class="sb" :class="{on:bal.typ===t.id}" @click="balTypSelect(t.id)" x-text="t.label"></button>
+      </template>
+    </div>
+  </div>
+  <div class="card"><h2>Ringkern &amp; Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Ringkern</label>
+        <select x-model="bal.kern">
+          <template x-for="k in balKerne" :key="k.id">
+            <option :value="k.id" x-text="k.name+' (Al='+k.al+' nH/N²)'"></option>
+          </template>
+        </select>
+      </div>
+      <div class="inp-g"><label>Ziel-Induktivität</label><div class="inp-row"><input type="text" x-model="bal.lUH"><span>µH</span></div></div>
+      <div class="inp-g"><label>Drahtdurchmesser</label><div class="inp-row"><input type="text" x-model="bal.dw"><span>mm</span></div></div>
+    </div>
+  </div>
+  <template x-if="balR">
+    <div class="card"><h2>Ergebnis</h2>
+      <div class="rr hi"><span class="lbl">Windungen</span><span class="val" x-text="balR.n+' Wdg.'"></span></div>
+      <div class="rr"><span class="lbl">Tatsächliche Induktivität</span><span class="val" x-text="fmt(balR.lTats,2)+' µH'"></span></div>
+      <div class="rr"><span class="lbl">Drahtlänge</span><span class="val" x-text="fmt(balR.drahtLen,2)+' m'"></span></div>
+      <div class="rr"><span class="lbl">Kern-Auslastung</span>
+        <span class="val" :class="{'c-red':balR.status==='zu-klein','c-ylw':balR.status==='eng','c-grn':balR.status==='ok'}"
+              x-text="fmt(balR.fill,1)+' %'+' ('+balR.status+')'"></span>
+      </div>
+      <div class="rr"><span class="lbl">Max. Windungen auf Kern</span><span class="val" x-text="balR.maxN"></span></div>
+    </div>
+  </template>
+</div>
+
+<!-- ─────────────────────────────────────────── 17. VERLÄNGERUNG -->
+<div x-show="page==='verl'">
+  <div class="calc-title">Strahler-Verlängerung</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(verl.freq,freq)}" @click="verl.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="verl.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Strahler-Länge</label><div class="inp-row"><input type="text" x-model="verl.hoehe"><span>m</span></div></div>
+      <div class="inp-g"><label>Strahler-Durchmesser</label><div class="inp-row"><input type="text" x-model="verl.D"><span>mm</span></div></div>
+      <div class="inp-g"><label>Drahtdurchmesser</label><div class="inp-row"><input type="text" x-model="verl.dw"><span>mm</span></div></div>
+    </div>
+  </div>
+  <template x-if="verlR">
+    <div class="card"><h2>Ergebnis</h2>
+      <template x-if="verlR.ok">
+        <div class="ok-box">✓ Strahler ist lang genug – keine Verlängerungsspule nötig</div>
+      </template>
+      <template x-if="!verlR.ok">
+        <div>
+          <div class="rr"><span class="lbl">Ziel-Länge (λ/4)</span><span class="val" x-text="fmt(verlR.ziel)+' m'"></span></div>
+          <div class="rr"><span class="lbl">Strahler-Impedanz Z₀</span><span class="val" x-text="verlR.Z0+' Ω'"></span></div>
+          <div class="rr"><span class="lbl">Blindwiderstand Xa</span><span class="val" x-text="verlR.Xa+' Ω'"></span></div>
+          <div class="rr hi"><span class="lbl">Induktivität</span><span class="val" x-text="fmt(verlR.L_uH,2)+' µH'"></span></div>
+          <div class="rr hi"><span class="lbl">Windungen</span><span class="val" x-text="verlR.n+' Wdg.'"></span></div>
+          <div class="rr"><span class="lbl">Spulenlänge</span><span class="val" x-text="fmt(verlR.laenge_mm,1)+' mm'"></span></div>
+        </div>
+      </template>
+    </div>
+  </template>
+</div>
+
+<!-- ─────────────────────────────────────────── 18. SPULEN-WICKLER -->
+<div x-show="page==='spul'">
+  <div class="calc-title">Spulen-Wickler</div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Spulen-Durchmesser</label><div class="inp-row"><input type="text" x-model="spul.D_mm"><span>mm</span></div></div>
+      <div class="inp-g"><label>Drahtdurchmesser</label><div class="inp-row"><input type="text" x-model="spul.dw"><span>mm</span></div></div>
+      <div class="inp-g"><label>Windungsabstand</label><div class="inp-row"><input type="text" x-model="spul.spacing"><span>mm</span></div></div>
+      <div class="inp-g"><label>Windungen</label><div class="inp-row"><input type="text" x-model="spul.n"><span>Wdg.</span></div></div>
+      <div class="inp-g"><label>Resonanz-Frequenz</label><div class="inp-row"><input type="text" x-model="spul.freq"><span>MHz</span></div></div>
+    </div>
+  </div>
+  <template x-if="spulR">
+    <div class="card"><h2>Ergebnis</h2>
+      <div class="rr hi"><span class="lbl">Induktivität</span><span class="val" x-text="fmt(spulR.L_uH,3)+' µH'"></span></div>
+      <div class="rr"><span class="lbl">Spulenlänge</span><span class="val" x-text="fmt(spulR.l_mm,1)+' mm'"></span></div>
+      <div class="rr"><span class="lbl">Drahtlänge</span><span class="val" x-text="fmt(spulR.wireLen,0)+' mm'"></span></div>
+      <div class="rr"><span class="lbl">Resonanz-Kapazität</span><span class="val" x-text="fmt(spulR.C_res_pF,1)+' pF'"></span></div>
+      <div class="rr"><span class="lbl">Gütefaktor Q</span><span class="val" x-text="spulR.Q"></span></div>
+    </div>
+  </template>
+  <div class="info">Wheeler-Formel für Luftspulen (Einschicht). Güte Q ist approximativ (HF-Verluste nicht berücksichtigt).</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 19. ANPASSNETZWERK -->
+<div x-show="page==='anp'">
+  <div class="calc-title">Anpassnetzwerk (L-Netz)</div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid3">
+      <div class="inp-g"><label>Niedrige Impedanz</label><div class="inp-row"><input type="text" x-model="anp.rLow"><span>Ω</span></div></div>
+      <div class="inp-g"><label>Hohe Impedanz</label><div class="inp-row"><input type="text" x-model="anp.rHigh"><span>Ω</span></div></div>
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="anp.freq"><span>MHz</span></div></div>
+    </div>
+  </div>
+  <template x-if="anpR">
+    <div class="card"><h2>Ergebnis</h2>
+      <div class="rr"><span class="lbl">Gütefaktor Q</span><span class="val" x-text="fmt(anpR.Q,3)"></span></div>
+      <div class="rr hi"><span class="lbl">Spule XL</span><span class="val" x-text="fmt(anpR.XL,1)+' Ω  →  '+fmt(anpR.L_uH,3)+' µH'"></span></div>
+      <div class="rr hi"><span class="lbl">Kondensator XC</span><span class="val" x-text="fmt(anpR.XC,1)+' Ω  →  '+fmt(anpR.C_pF,1)+' pF'"></span></div>
+    </div>
+  </template>
+  <div class="info">L-Netz Tiefpass-Konfiguration: Spule parallel zur Quelle (niedriger Z), Kondensator parallel zur Last (hoher Z). Zweite Konfiguration (Hochpass): Spule und Kondensator tauschen die Seiten.</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 20. KOAX-STUB -->
+<div x-show="page==='kstub'">
+  <div class="calc-title">Koax-Stub</div>
+  <div class="card"><h2>Band-Schnellwahl</h2><div class="band-grid">
+    <template x-for="[name,freq] in bands" :key="name">
+      <button class="bb" :class="{on:isBandActive(kstub.freq,freq)}" @click="kstub.freq=String(freq)" x-text="name"></button>
+    </template>
+  </div></div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="kstub.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Koaxkabel</label>
+        <select x-model="kstub.koax">
+          <option value="rg58">RG-58 (VF 0.66)</option>
+          <option value="rg213">RG-213 (VF 0.66)</option>
+          <option value="h155">H-155 (VF 0.80)</option>
+          <option value="aircell7">Aircell 7 (VF 0.83)</option>
+          <option value="ecoflex10">Ecoflex 10 (VF 0.83)</option>
+        </select>
+      </div>
+      <div class="inp-g"><label>Stub-Typ</label>
+        <select x-model="kstub.typ">
+          <option value="offen">Offen (Open)</option>
+          <option value="kurz">Kurzschluss (Shorted)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <template x-if="kstubR">
+    <div class="card"><h2>Längen</h2>
+      <div class="rr hi"><span class="lbl">λ/4 Stub</span><span class="val" x-text="fmt(kstubR.lq)+' m'"></span></div>
+      <div class="rr"><span class="lbl">λ/2 Stub</span><span class="val" x-text="fmt(kstubR.lh)+' m'"></span></div>
+      <div class="rr"><span class="lbl">VF (Kabel)</span><span class="val" x-text="kstubR.vf"></span></div>
+      <hr class="div">
+      <template x-if="kstub.typ==='offen'">
+        <div><div class="rr"><span class="lbl">λ/4 offen</span><span class="val">Sperrkreis (Bandstop) – blockiert Frequenz</span></div>
+        <div class="rr"><span class="lbl">λ/2 offen</span><span class="val">Transparent – keine Wirkung</span></div></div>
+      </template>
+      <template x-if="kstub.typ==='kurz'">
+        <div><div class="rr"><span class="lbl">λ/4 kurzgeschlossen</span><span class="val">Saugkreis (Bandpass) – leitet Frequenz durch</span></div>
+        <div class="rr"><span class="lbl">λ/2 kurzgeschlossen</span><span class="val">Kurzschluss – blockiert Frequenz</span></div></div>
+      </template>
+    </div>
+  </template>
+</div>
+
+<!-- ─────────────────────────────────────────── 21. KABELDÄMPFUNG -->
+<div x-show="page==='kdae'">
+  <div class="calc-title">Kabeldämpfung</div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Kabel</label>
+        <select x-model="kdae.kabel">
+          <template x-for="k in kdaeKabel" :key="k.id"><option :value="k.id" x-text="k.name"></option></template>
+        </select>
+      </div>
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="kdae.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Kabellänge</label><div class="inp-row"><input type="text" x-model="kdae.laenge"><span>m</span></div></div>
+      <div class="inp-g"><label>Eingangsleistung</label><div class="inp-row"><input type="text" x-model="kdae.pIn"><span>W</span></div></div>
+    </div>
+  </div>
+  <template x-if="kdaeR">
+    <div class="card"><h2>Ergebnis</h2>
+      <div class="rr"><span class="lbl">Dämpfung / 100m</span><span class="val" x-text="fmt(kdaeR.att100,2)+' dB'"></span></div>
+      <div class="rr hi"><span class="lbl">Gesamtdämpfung</span><span class="val" x-text="fmt(kdaeR.totalDB,2)+' dB'"></span></div>
+      <div class="rr"><span class="lbl">Ausgangsleistung</span><span class="val" x-text="fmt(kdaeR.pOut,2)+' W'"></span></div>
+      <div class="rr"><span class="lbl">Verlustleistung</span><span class="val c-red" x-text="fmt(kdaeR.verlust,2)+' W'"></span></div>
+      <div class="rr"><span class="lbl">Wirkungsgrad</span>
+        <span class="val" :class="{'c-grn':kdaeR.status==='gut','c-ylw':kdaeR.status==='mittel','c-red':kdaeR.status==='schlecht'}"
+              x-text="fmt(kdaeR.eta,1)+' %'"></span>
+      </div>
+    </div>
+  </template>
+</div>
+
+<!-- ─────────────────────────────────────────── 22. PEGEL -->
+<div x-show="page==='peg'">
+  <div class="calc-title">Pegel-Umrechner</div>
+  <div class="card"><h2>Eingabe</h2>
+    <div class="seg" style="margin-bottom:10px">
+      <button class="sb" :class="{on:peg.mode==='watt'}" @click="peg.mode='watt'">Watt</button>
+      <button class="sb" :class="{on:peg.mode==='mw'}"   @click="peg.mode='mw'">mW</button>
+      <button class="sb" :class="{on:peg.mode==='dbm'}"  @click="peg.mode='dbm'">dBm</button>
+      <button class="sb" :class="{on:peg.mode==='dbw'}"  @click="peg.mode='dbw'">dBW</button>
+      <button class="sb" :class="{on:peg.mode==='volt'}" @click="peg.mode='volt'">Volt</button>
+    </div>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Wert</label><div class="inp-row">
+        <input type="text" x-model="peg.value">
+        <span x-text="peg.mode==='watt'?'W':peg.mode==='mw'?'mW':peg.mode==='dbm'?'dBm':peg.mode==='dbw'?'dBW':'V'"></span>
+      </div></div>
+      <div class="inp-g"><label>Impedanz</label><div class="inp-row"><input type="text" x-model="peg.Z"><span>Ω</span></div></div>
+    </div>
+  </div>
+  <template x-if="pegR">
+    <div class="card"><h2>Umrechnung</h2>
+      <div class="rr hi"><span class="lbl">Watt</span><span class="val" x-text="pegR.W>=1?fmt(pegR.W,3)+' W':fmt(pegR.mW,3)+' mW'"></span></div>
+      <div class="rr"><span class="lbl">Milliwatt</span><span class="val" x-text="fmt(pegR.mW,3)+' mW'"></span></div>
+      <div class="rr hi"><span class="lbl">dBm</span><span class="val" x-text="fmt(pegR.dBm,2)+' dBm'"></span></div>
+      <div class="rr"><span class="lbl">dBW</span><span class="val" x-text="fmt(pegR.dBW,2)+' dBW'"></span></div>
+      <hr class="div">
+      <div class="rr"><span class="lbl">Spannung (eff.)</span><span class="val" x-text="fmt(pegR.V,3)+' V'"></span></div>
+      <div class="rr"><span class="lbl">Spannung</span><span class="val" x-text="pegR.mV>=1?fmt(pegR.mV,2)+' mV':fmt(pegR.uV,1)+' µV'"></span></div>
+    </div>
+  </template>
+</div>
+
+<!-- ─────────────────────────────────────────── 23. SWR -->
+<div x-show="page==='swr'">
+  <div class="calc-title">SWR-Simulator</div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>SWR</label><div class="inp-row"><input type="text" x-model="swr.swr"><span>:1</span></div></div>
+      <div class="inp-g"><label>Vorlaufleistung</label><div class="inp-row"><input type="text" x-model="swr.pFwd"><span>W</span></div></div>
+    </div>
+  </div>
+  <template x-if="swrR">
+    <div class="card"><h2>Ergebnis</h2>
+      <div class="rr hi"><span class="lbl">Reflexionsfaktor Γ</span><span class="val" x-text="fmt(swrR.gamma,4)"></span></div>
+      <div class="rr"><span class="lbl">Rücklaufleistung</span><span class="val c-red" x-text="fmt(swrR.pRef,2)+' W'"></span></div>
+      <div class="rr"><span class="lbl">Netto-Leistung</span><span class="val c-grn" x-text="fmt(swrR.pNet,2)+' W'"></span></div>
+      <div class="rr"><span class="lbl">Return Loss</span><span class="val" x-text="fmt(swrR.rl,1)+' dB'"></span></div>
+      <div class="rr"><span class="lbl">Mismatch-Verlust</span><span class="val" x-text="fmt(swrR.mismatch,2)+' dB'"></span></div>
+    </div>
+  </template>
+</div>
+
+<!-- ─────────────────────────────────────────── 24. LINKBUDGET -->
+<div x-show="page==='lnk'">
+  <div class="calc-title">Linkbudget / Reichweite</div>
+  <div class="card"><h2>Parameter</h2>
+    <div class="inp-grid">
+      <div class="inp-g"><label>Frequenz</label><div class="inp-row"><input type="text" x-model="lnk.freq"><span>MHz</span></div></div>
+      <div class="inp-g"><label>Distanz</label><div class="inp-row"><input type="text" x-model="lnk.dist"><span>km</span></div></div>
+      <div class="inp-g"><label>Sendeleistung</label><div class="inp-row"><input type="text" x-model="lnk.ptx"><span>W</span></div></div>
+      <div class="inp-g"><label>TX-Antennengewinn</label><div class="inp-row"><input type="text" x-model="lnk.gtx"><span>dBd</span></div></div>
+      <div class="inp-g"><label>RX-Antennengewinn</label><div class="inp-row"><input type="text" x-model="lnk.grx"><span>dBd</span></div></div>
+      <div class="inp-g"><label>Empfänger-Empfindlichkeit</label><div class="inp-row"><input type="text" x-model="lnk.sens"><span>dBm</span></div></div>
+    </div>
+  </div>
+  <template x-if="lnkR">
+    <div class="card"><h2>Ergebnis</h2>
+      <div class="rr"><span class="lbl">Sendeleistung</span><span class="val" x-text="fmt(lnkR.ptx_dBm,1)+' dBm'"></span></div>
+      <div class="rr"><span class="lbl">Freiraumdämpfung (FSPL)</span><span class="val" x-text="fmt(lnkR.fspl,1)+' dB'"></span></div>
+      <div class="rr hi"><span class="lbl">Empfangsleistung</span><span class="val" x-text="fmt(lnkR.prx_dBm,1)+' dBm'"></span></div>
+      <div class="rr"><span class="lbl">Empfangsspannung</span><span class="val" x-text="lnkR.prx_uV>=1?fmt(lnkR.prx_uV,1)+' µV':fmt(lnkR.prx_uV*1000,2)+' nV'"></span></div>
+      <div class="rr"><span class="lbl">Link-Marge</span>
+        <span class="val" :class="{'c-grn':lnkR.ok,'c-red':!lnkR.ok}" x-text="(lnkR.margin>=0?'+':'')+fmt(lnkR.margin,1)+' dB'"></span>
+      </div>
+    </div>
+  </template>
+  <div class="info">FSPL-Formel: 20·log(d_km) + 20·log(f_MHz) + 32.45 dB. Gilt für freie Sichtlinie (Line of Sight). Reale Dämpfung ist höher (Gelände, Gebäude, Atmosphäre).</div>
+</div>
+
+<!-- ─────────────────────────────────────────── 25. QTH-LOCATOR -->
+<div x-show="page==='qth'">
+  <div class="calc-title">QTH-Locator</div>
+  <div class="card"><h2>Modus</h2>
+    <div class="seg">
+      <button class="sb" :class="{on:qth.mode==='loc2coord'}" @click="qth.mode='loc2coord'">Locator → Koordinaten</button>
+      <button class="sb" :class="{on:qth.mode==='coord2loc'}" @click="qth.mode='coord2loc'">Koordinaten → Locator</button>
+    </div>
+  </div>
+  <div class="card"><h2>Eingabe</h2>
+    <template x-if="qth.mode==='loc2coord'">
+      <div class="inp-g" style="max-width:240px"><label>Maidenhead Locator</label>
+        <input type="text" x-model="qth.locator" placeholder="z.B. JN47PN" style="text-transform:uppercase">
+      </div>
+    </template>
+    <template x-if="qth.mode==='coord2loc'">
+      <div class="inp-grid">
+        <div class="inp-g"><label>Breitengrad (Latitude)</label><div class="inp-row"><input type="text" x-model="qth.lat"><span>°N</span></div></div>
+        <div class="inp-g"><label>Längengrad (Longitude)</label><div class="inp-row"><input type="text" x-model="qth.lon"><span>°E</span></div></div>
+      </div>
+    </template>
+  </div>
+  <template x-if="qthR">
+    <div class="card"><h2>Ergebnis</h2>
+      <template x-if="qthR.mode==='loc2coord'">
+        <div>
+          <div class="rr hi"><span class="lbl">Locator</span><span class="val" x-text="qthR.loc"></span></div>
+          <div class="rr"><span class="lbl">Breitengrad</span><span class="val" x-text="qthR.lat+'° N'"></span></div>
+          <div class="rr"><span class="lbl">Längengrad</span><span class="val" x-text="qthR.lon+'° E'"></span></div>
+        </div>
+      </template>
+      <template x-if="qthR.mode==='coord2loc'">
+        <div>
+          <div class="rr hi"><span class="lbl">Maidenhead Locator (6-stellig)</span><span class="val" x-text="qthR.loc"></span></div>
+          <div class="rr"><span class="lbl">Breitengrad</span><span class="val" x-text="Number(qthR.lat).toFixed(5)+'° N'"></span></div>
+          <div class="rr"><span class="lbl">Längengrad</span><span class="val" x-text="Number(qthR.lon).toFixed(5)+'° E'"></span></div>
+        </div>
+      </template>
+    </div>
+  </template>
+  <div class="info">Maidenhead-Locatorsystem (IARU): 6-stellig = Genauigkeit ±2.5 km. Mein QTH: JN47PN (HB9HJI).</div>
+</div>
+
+</div><!-- end #main -->
+</body>
+</html>

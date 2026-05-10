@@ -250,6 +250,13 @@ struct QTHLocatorView: View {
                     VStack(alignment: .leading, spacing: 20) { elevationTab }
                         .padding(24)
                 }
+            case 2:
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        RechnerBeschreibung(resourceName: "qthlocator")
+                    }
+                    .padding(24)
+                }
             default: EmptyView()
             }
         }
@@ -270,6 +277,7 @@ struct QTHLocatorView: View {
         HStack(spacing: 0) {
             tabBtn("Karte & Locator", icon: "map",                       idx: 0)
             tabBtn("Höhenprofil",     icon: "chart.line.uptrend.xyaxis", idx: 1)
+            tabBtn("Info",            icon: "info.circle",               idx: 2)
             Spacer()
         }
         .background(.bar)

@@ -31,6 +31,7 @@ struct SpulenWicklerView: View {
                     ergebnisBereich(r)
                     detailBereich(r)
                 }
+                RechnerBeschreibung(resourceName: "spulenwickler")
             }
             .padding(24)
         }

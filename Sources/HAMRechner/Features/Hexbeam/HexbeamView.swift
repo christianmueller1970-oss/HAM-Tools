@@ -50,6 +50,7 @@ struct HexbeamView: View {
                     zusammenfassungBereich
                 }
                 hinweisBereich
+                RechnerBeschreibung(resourceName: "hexbeam")
             }
             .padding(24)
         }

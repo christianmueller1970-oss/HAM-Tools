@@ -68,6 +68,7 @@ struct WindomView: View {
             VStack(alignment: .leading, spacing: 20) {
                 eingabeBereich
                 if let r = ergebnis { ergebnisBereich(r); skizzeBereich(r); mehrbandBereich(r); hinweisBereich }
+                RechnerBeschreibung(resourceName: "windom")
             }
             .padding(24)
         }

@@ -113,6 +113,7 @@ struct YagiRechnerView: View {
                     skizzeBereich(r)
                     stuecklisteBereich(r)
                 }
+                RechnerBeschreibung(resourceName: "yagi")
             }
             .padding(24)
         }

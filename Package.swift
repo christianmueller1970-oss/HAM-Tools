@@ -9,7 +9,8 @@ let package = Package(
             name: "HAMRechner",
             path: "Sources/HAMRechner",
             resources: [
-                .process("Assets.xcassets")
+                .process("Assets.xcassets"),
+                .process("Content")
             ]
         )
     ]

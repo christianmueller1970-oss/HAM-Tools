@@ -57,6 +57,7 @@ struct LinkbudgetView: View {
                 eingabeBereich
                 if let r = ergebnis { ergebnisBereich(r); marginBereich(r) }
                 hinweisBereich
+                RechnerBeschreibung(resourceName: "linkbudget")
             }
             .padding(24)
         }

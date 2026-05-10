@@ -147,6 +147,7 @@ struct SpiderbeamMultiBandView: View {
                 tabelleBereich
                 hinweisBereich
                 infoBereich
+                RechnerBeschreibung(resourceName: "spidermulti")
             }
             .padding(24)
         }

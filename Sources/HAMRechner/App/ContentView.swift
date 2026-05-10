@@ -10,6 +10,7 @@ enum Calculator: String, CaseIterable, Identifiable {
     case jpole            = "J-Pole / Slim Jim"
     case sperrtopf        = "Sperrtopf"
     case windom           = "Windom (OCFD)"
+    case efhwRechner      = "EFHW-Antenne"
     case efhwVerkuerzung  = "EFHW-Verkürzung"
     case loopRechner      = "Loop-Antenne"
 
@@ -23,7 +24,6 @@ enum Calculator: String, CaseIterable, Identifiable {
 
     // Antennen – Spezial
     case magloop          = "Magnetic Loop"
-    case antennenDesigner = "Antennen-Designer"
 
     // Spulen & Transformatoren
     case balunRechner     = "Balun / Unun"
@@ -51,6 +51,7 @@ enum Calculator: String, CaseIterable, Identifiable {
         case .jpole:               return "j.square"
         case .sperrtopf:           return "cylinder"
         case .windom:              return "angle"
+        case .efhwRechner:         return "arrow.right.to.line.alt"
         case .efhwVerkuerzung:     return "coil"
         case .loopRechner:         return "circle.dashed"
         case .moxon:               return "rectangle"
@@ -60,7 +61,6 @@ enum Calculator: String, CaseIterable, Identifiable {
         case .spiderbeamEinzelband: return "star.leadinghalf.filled"
         case .spiderbeamMultiBand: return "star"
         case .magloop:             return "circle.dotted"
-        case .antennenDesigner:    return "wand.and.stars"
         case .balunRechner:        return "arrow.2.squarepath"
         case .verlaengerung:       return "ruler"
         case .spulenWickler:       return "spiral"
@@ -79,12 +79,12 @@ enum Calculator: String, CaseIterable, Identifiable {
         case .dxCluster:
             return "Live-Tools"
         case .dipol, .groundplane, .jpole, .sperrtopf, .windom,
-             .efhwVerkuerzung, .loopRechner:
+             .efhwRechner, .efhwVerkuerzung, .loopRechner:
             return "Drahtantennen"
         case .moxon, .hb9cv, .hexbeam, .yagiRechner,
              .spiderbeamEinzelband, .spiderbeamMultiBand:
             return "Richtstrahler"
-        case .magloop, .antennenDesigner:
+        case .magloop:
             return "Spezialantennen"
         case .balunRechner, .verlaengerung, .spulenWickler:
             return "Spulen & Transformatoren"
@@ -195,6 +195,7 @@ struct CalculatorRouter: View {
         case .jpole:             JPoleView()
         case .sperrtopf:         SperrtopfView()
         case .windom:            WindomView()
+        case .efhwRechner:       EFHWRechnerView()
         case .efhwVerkuerzung:   EFHWVerkuerzungView()
         case .loopRechner:       LoopRechnerView()
         // Richtstrahler
@@ -206,7 +207,6 @@ struct CalculatorRouter: View {
         case .spiderbeamMultiBand:  SpiderbeamMultiBandView()
         // Spezialantennen
         case .magloop:           MagloopView()
-        case .antennenDesigner:  AntennenDesignerView()
         // Spulen & Transformatoren
         case .balunRechner:      BalunRechnerView()
         case .verlaengerung:     VerlaengerungView()

@@ -47,6 +47,7 @@ struct DipolView: View {
                 typWahl
                 eingabeBereich
                 if let r = ergebnis { ergebnisBereich(r); skizzeBereich(r); hinweisBereich(r) }
+                RechnerBeschreibung(resourceName: "dipol")
             }
             .padding(24)
         }

@@ -21,6 +21,7 @@ struct KoaxStubView: View {
                 eingabeBereich
                 if f > 0 { ergebnisBereich; anwendungBereich; skizzeBereich }
                 hinweisBereich
+                RechnerBeschreibung(resourceName: "koaxstub")
             }
             .padding(24)
         }
