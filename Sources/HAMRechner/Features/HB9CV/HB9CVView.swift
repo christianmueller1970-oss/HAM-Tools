@@ -40,6 +40,7 @@ private struct HB9CVErgebnis {
 // MARK: - View
 
 struct HB9CVView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var freqText    = "144.3"
     @State private var diamText    = "6.0"
     @State private var boomFaktor  = 0.125
@@ -144,8 +145,34 @@ struct HB9CVView: View {
                 ResultRow(label: "Direktor, halbe Seite", value: String(format: "%.3f m  (%.0f cm)", r.l_dir / 2, r.l_dir / 2 * 100))
                 ResultRow(label: "Boom-Länge", value: String(format: "%.3f m  (%.0f cm)", r.boom, r.boom * 100))
                 ResultRow(label: "Refl–Direk Abstand", value: String(format: "%.3f m  (%.0f cm)", r.boom, r.boom * 100))
+                HStack {
+                    Spacer()
+                    Button { imSimOeffnen(r) } label: {
+                        Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .help("Exportiert vereinfacht als Yagi — HB9CV-Phaseshifter ist nicht modellierbar")
+                }
+                .padding(.top, 4)
             }
         }
+    }
+
+    private func imSimOeffnen(_ r: HB9CVErgebnis) {
+        let h = max(8.0, r.lambda / 2.0)
+        let halfR = r.l_refl / 2
+        let halfD = r.l_dir / 2
+        let radius_mm = r.d_mm / 2.0
+        let model: [String: Any] = [
+            "name": "HB9CV @ \(String(format: "%.3f", r.f)) MHz (Approximation als Yagi)",
+            "freq": r.f, "ground": "average", "height": h,
+            "wires": [
+                ["tag": 1, "segments": 21, "x1": 0.0,    "y1": -halfR, "z1": h, "x2": 0.0,    "y2": halfR, "z2": h, "radius_mm": radius_mm],
+                ["tag": 2, "segments": 21, "x1": r.boom, "y1": -halfD, "z1": h, "x2": r.boom, "y2": halfD, "z2": h, "radius_mm": radius_mm],
+            ],
+            "excitation": ["wire_tag": 2, "segment": 11],
+        ]
+        simBridge.openInSim(model: model)
     }
 
     // MARK: Skizze (Canvas – Draufsicht)

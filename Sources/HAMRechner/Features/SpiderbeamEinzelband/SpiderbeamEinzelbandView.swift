@@ -79,6 +79,7 @@ private struct SBEErgebnis {
 // MARK: - View
 
 struct SpiderbeamEinzelbandView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var selectedBandIdx = 6   // 10m Default
     @State private var freqText   = "28.400"
     @State private var nElements  = 3
@@ -189,15 +190,47 @@ struct SpiderbeamEinzelbandView: View {
 
     private func statistikBereich(_ r: SBEErgebnis) -> some View {
         SectionCard(title: "Übersicht") {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
-                KenngroesseKachel(wert: String(format: "%.3f m", r.lambda), label: "Wellenlänge λ")
-                KenngroesseKachel(wert: String(format: "%.3f m", r.strahlerLen), label: "Strahler L_el", hervorheben: true, farbe: .accentColor)
-                KenngroesseKachel(wert: String(format: "%.3f m", r.boomLength), label: "Boomlänge")
-                KenngroesseKachel(wert: "\(r.nElements) Ele", label: "Elemente")
-                KenngroesseKachel(wert: String(format: "%.2f m", r.maxHalfLen), label: "Benötigter Halbspreizer")
-                KenngroesseKachel(wert: r.maxHalfLen <= 5.0 ? "Klassisch (5m)" : "WARC (6m)", label: "Spreizer-Typ")
+            VStack(spacing: 12) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+                    KenngroesseKachel(wert: String(format: "%.3f m", r.lambda), label: "Wellenlänge λ")
+                    KenngroesseKachel(wert: String(format: "%.3f m", r.strahlerLen), label: "Strahler L_el", hervorheben: true, farbe: .accentColor)
+                    KenngroesseKachel(wert: String(format: "%.3f m", r.boomLength), label: "Boomlänge")
+                    KenngroesseKachel(wert: "\(r.nElements) Ele", label: "Elemente")
+                    KenngroesseKachel(wert: String(format: "%.2f m", r.maxHalfLen), label: "Benötigter Halbspreizer")
+                    KenngroesseKachel(wert: r.maxHalfLen <= 5.0 ? "Klassisch (5m)" : "WARC (6m)", label: "Spreizer-Typ")
+                }
+                HStack {
+                    Spacer()
+                    Button { imSimOeffnen(r) } label: {
+                        Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             }
         }
+    }
+
+    private func imSimOeffnen(_ r: SBEErgebnis) {
+        let h = max(8.0, r.lambda / 2.0)
+        var wires: [[String: Any]] = []
+        for (idx, el) in r.elements.enumerated() {
+            let half = el.L / 2
+            wires.append([
+                "tag": idx + 1, "segments": 21,
+                "x1": el.S, "y1": -half, "z1": h,
+                "x2": el.S, "y2":  half, "z2": h,
+                "radius_mm": 1.5,
+            ])
+        }
+        let strahlerIdx = r.elements.firstIndex(where: { $0.typ == "Strahler" }) ?? 1
+        let drvTag = strahlerIdx + 1
+        let model: [String: Any] = [
+            "name": "Spiderbeam Einzel \(r.nElements)-Ele @ \(String(format: "%.3f", r.freq)) MHz",
+            "freq": r.freq, "ground": "average", "height": h,
+            "wires": wires,
+            "excitation": ["wire_tag": drvTag, "segment": 11],
+        ]
+        simBridge.openInSim(model: model)
     }
 
     // MARK: Tabelle

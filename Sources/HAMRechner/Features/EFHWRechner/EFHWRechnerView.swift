@@ -43,6 +43,7 @@ private func harmonischeBaender(f: Double) -> [String] {
 // MARK: - View
 
 struct EFHWRechnerView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var freqText = "7.1"
     @State private var vfText   = "0.96"
 
@@ -125,8 +126,31 @@ struct EFHWRechnerView: View {
                 ResultRow(label: "Wellenlänge λ",            value: String(format: "%.3f m", r.lambda_m))
                 ResultRow(label: "Frequenz",                 value: String(format: "%.4f MHz", r.f))
                 ResultRow(label: "Verkürzungsfaktor",        value: String(format: "%.3f", r.vf))
+                HStack {
+                    Spacer()
+                    Button { imSimOeffnen(r) } label: {
+                        Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(.top, 4)
             }
         }
+    }
+
+    private func imSimOeffnen(_ r: EFHWErgebnis) {
+        let lambda = r.lambda_m
+        let h = max(8.0, lambda / 2.0)
+        let model: [String: Any] = [
+            "name": "EFHW \(String(format: "%.2f", r.draht_m))m @ \(r.f) MHz",
+            "freq": r.f, "ground": "average", "height": h,
+            "wires": [
+                ["tag": 1, "segments": 21, "x1": 0.0,    "y1": 0.0, "z1": h, "x2": r.draht_m,   "y2": 0.0, "z2": h, "radius_mm": 1.0],
+                ["tag": 2, "segments": 5,  "x1": 0.0,    "y1": 0.0, "z1": h, "x2": -r.gegengew_m, "y2": 0.0, "z2": h, "radius_mm": 1.0],
+            ],
+            "excitation": ["wire_tag": 1, "segment": 1],
+        ]
+        simBridge.openInSim(model: model)
     }
 
     // MARK: Skizze

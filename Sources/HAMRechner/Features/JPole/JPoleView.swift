@@ -33,6 +33,7 @@ private struct JPoleErgebnis {
 // MARK: - View
 
 struct JPoleView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var freqText = "145.0"
     @State private var vfText   = "0.95"
     @State private var variant: JPoleVariant = .jpole
@@ -116,8 +117,39 @@ struct JPoleView: View {
                 ResultRow(label: "Einspeisepunkt ab unten",       value: String(format: "%.3f m  (%.0f%% des Stubs)", r.feed_m, r.feedProzent))
                 ResultRow(label: "Speisepunkt-Impedanz",          value: "≈ 50 Ω am Einspeisepunkt")
                 ResultRow(label: "Frequenz",                      value: String(format: "%.3f MHz", r.f))
+                HStack {
+                    Spacer()
+                    Button { imSimOeffnen(r) } label: {
+                        Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(.top, 4)
             }
         }
+    }
+
+    private func imSimOeffnen(_ r: JPoleErgebnis) {
+        let lambda = 300.0 / r.f
+        let zBase = max(3.0, lambda * 0.5)
+        let d = 0.03  // 30 mm Leiterabstand
+        let zStubBottom = zBase
+        let zStubTop = zBase + r.stub_m
+        let zRadTop = zStubTop + r.strahler_m
+        let zFeed = zBase + r.feed_m
+        let feedSeg = max(1, Int((Double(9) * (zFeed - zStubBottom) / (zStubTop - zStubBottom)).rounded()))
+        let model: [String: Any] = [
+            "name": "\(r.variant == .slimjim ? "Slim Jim" : "J-Pole") \(String(format: "%.2f", r.gesamt_m))m @ \(r.f) MHz",
+            "freq": r.f, "ground": "average", "height": zBase,
+            "wires": [
+                ["tag": 1, "segments": 9,  "x1":  d/2, "y1": 0.0, "z1": zStubBottom, "x2":  d/2, "y2": 0.0, "z2": zStubTop, "radius_mm": 2.0],
+                ["tag": 2, "segments": 17, "x1":  d/2, "y1": 0.0, "z1": zStubTop,    "x2":  d/2, "y2": 0.0, "z2": zRadTop,  "radius_mm": 2.0],
+                ["tag": 3, "segments": 9,  "x1": -d/2, "y1": 0.0, "z1": zStubBottom, "x2": -d/2, "y2": 0.0, "z2": zStubTop, "radius_mm": 2.0],
+                ["tag": 4, "segments": 3,  "x1": -d/2, "y1": 0.0, "z1": zStubBottom, "x2":  d/2, "y2": 0.0, "z2": zStubBottom, "radius_mm": 2.0],
+            ],
+            "excitation": ["wire_tag": 1, "segment": feedSeg],
+        ]
+        simBridge.openInSim(model: model)
     }
 
     // MARK: Skizze

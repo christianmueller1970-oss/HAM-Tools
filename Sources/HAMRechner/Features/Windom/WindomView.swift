@@ -52,6 +52,7 @@ private struct WindomErgebnis {
 // MARK: - View
 
 struct WindomView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var freqText = "7.1"
     @State private var vfText   = "0.95"
 
@@ -117,8 +118,30 @@ struct WindomView: View {
                 ResultRow(label: "Speisepunkt-Impedanz",       value: "≈ 200–300 Ω")
                 ResultRow(label: "Balun",                      value: r.balun)
                 ResultRow(label: "Frequenz (Grundwelle)",      value: String(format: "%.3f MHz", r.f))
+                HStack {
+                    Spacer()
+                    Button { imSimOeffnen(r) } label: {
+                        Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(.top, 4)
             }
         }
+    }
+
+    private func imSimOeffnen(_ r: WindomErgebnis) {
+        let h = max(8.0, (300.0 / r.f) / 2.0)
+        let model: [String: Any] = [
+            "name": "Windom (OCFD) \(String(format: "%.2f", r.gesamt_m))m @ \(r.f) MHz",
+            "freq": r.f, "ground": "average", "height": h,
+            "wires": [
+                ["tag": 1, "segments": 9,  "x1": -r.kurzSchenkel_m, "y1": 0.0, "z1": h, "x2": 0.0,                "y2": 0.0, "z2": h, "radius_mm": 1.0],
+                ["tag": 2, "segments": 17, "x1": 0.0,               "y1": 0.0, "z1": h, "x2": r.langSchenkel_m,   "y2": 0.0, "z2": h, "radius_mm": 1.0],
+            ],
+            "excitation": ["wire_tag": 2, "segment": 1],
+        ]
+        simBridge.openInSim(model: model)
     }
 
     private func skizzeBereich(_ r: WindomErgebnis) -> some View {

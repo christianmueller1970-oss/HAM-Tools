@@ -31,6 +31,7 @@ private struct GroundplaneErgebnis {
 // MARK: - View
 
 struct GroundplaneView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var freqText  = "14.175"
     @State private var vfText    = "0.95"
     @State private var anzahl    = 4
@@ -125,8 +126,47 @@ struct GroundplaneView: View {
                 ResultRow(label: "Radiale-Neigung",             value: "\(r.radialWinkel)° unter horizontal")
                 ResultRow(label: "Speisepunkt-Impedanz",        value: r.impedanz)
                 ResultRow(label: "Frequenz",                    value: String(format: "%.3f MHz", r.f))
+                HStack {
+                    Spacer()
+                    Button { imSimOeffnen(r) } label: {
+                        Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(.top, 4)
             }
         }
+    }
+
+    private func imSimOeffnen(_ r: GroundplaneErgebnis) {
+        let lambda = 300.0 / r.f
+        let h = max(lambda * 0.1, 3.0)
+        let winkelRad = Double(r.radialWinkel) * .pi / 180.0
+        let radialDz = -sin(winkelRad) * r.radial_m
+        let radialDr =  cos(winkelRad) * r.radial_m
+        var wires: [[String: Any]] = []
+        wires.append([
+            "tag": 1, "segments": 11,
+            "x1": 0.0, "y1": 0.0, "z1": h,
+            "x2": 0.0, "y2": 0.0, "z2": h + r.strahler_m,
+            "radius_mm": 2.0,
+        ])
+        for i in 0..<r.anzahlRadiale {
+            let a = (Double(i) / Double(r.anzahlRadiale)) * 2.0 * .pi
+            wires.append([
+                "tag": 2 + i, "segments": 9,
+                "x1": 0.0, "y1": 0.0, "z1": h,
+                "x2": cos(a) * radialDr, "y2": sin(a) * radialDr, "z2": h + radialDz,
+                "radius_mm": 1.0,
+            ])
+        }
+        let model: [String: Any] = [
+            "name": "Groundplane \(String(format: "%.2f", r.strahler_m))m @ \(r.f) MHz (\(r.anzahlRadiale) Radials)",
+            "freq": r.f, "ground": "average", "height": h,
+            "wires": wires,
+            "excitation": ["wire_tag": 1, "segment": 1],
+        ]
+        simBridge.openInSim(model: model)
     }
 
     // MARK: Skizze

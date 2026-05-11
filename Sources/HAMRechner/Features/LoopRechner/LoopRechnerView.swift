@@ -41,6 +41,7 @@ private struct LoopErgebnis {
 // MARK: - View
 
 struct LoopRechnerView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var selectedVariant: LoopVariant = .delta110
     @State private var freqText = "7.1"
     @State private var vfText   = "0.98"
@@ -181,8 +182,68 @@ struct LoopRechnerView: View {
                 Divider().padding(.vertical, 2)
                 ResultRow(label: "Wellenlänge λ", value: String(format: "%.3f m", 300.0 / r.f))
                 ResultRow(label: "Frequenz", value: String(format: "%.3f MHz", r.f))
+                HStack {
+                    Spacer()
+                    Button { imSimOeffnen(r) } label: {
+                        Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(.top, 4)
             }
         }
+    }
+
+    private func imSimOeffnen(_ r: LoopErgebnis) {
+        let lambda = 300.0 / r.f
+        let h = max(8.0, lambda * 0.25)
+        var wires: [[String: Any]] = []
+        var excitationTag = 1
+        switch r.variant {
+        case .quad:
+            let side = r.seite
+            let half = side / 2
+            wires.append(["tag": 1, "segments": 7,  "x1": 0.0, "y1": -half, "z1": h,        "x2": 0.0, "y2": 0.0,  "z2": h,        "radius_mm": 1.5])
+            wires.append(["tag": 2, "segments": 7,  "x1": 0.0, "y1": 0.0,   "z1": h,        "x2": 0.0, "y2": half, "z2": h,        "radius_mm": 1.5])
+            wires.append(["tag": 3, "segments": 11, "x1": 0.0, "y1": half,  "z1": h,        "x2": 0.0, "y2": half, "z2": h + side, "radius_mm": 1.5])
+            wires.append(["tag": 4, "segments": 13, "x1": 0.0, "y1": half,  "z1": h + side, "x2": 0.0, "y2": -half, "z2": h + side, "radius_mm": 1.5])
+            wires.append(["tag": 5, "segments": 11, "x1": 0.0, "y1": -half, "z1": h + side, "x2": 0.0, "y2": -half, "z2": h,        "radius_mm": 1.5])
+            excitationTag = 2
+        case .delta110:
+            let side = r.seite
+            let half = side / 2
+            let triH = side * sqrt(3) / 2
+            wires.append(["tag": 1, "segments": 7,  "x1": 0.0, "y1": -half, "z1": h,        "x2": 0.0, "y2": 0.0,  "z2": h,        "radius_mm": 1.5])
+            wires.append(["tag": 2, "segments": 7,  "x1": 0.0, "y1": 0.0,   "z1": h,        "x2": 0.0, "y2": half, "z2": h,        "radius_mm": 1.5])
+            wires.append(["tag": 3, "segments": 13, "x1": 0.0, "y1": half,  "z1": h,        "x2": 0.0, "y2": 0.0,  "z2": h + triH, "radius_mm": 1.5])
+            wires.append(["tag": 4, "segments": 13, "x1": 0.0, "y1": 0.0,   "z1": h + triH, "x2": 0.0, "y2": -half, "z2": h,       "radius_mm": 1.5])
+            excitationTag = 2
+        case .delta50:
+            let b = r.basis, s = r.schenkel
+            let half = b / 2
+            let triH = sqrt(max(0, s * s - half * half))
+            wires.append(["tag": 1, "segments": 7,  "x1": 0.0, "y1": -half, "z1": h,        "x2": 0.0, "y2": 0.0,  "z2": h,        "radius_mm": 1.5])
+            wires.append(["tag": 2, "segments": 7,  "x1": 0.0, "y1": 0.0,   "z1": h,        "x2": 0.0, "y2": half, "z2": h,        "radius_mm": 1.5])
+            wires.append(["tag": 3, "segments": 13, "x1": 0.0, "y1": half,  "z1": h,        "x2": 0.0, "y2": 0.0,  "z2": h + triH, "radius_mm": 1.5])
+            wires.append(["tag": 4, "segments": 13, "x1": 0.0, "y1": 0.0,   "z1": h + triH, "x2": 0.0, "y2": -half, "z2": h,       "radius_mm": 1.5])
+            excitationTag = 2
+        case .delta50apex:
+            let b = r.basis, s = r.schenkel
+            let half = b / 2
+            let triH = sqrt(max(0, s * s - half * half))
+            wires.append(["tag": 1, "segments": 13, "x1": 0.0, "y1": 0.0,   "z1": h,        "x2": 0.0, "y2": -half, "z2": h + triH, "radius_mm": 1.5])
+            wires.append(["tag": 2, "segments": 7,  "x1": 0.0, "y1": -half, "z1": h + triH, "x2": 0.0, "y2": 0.0,   "z2": h + triH, "radius_mm": 1.5])
+            wires.append(["tag": 3, "segments": 7,  "x1": 0.0, "y1": 0.0,   "z1": h + triH, "x2": 0.0, "y2": half,  "z2": h + triH, "radius_mm": 1.5])
+            wires.append(["tag": 4, "segments": 13, "x1": 0.0, "y1": half,  "z1": h + triH, "x2": 0.0, "y2": 0.0,   "z2": h,        "radius_mm": 1.5])
+            excitationTag = 4
+        }
+        let model: [String: Any] = [
+            "name": "\(r.variant.rawValue) \(String(format: "%.2f", r.total))m @ \(r.f) MHz",
+            "freq": r.f, "ground": "average", "height": h,
+            "wires": wires,
+            "excitation": ["wire_tag": excitationTag, "segment": 1],
+        ]
+        simBridge.openInSim(model: model)
     }
 
     // MARK: Skizze

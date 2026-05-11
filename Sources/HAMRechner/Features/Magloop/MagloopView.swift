@@ -98,6 +98,7 @@ private struct MagloopErgebnis {
 // MARK: - View
 
 struct MagloopView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var freqText   = "14.2"
     @State private var diamText   = "1.0"
     @State private var wireText   = "22.0"
@@ -224,15 +225,90 @@ struct MagloopView: View {
 
     private func ergebnisBereich(_ r: MagloopErgebnis) -> some View {
         SectionCard(title: "Kenngrößen") {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
-                KenngroesseKachel(wert: String(format: "%.2f µH", r.L_uH), label: "Induktivität", hervorheben: true, farbe: .accentColor)
-                KenngroesseKachel(wert: String(format: "%.1f pF", r.C_pF), label: "Resonanzkapazität")
-                KenngroesseKachel(wert: voltString(r.V_rms), label: "Spannung Drehko", hervorheben: r.V_rms > 1000, farbe: r.spannungBewertung.farbe)
-                KenngroesseKachel(wert: String(format: "%.0f", r.Q), label: "Güte Q")
-                KenngroesseKachel(wert: bwString(r.BW_hz), label: "Bandbreite BW")
-                KenngroesseKachel(wert: String(format: "%.1f %%", r.eta), label: "Wirkungsgrad η")
+            VStack(spacing: 12) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 12) {
+                    KenngroesseKachel(wert: String(format: "%.2f µH", r.L_uH), label: "Induktivität", hervorheben: true, farbe: .accentColor)
+                    KenngroesseKachel(wert: String(format: "%.1f pF", r.C_pF), label: "Resonanzkapazität")
+                    KenngroesseKachel(wert: voltString(r.V_rms), label: "Spannung Drehko", hervorheben: r.V_rms > 1000, farbe: r.spannungBewertung.farbe)
+                    KenngroesseKachel(wert: String(format: "%.0f", r.Q), label: "Güte Q")
+                    KenngroesseKachel(wert: bwString(r.BW_hz), label: "Bandbreite BW")
+                    KenngroesseKachel(wert: String(format: "%.1f %%", r.eta), label: "Wirkungsgrad η")
+                }
+                HStack {
+                    Spacer()
+                    Button { imSimOeffnen(r) } label: {
+                        Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             }
         }
+    }
+
+    private func imSimOeffnen(_ r: MagloopErgebnis) {
+        let lambda = 300.0 / r.f
+        let h = max(2.0, lambda * 0.1)
+        let radius_mm = r.wire_mm / 2.0
+        let D = r.d
+        let radius = D / 2
+        var wires: [[String: Any]] = []
+        var feedWire = 1, feedSeg = 3, capWire = 1, capSeg = 3
+        switch r.shape {
+        case .kreis:
+            let N = 12
+            for i in 0..<N {
+                let a1 = (Double(i) / Double(N)) * 2.0 * .pi
+                let a2 = (Double(i + 1) / Double(N)) * 2.0 * .pi
+                wires.append([
+                    "tag": i + 1, "segments": 5,
+                    "x1": 0.0, "y1": radius * cos(a1), "z1": h + radius * sin(a1),
+                    "x2": 0.0, "y2": radius * cos(a2), "z2": h + radius * sin(a2),
+                    "radius_mm": radius_mm,
+                ])
+            }
+            feedWire = 1; feedSeg = 3
+            capWire = 7;  capSeg = 3
+        case .quadrat:
+            let corners: [(Double, Double)] = [
+                (radius, h - radius), (radius, h + radius),
+                (-radius, h + radius), (-radius, h - radius),
+            ]
+            for i in 0..<4 {
+                let a = corners[i], b = corners[(i + 1) % 4]
+                wires.append([
+                    "tag": i + 1, "segments": 7,
+                    "x1": 0.0, "y1": a.0, "z1": a.1,
+                    "x2": 0.0, "y2": b.0, "z2": b.1,
+                    "radius_mm": radius_mm,
+                ])
+            }
+            feedWire = 1; feedSeg = 4
+            capWire = 3;  capSeg = 4
+        case .achteck:
+            let N = 8
+            for i in 0..<N {
+                let a1 = (Double(i) / Double(N)) * 2.0 * .pi + .pi / Double(N)
+                let a2 = (Double(i + 1) / Double(N)) * 2.0 * .pi + .pi / Double(N)
+                wires.append([
+                    "tag": i + 1, "segments": 5,
+                    "x1": 0.0, "y1": radius * cos(a1), "z1": h + radius * sin(a1),
+                    "x2": 0.0, "y2": radius * cos(a2), "z2": h + radius * sin(a2),
+                    "radius_mm": radius_mm,
+                ])
+            }
+            feedWire = 1; feedSeg = 3
+            capWire = 5;  capSeg = 3
+        }
+        let model: [String: Any] = [
+            "name": "Magnetic Loop \(String(format: "%.2f", D))m (\(r.shape.rawValue)) @ \(r.f) MHz, C=\(String(format: "%.1f", r.C_pF))pF",
+            "freq": r.f, "ground": "average", "height": h,
+            "wires": wires,
+            "excitation": ["wire_tag": feedWire, "segment": feedSeg],
+            "loads": [
+                ["type": "C", "wire_tag": capWire, "segment": capSeg, "R_ohm": 0.0, "L_uH": 0.0, "C_pF": r.C_pF]
+            ],
+        ]
+        simBridge.openInSim(model: model)
     }
 
     private func voltString(_ v: Double) -> String {

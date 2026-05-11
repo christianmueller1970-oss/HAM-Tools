@@ -34,6 +34,7 @@ private struct MoxonErgebnis {
 // MARK: - View
 
 struct MoxonView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var freqText = "14.175"
     @State private var vfText   = "0.95"
 
@@ -107,9 +108,40 @@ struct MoxonView: View {
                     ResultRow(label: "Drahtlänge Treiber",           value: String(format: "%.3f m", r.drahtLaengeTreiber))
                     ResultRow(label: "Drahtlänge Reflektor",         value: String(format: "%.3f m", r.drahtLaengeReflektor))
                     ResultRow(label: "Speisepunkt-Impedanz",         value: "≈ 50 Ω")
+                    HStack {
+                        Spacer()
+                        Button { imSimOeffnen(r) } label: {
+                            Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding(.top, 4)
                 }
             }
         }
+    }
+
+    private func imSimOeffnen(_ r: MoxonErgebnis) {
+        let h = max(8.0, (300.0 / r.f) / 2.0)
+        let depth = r.gesamttiefe
+        let xD = depth / 2, xR = -depth / 2
+        let xDTail = xD - r.B, xRTail = xR + r.D
+        let halfA = r.A / 2, halfE = r.E / 2
+        let model: [String: Any] = [
+            "name": "Moxon @ \(r.f) MHz",
+            "freq": r.f, "ground": "average", "height": h,
+            "wires": [
+                ["tag": 1, "segments": 11, "x1": xD, "y1": -halfA, "z1": h, "x2": xD, "y2": 0.0,    "z2": h, "radius_mm": 2.0],
+                ["tag": 2, "segments": 11, "x1": xD, "y1": 0.0,    "z1": h, "x2": xD, "y2": halfA,  "z2": h, "radius_mm": 2.0],
+                ["tag": 3, "segments": 5,  "x1": xD, "y1": -halfA, "z1": h, "x2": xDTail, "y2": -halfA, "z2": h, "radius_mm": 2.0],
+                ["tag": 4, "segments": 5,  "x1": xD, "y1":  halfA, "z1": h, "x2": xDTail, "y2":  halfA, "z2": h, "radius_mm": 2.0],
+                ["tag": 5, "segments": 21, "x1": xR, "y1": -halfE, "z1": h, "x2": xR, "y2": halfE,  "z2": h, "radius_mm": 2.0],
+                ["tag": 6, "segments": 5,  "x1": xR, "y1": -halfE, "z1": h, "x2": xRTail, "y2": -halfE, "z2": h, "radius_mm": 2.0],
+                ["tag": 7, "segments": 5,  "x1": xR, "y1":  halfE, "z1": h, "x2": xRTail, "y2":  halfE, "z2": h, "radius_mm": 2.0],
+            ],
+            "excitation": ["wire_tag": 2, "segment": 1],
+        ]
+        simBridge.openInSim(model: model)
     }
 
     private func skizzeBereich(_ r: MoxonErgebnis) -> some View {

@@ -48,6 +48,7 @@ private struct EFHWErgebnis {
 // MARK: - View
 
 struct EFHWVerkuerzungView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var freqText  = "7.1"
     @State private var lenText   = "15.0"
     @State private var coilDText = "50.0"
@@ -197,9 +198,40 @@ struct EFHWVerkuerzungView: View {
                     ResultRow(label: "Wickellänge", value: String(format: "%.1f mm", r.coilLen_mm))
                     ResultRow(label: "Drahtlänge gesamt", value: String(format: "%.2f m", r.wireLen_m))
                     ResultRow(label: "Spulen-Außen-Ø", value: String(format: "%.1f mm", r.outerD_mm))
+                    HStack {
+                        Spacer()
+                        Button { imSimOeffnen(r) } label: {
+                            Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding(.top, 4)
                 }
             }
         }
+    }
+
+    private func imSimOeffnen(_ r: EFHWErgebnis) {
+        let f = Double(freqText.replacingOccurrences(of: ",", with: ".")) ?? 0
+        let h = Double(lenText.replacingOccurrences(of: ",", with: ".")) ?? 15
+        guard f > 0, h > 0 else { return }
+        let lambda = 300.0 / f
+        let hz = max(8.0, lambda / 2.0)
+        let segs = 21
+        let coilSeg = posMitte ? Int(ceil(Double(segs) / 2.0)) : segs
+        let model: [String: Any] = [
+            "name": "EFHW \(String(format: "%.2f", h))m @ \(f) MHz, \(posMitte ? "Spule mittig" : "Spule am Ende") \(String(format: "%.1f", r.L_uH))µH",
+            "freq": f, "ground": "average", "height": hz,
+            "wires": [
+                ["tag": 1, "segments": segs, "x1": 0.0, "y1": 0.0, "z1": hz, "x2": h, "y2": 0.0, "z2": hz, "radius_mm": 1.0],
+                ["tag": 2, "segments": 5,    "x1": 0.0, "y1": 0.0, "z1": hz, "x2": -lambda * 0.05, "y2": 0.0, "z2": hz, "radius_mm": 1.0],
+            ],
+            "excitation": ["wire_tag": 1, "segment": 1],
+            "loads": [
+                ["type": "L", "wire_tag": 1, "segment": coilSeg, "R_ohm": 0.0, "L_uH": r.L_uH, "C_pF": 0.0]
+            ],
+        ]
+        simBridge.openInSim(model: model)
     }
 
     // MARK: Skizze

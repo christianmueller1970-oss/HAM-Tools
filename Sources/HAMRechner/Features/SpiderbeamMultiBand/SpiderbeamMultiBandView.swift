@@ -132,8 +132,15 @@ private let SB_BAND_COLORS: [String: Color] = [
 // MARK: - View
 
 struct SpiderbeamMultiBandView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var selectedVersion = "v5band"
     @State private var enabledBands: Set<String> = ["20m","17m","15m","12m","10m"]
+    @State private var excitedSpiderBand: String? = nil
+
+    private let bandFreq: [String: Double] = [
+        "30m": 10.125, "20m": 14.150, "17m": 18.118,
+        "15m": 21.200, "12m": 24.940, "10m": 28.500,
+    ]
 
     private var version: SBVersion { SB_VERSIONS.first(where: { $0.id == selectedVersion })! }
     private var activeBands: [String] { version.bands.filter { enabledBands.contains($0) } }
@@ -145,6 +152,7 @@ struct SpiderbeamMultiBandView: View {
                 bandWahl
                 skizzeBereich
                 tabelleBereich
+                if !activeBands.isEmpty { simExportBereich }
                 hinweisBereich
                 infoBereich
                 RechnerBeschreibung(resourceName: "spidermulti")
@@ -157,6 +165,72 @@ struct SpiderbeamMultiBandView: View {
                 enabledBands = Set(v.bands)
             }
         }
+    }
+
+    private var simExportBereich: some View {
+        SectionCard(title: "Im Antennen-Simulator öffnen") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Alle aktiven Bänder werden als NEC2-Drahtmodell exportiert. Ein Band wird gespeist — die anderen wirken als passive Parasiten.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 10) {
+                    Text("Speisung Band:").font(.callout)
+                    let sortedBands = activeBands.sorted { (bandFreq[$0] ?? 999) < (bandFreq[$1] ?? 999) }
+                    Picker("", selection: Binding<String>(
+                        get: { excitedSpiderBand ?? sortedBands.first ?? "" },
+                        set: { excitedSpiderBand = $0 }
+                    )) {
+                        ForEach(sortedBands, id: \.self) { b in
+                            Text("\(b) (\(String(format: "%.3f MHz", bandFreq[b] ?? 0)))").tag(b)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 220)
+                    Spacer()
+                    Button { imSimOeffnen() } label: {
+                        Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+    }
+
+    private func imSimOeffnen() {
+        let akt = activeBands
+        guard !akt.isEmpty else { return }
+        let sortedBands = akt.sorted { (bandFreq[$0] ?? 999) < (bandFreq[$1] ?? 999) }
+        let exBand = excitedSpiderBand ?? sortedBands.first ?? ""
+        let exFreq = bandFreq[exBand] ?? 14.150
+        let lambda = 300.0 / exFreq
+        let h = max(8.0, lambda / 2.0)
+
+        var wires: [[String: Any]] = []
+        var tag = 0
+        var excitationTag = 1
+        for bandName in akt {
+            let elems = version.data[bandName] ?? []
+            for el in elems {
+                tag += 1
+                let half = el.Lel / 2
+                wires.append([
+                    "tag": tag, "segments": 21,
+                    "x1": el.S, "y1": -half, "z1": h,
+                    "x2": el.S, "y2":  half, "z2": h,
+                    "radius_mm": 1.5,
+                ])
+                if bandName == exBand && el.typ == "Strahler" {
+                    excitationTag = tag
+                }
+            }
+        }
+        let model: [String: Any] = [
+            "name": "Spiderbeam \(version.label) (\(akt.joined(separator: "/"))) — Speisung \(exBand)",
+            "freq": exFreq, "ground": "average", "height": h,
+            "wires": wires,
+            "excitation": ["wire_tag": excitationTag, "segment": 11],
+        ]
+        simBridge.openInSim(model: model)
     }
 
     // MARK: Version
