@@ -34,8 +34,8 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
 
     var isAvailable: Bool {
         switch self {
-        case .log, .dxClusters, .awards: return true
-        default:                         return false
+        case .log, .dxClusters, .awards, .map, .bands: return true
+        default:                                       return false
         }
     }
 }

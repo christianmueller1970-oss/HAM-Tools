@@ -146,11 +146,46 @@ struct LogbuchView: View {
             ClusterContextBar()
         case .awards:
             awardsContextBar
+        case .map, .bands:
+            mapBandsContextBar
         default:
             TabContextBarShell {
                 Text("Keine Filter für »\(bottomTab.rawValue)«")
                     .font(.caption)
                     .foregroundStyle(theme.textDim)
+            }
+        }
+    }
+
+    private var mapBandsContextBar: some View {
+        TabContextBarShell {
+            HStack(spacing: 8) {
+                Image(systemName: bottomTab == .map ? "globe.europe.africa" : "chart.bar.xaxis")
+                    .font(.caption)
+                    .foregroundStyle(theme.accentBlue)
+                Text(bottomTab == .map
+                     ? "Aktuelle DX-Cluster-Spots auf der Weltkarte"
+                     : "Spots des aktuellen Bandes über die Zeit")
+                    .font(.caption)
+                    .foregroundStyle(theme.textPrimary)
+                Text("· Filter im Hauptbereich")
+                    .font(.caption2)
+                    .foregroundStyle(theme.textDim)
+                Spacer()
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(clusterVM.clusterStatus == .connected
+                              ? theme.accentGreen : theme.textDim)
+                        .frame(width: 7, height: 7)
+                    Text(clusterVM.clusterStatus.rawValue)
+                        .font(.caption2.bold())
+                        .foregroundStyle(theme.textSecondary)
+                    Text("·")
+                        .foregroundStyle(theme.textDim)
+                    Text("\(clusterVM.filteredSpots.count) Spots")
+                        .font(.caption)
+                        .foregroundStyle(theme.textSecondary)
+                }
             }
         }
     }
@@ -242,6 +277,10 @@ struct LogbuchView: View {
         case .awards:
             AwardsTab(subTab: $awardsSubTab,
                       onlyUnconfirmed: $awardsOnlyUnconfirmed)
+        case .map:
+            WeltkarteView(spots: clusterVM.filteredSpots, theme: theme)
+        case .bands:
+            BandmapView(spots: clusterVM.filteredSpots, theme: theme)
         default:
             comingSoon(bottomTab)
         }
