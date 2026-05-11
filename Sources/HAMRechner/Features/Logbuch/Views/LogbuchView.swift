@@ -23,19 +23,26 @@ struct LogbuchView: View {
 
     @State private var showNewLogSheet: Bool = false
     @State private var showLogsPopover: Bool = false
-    @State private var bottomTab: LogbookBottomTab = .log
-    @State private var heatmapMinutes: Int = 60
 
-    // Filter-State für den Log-Tab (lebt hier oben damit die ContextBar
-    // ihn zwischen Tab-Bar und Tabelle bedienen kann).
-    @State private var filterCall: String = ""
-    @State private var filterBand: String = ""
-    @State private var filterMode: String = ""
-    @State private var filterCountry: String = ""
+    // Alle Tab-State-Werte sind persistent über AppStorage — Wunsch des
+    // Users: »Alle Einstellungen die man irgendwo im LOG macht sollten
+    // persistent sein nach dem nächsten laden.«
+    @AppStorage("logbook.bottomTab")      private var bottomTab: LogbookBottomTab = .log
+    @AppStorage("logbook.heatmapMinutes") private var heatmapMinutes: Int         = 60
 
-    // Awards-Tab Sub-State
-    @State private var awardsSubTab: AwardsTab.AwardsSubTab = .dxcc
-    @State private var awardsOnlyUnconfirmed: Bool = false
+    // Filter-State für den Log-Tab (persistent)
+    @AppStorage("logbook.filter.call")    private var filterCall: String    = ""
+    @AppStorage("logbook.filter.band")    private var filterBand: String    = ""
+    @AppStorage("logbook.filter.mode")    private var filterMode: String    = ""
+    @AppStorage("logbook.filter.country") private var filterCountry: String = ""
+
+    // Awards-Tab Sub-State (persistent)
+    @AppStorage("logbook.awards.subTab")           private var awardsSubTab: AwardsTab.AwardsSubTab = .dxcc
+    @AppStorage("logbook.awards.onlyUnconfirmed") private var awardsOnlyUnconfirmed: Bool          = false
+
+    // Map/Bands Filter (persistent)
+    @AppStorage("logbook.spotsModeFilter")  private var spotsModeFilter: String = "Alle"
+    @AppStorage("logbook.spotsRadiusKm")    private var spotsRadiusKm:   Int    = 0
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -159,19 +166,59 @@ struct LogbuchView: View {
 
     private var mapBandsContextBar: some View {
         TabContextBarShell {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Image(systemName: bottomTab == .map ? "globe.europe.africa" : "chart.bar.xaxis")
                     .font(.caption)
                     .foregroundStyle(theme.accentBlue)
-                Text(bottomTab == .map
-                     ? "Aktuelle DX-Cluster-Spots auf der Weltkarte"
-                     : "Spots des aktuellen Bandes über die Zeit")
-                    .font(.caption)
-                    .foregroundStyle(theme.textPrimary)
-                Text("· Filter im Hauptbereich")
-                    .font(.caption2)
-                    .foregroundStyle(theme.textDim)
+
+                // Mode-Filter (gilt für Map UND Bands)
+                HStack(spacing: 3) {
+                    Text("Mode")
+                        .font(.caption2)
+                        .foregroundStyle(theme.textDim)
+                    Picker("Mode", selection: $spotsModeFilter) {
+                        ForEach(spotsModeOptions, id: \.self) { Text($0).tag($0) }
+                    }
+                    .labelsHidden()
+                    .controlSize(.mini)
+                    .frame(width: 90)
+                }
+
+                // Radius vom QTH (0 = unbegrenzt)
+                HStack(spacing: 3) {
+                    Text("Radius QTH")
+                        .font(.caption2)
+                        .foregroundStyle(theme.textDim)
+                    Picker("Radius", selection: $spotsRadiusKm) {
+                        Text("unbegrenzt").tag(0)
+                        Text("500 km").tag(500)
+                        Text("1000 km").tag(1000)
+                        Text("2000 km").tag(2000)
+                        Text("5000 km").tag(5000)
+                        Text("10000 km").tag(10000)
+                    }
+                    .labelsHidden()
+                    .controlSize(.mini)
+                    .frame(width: 100)
+                }
+
+                if spotsModeFilter != "Alle" || spotsRadiusKm > 0 {
+                    Button {
+                        spotsModeFilter = "Alle"
+                        spotsRadiusKm = 0
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "xmark.circle.fill")
+                            Text("Zurücksetzen")
+                        }
+                        .font(.caption2)
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(theme.accentBlue)
+                }
+
                 Spacer()
+
                 HStack(spacing: 4) {
                     Circle()
                         .fill(clusterVM.clusterStatus == .connected
@@ -182,11 +229,40 @@ struct LogbuchView: View {
                         .foregroundStyle(theme.textSecondary)
                     Text("·")
                         .foregroundStyle(theme.textDim)
-                    Text("\(clusterVM.filteredSpots.count) Spots")
+                    Text("\(spotsForMapOrBands.count) / \(clusterVM.filteredSpots.count) Spots")
                         .font(.caption)
                         .foregroundStyle(theme.textSecondary)
                 }
             }
+        }
+    }
+
+    // Mode-Optionen für den Spot-Filter — aus den aktuellen Spots
+    private var spotsModeOptions: [String] {
+        ["Alle"] + Array(Set(clusterVM.filteredSpots.compactMap {
+            $0.mode.isEmpty ? nil : $0.mode
+        })).sorted()
+    }
+
+    // Spots gefiltert auf Mode + Radius vom eigenen QTH
+    @AppStorage("qthLocator") private var qthLocator = "JN47PN"
+
+    private var spotsForMapOrBands: [DXSpot] {
+        let base = clusterVM.filteredSpots
+        let modeFiltered = spotsModeFilter == "Alle"
+            ? base
+            : base.filter { $0.mode == spotsModeFilter }
+
+        guard spotsRadiusKm > 0,
+              let qth = locatorToLatLon(qthLocator) else {
+            return modeFiltered
+        }
+        return modeFiltered.filter { spot in
+            // Wenn Spot keine Geo-Daten hat, lieber drin lassen statt aussortieren
+            guard spot.lat != 0 || spot.lon != 0 else { return true }
+            let d = haversineKm(lat1: qth.lat, lon1: qth.lon,
+                                lat2: spot.lat, lon2: spot.lon)
+            return d <= Double(spotsRadiusKm)
         }
     }
 
@@ -278,9 +354,9 @@ struct LogbuchView: View {
             AwardsTab(subTab: $awardsSubTab,
                       onlyUnconfirmed: $awardsOnlyUnconfirmed)
         case .map:
-            WeltkarteView(spots: clusterVM.filteredSpots, theme: theme)
+            WeltkarteView(spots: spotsForMapOrBands, theme: theme)
         case .bands:
-            BandmapView(spots: clusterVM.filteredSpots, theme: theme)
+            BandmapView(spots: spotsForMapOrBands, theme: theme)
         default:
             comingSoon(bottomTab)
         }

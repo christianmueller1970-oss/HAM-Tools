@@ -31,12 +31,24 @@ struct WeltkarteView: View {
     @State private var selectedSpot:     DXSpot? = nil
     @State private var showSpotterLines  = false
     @State private var timeMinutes       = 60
-    @State private var cameraPosition    = MapCameraPosition.region(
-        MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: 47, longitude: 8),
-            span:   MKCoordinateSpan(latitudeDelta: 160, longitudeDelta: 340)
-        )
-    )
+    @State private var cameraPosition: MapCameraPosition = Self.initialCameraPosition()
+
+    // Beim ersten Aufbau die Camera direkt auf den persistierten QTH
+    // setzen — onAppear bewegt nachher nochmal nach, aber sonst sieht man
+    // beim Tab-Switch kurz den globalen Default-View.
+    private static func initialCameraPosition() -> MapCameraPosition {
+        let loc = UserDefaults.standard.string(forKey: "qthLocator") ?? "JN47PN"
+        let center: CLLocationCoordinate2D
+        if let (lat, lon) = locatorToLatLon(loc) {
+            center = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        } else {
+            center = CLLocationCoordinate2D(latitude: 47, longitude: 8)
+        }
+        return .region(MKCoordinateRegion(
+            center: center,
+            span:   MKCoordinateSpan(latitudeDelta: 80, longitudeDelta: 160)
+        ))
+    }
 
     private var recentSpots: [DXSpot] {
         let cutoff = Date().addingTimeInterval(-Double(timeMinutes) * 60)
@@ -61,7 +73,7 @@ struct WeltkarteView: View {
         guard let (lat, lon) = locatorToLatLon(qthLocator) else { return }
         cameraPosition = .region(MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-            span:   MKCoordinateSpan(latitudeDelta: 160, longitudeDelta: 340)
+            span:   MKCoordinateSpan(latitudeDelta: 80, longitudeDelta: 160)
         ))
     }
 

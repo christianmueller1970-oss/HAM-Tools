@@ -14,16 +14,35 @@ final class DXClusterViewModel: ObservableObject {
     @Published var potaActive = false
     @Published var wwffActive = false
 
-    // MARK: - Filter state
-    @Published var filterBand:      String = "Alle"
-    @Published var filterMode:      String = "Alle"
-    @Published var filterContinent: String = "Alle"
-    @Published var showDX    = true
-    @Published var showSOTA  = true
-    @Published var showPOTA  = true
-    @Published var showWWFF  = true
-    @Published var searchText      = ""
-    @Published var spotterRadiusKm = 0
+    // MARK: - Filter state (persistiert in UserDefaults)
+    // Defaults: nur DXSpider an, SOTA/POTA/WWFF aus — User-Wunsch.
+    @Published var filterBand:      String = UserDefaults.standard.string(forKey: "cluster.filterBand") ?? "Alle" {
+        didSet { UserDefaults.standard.set(filterBand, forKey: "cluster.filterBand") }
+    }
+    @Published var filterMode:      String = UserDefaults.standard.string(forKey: "cluster.filterMode") ?? "Alle" {
+        didSet { UserDefaults.standard.set(filterMode, forKey: "cluster.filterMode") }
+    }
+    @Published var filterContinent: String = UserDefaults.standard.string(forKey: "cluster.filterContinent") ?? "Alle" {
+        didSet { UserDefaults.standard.set(filterContinent, forKey: "cluster.filterContinent") }
+    }
+    @Published var showDX:   Bool = UserDefaults.standard.object(forKey: "cluster.showDX")   as? Bool ?? true  {
+        didSet { UserDefaults.standard.set(showDX,   forKey: "cluster.showDX") }
+    }
+    @Published var showSOTA: Bool = UserDefaults.standard.object(forKey: "cluster.showSOTA") as? Bool ?? false {
+        didSet { UserDefaults.standard.set(showSOTA, forKey: "cluster.showSOTA") }
+    }
+    @Published var showPOTA: Bool = UserDefaults.standard.object(forKey: "cluster.showPOTA") as? Bool ?? false {
+        didSet { UserDefaults.standard.set(showPOTA, forKey: "cluster.showPOTA") }
+    }
+    @Published var showWWFF: Bool = UserDefaults.standard.object(forKey: "cluster.showWWFF") as? Bool ?? false {
+        didSet { UserDefaults.standard.set(showWWFF, forKey: "cluster.showWWFF") }
+    }
+    @Published var searchText: String = UserDefaults.standard.string(forKey: "cluster.searchText") ?? "" {
+        didSet { UserDefaults.standard.set(searchText, forKey: "cluster.searchText") }
+    }
+    @Published var spotterRadiusKm: Int = UserDefaults.standard.integer(forKey: "cluster.spotterRadiusKm") {
+        didSet { UserDefaults.standard.set(spotterRadiusKm, forKey: "cluster.spotterRadiusKm") }
+    }
 
     // MARK: - Settings (persisted)
     @AppStorage("callsign")    private var storedCallsign = "HB9HJI"
