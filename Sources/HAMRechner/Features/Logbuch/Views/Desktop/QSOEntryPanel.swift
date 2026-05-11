@@ -217,54 +217,11 @@ struct QSOEntryPanel: View {
     // MARK: - Header mit DX | Contest-Tabs
 
     private var modeTabs: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(spacing: 4) {
             modeTab(.dx, label: "DX")
             modeTab(.contest, label: "Contest", enabled: false)
-
-            // Callbook-Header: Image + Summary + Link zur QRZ-Seite
-            if let urlString = callbookImageURL, let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .empty:
-                        ProgressView().controlSize(.mini).frame(width: 40, height: 40)
-                    case .success(let img):
-                        img.resizable().scaledToFill()
-                    case .failure:
-                        Image(systemName: "person.crop.square")
-                            .foregroundStyle(theme.textDim)
-                    @unknown default:
-                        EmptyView()
-                    }
-                }
-                .frame(width: 40, height: 40)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(theme.separator, lineWidth: 1)
-                )
-            }
-            if !callbookSummary.isEmpty {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(callbookSummary)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(theme.textPrimary)
-                        .lineLimit(1)
-                    if let qrz = callbookQRZURL, let url = URL(string: qrz) {
-                        Link(destination: url) {
-                            HStack(spacing: 3) {
-                                Image(systemName: "arrow.up.right.square")
-                                    .font(.caption2)
-                                Text("QRZ-Profil")
-                                    .font(.caption2)
-                            }
-                            .foregroundStyle(theme.accentBlue)
-                        }
-                    }
-                }
-            }
-
             Spacer()
-            if !canLog && callbookSummary.isEmpty {
+            if !canLog {
                 HStack(spacing: 4) {
                     Image(systemName: "info.circle")
                     Text("Pflichtfelder: Call + Frequenz")
@@ -308,7 +265,7 @@ struct QSOEntryPanel: View {
     // MARK: - Entry-Grid (drei Spalten)
 
     private var entryGrid: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 8) {
             // Spalte 1: Call + Personen / Adresse
             VStack(spacing: 4) {
                 callFieldRow
@@ -356,12 +313,83 @@ struct QSOEntryPanel: View {
                 fieldRow("DX de", value: $dxDe)
             }
             .frame(maxWidth: .infinity)
+
+            // Spalte 4: Callbook-Profil-Karte (Bild + Summary + Link)
+            callbookCard
+                .frame(width: 160)
+        }
+    }
+
+    @ViewBuilder
+    private var callbookCard: some View {
+        if let urlString = callbookImageURL, let imgURL = URL(string: urlString) {
+            VStack(alignment: .leading, spacing: 6) {
+                AsyncImage(url: imgURL) { phase in
+                    switch phase {
+                    case .empty:
+                        ZStack {
+                            Rectangle().fill(theme.bgCard2)
+                            ProgressView().controlSize(.small)
+                        }
+                    case .success(let img):
+                        img.resizable().scaledToFit()
+                    case .failure:
+                        ZStack {
+                            Rectangle().fill(theme.bgCard2)
+                            Image(systemName: "person.crop.square")
+                                .font(.title)
+                                .foregroundStyle(theme.textDim)
+                        }
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+                .frame(width: 160, height: 130)
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(theme.separator, lineWidth: 1)
+                )
+
+                if !callbookSummary.isEmpty {
+                    Text(callbookSummary)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(theme.textPrimary)
+                        .lineLimit(2)
+                }
+                if let qrz = callbookQRZURL, let url = URL(string: qrz) {
+                    Link(destination: url) {
+                        HStack(spacing: 3) {
+                            Image(systemName: "arrow.up.right.square")
+                                .font(.caption2)
+                            Text("QRZ-Profil öffnen")
+                                .font(.caption2)
+                        }
+                        .foregroundStyle(theme.accentBlue)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+        } else if !call.isEmpty, callbookManager.isInFlight(call) {
+            // Während Lookup läuft: Platzhalter
+            VStack(alignment: .leading, spacing: 6) {
+                ZStack {
+                    Rectangle().fill(theme.bgCard2)
+                    ProgressView().controlSize(.small)
+                }
+                .frame(width: 160, height: 130)
+                .clipShape(RoundedRectangle(cornerRadius: 5))
+                Text("QRZ-Lookup …")
+                    .font(.caption2)
+                    .foregroundStyle(theme.textDim)
+                Spacer(minLength: 0)
+            }
         }
     }
 
     // MARK: - Field Helpers
 
-    private static let labelColumnWidth: CGFloat = 65
+    private static let labelColumnWidth: CGFloat = 55
 
     // Spezial-Row für das Call-Feld: zusätzlich FocusState (TAB-Wechsel
     // triggert Callbook-Lookup) und Lookup-Spinner rechts.
