@@ -1,5 +1,6 @@
 <script setup>
 import { reactive, ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import Pattern3D from '../components/Pattern3D.vue'
 
 // ─── Templates ────────────────────────────────────────────────────────────────
 
@@ -654,6 +655,15 @@ const PLOT_C = PLOT_SIZE / 2
         </svg>
       </div>
     </div>
+  </div>
+
+  <div v-if="primary && primary.pattern && primary.pattern.length > 0 && !isSweep" class="card">
+    <h2>3D-Strahlungsdiagramm</h2>
+    <Pattern3D
+      :pattern="primary.pattern"
+      :is-free-space="cfg.ground === 'free_space'"
+      :height="480"
+    />
   </div>
 
   <div v-if="result && result.deck" class="card" style="opacity:0.85">
