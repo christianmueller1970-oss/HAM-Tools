@@ -47,6 +47,7 @@ struct QSOEntryPanel: View {
     @EnvironmentObject var logBridge: LogEntryBridge
     @EnvironmentObject var callbookSettings: CallbookSettings
     @EnvironmentObject var callbookManager: CallbookManager
+    @EnvironmentObject var clusterVM: DXClusterViewModel
 
     @State private var entryMode: EntryMode = .dx
     @State private var lastFilledFromSpot: Date? = nil
@@ -116,6 +117,11 @@ struct QSOEntryPanel: View {
             && manager.currentLogID != nil
     }
 
+    private var canSendSpot: Bool {
+        !call.trimmingCharacters(in: .whitespaces).isEmpty
+            && Double(freqMHz.replacingOccurrences(of: ",", with: ".")) != nil
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             modeTabs
@@ -129,8 +135,10 @@ struct QSOEntryPanel: View {
             Divider().background(theme.separator)
             LogActionBar(
                 canLog: canLog,
+                canSendSpot: canSendSpot,
                 currentCall: call,
                 onLogQSO: commitQSO,
+                onSendSpot: sendSpotToCluster,
                 onClear: resetForm,
                 onTimeOn: { timeOn = Date() },
                 onTimeOff: { timeOff = Date() }
@@ -591,6 +599,20 @@ struct QSOEntryPanel: View {
         f.timeZone = TimeZone(identifier: "UTC")
         f.dateFormat = "yyyy-MM-dd HH:mm:ss"
         return f.string(from: date)
+    }
+
+    /// Sendet die aktuellen Form-Daten als DX-Spot ans Cluster.
+    /// Voraussetzung: Call + Frequenz. Frequenz wird MHz → kHz konvertiert
+    /// (das DX-Spider-Protokoll erwartet kHz).
+    private func sendSpotToCluster() {
+        let trimmedCall = call.trimmingCharacters(in: .whitespaces).uppercased()
+        guard !trimmedCall.isEmpty,
+              let mhz = Double(freqMHz.replacingOccurrences(of: ",", with: ".")),
+              mhz > 0 else { return }
+        let freqKHz = mhz * 1000.0
+        let parts = [mode, notes].filter { !$0.isEmpty }
+        let comment = parts.joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        clusterVM.sendSpot(freq: freqKHz, call: trimmedCall, comment: comment)
     }
 
     private func commitQSO() {

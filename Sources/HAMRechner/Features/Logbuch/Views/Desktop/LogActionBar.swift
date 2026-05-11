@@ -5,13 +5,16 @@ struct LogActionBar: View {
     @EnvironmentObject var themeManager: ThemeManager
 
     let canLog: Bool
+    let canSendSpot: Bool          // Call + Frequenz da
     let currentCall: String        // für Previous-Button + Popover-Inhalt
     let onLogQSO: () -> Void
+    let onSendSpot: () -> Void
     let onClear: () -> Void
     let onTimeOn: () -> Void
     let onTimeOff: () -> Void
 
     @State private var showPreviousPopover: Bool = false
+    @State private var showSpotSentToast: Bool = false
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -79,6 +82,42 @@ struct LogActionBar: View {
             Divider()
                 .frame(height: 18)
                 .background(theme.separator)
+
+            // Send Spot — Call + Frequenz Pflicht
+            Button {
+                onSendSpot()
+                showSpotSentToast = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    showSpotSentToast = false
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: showSpotSentToast
+                          ? "checkmark.circle.fill"
+                          : "dot.radiowaves.right")
+                        .font(.caption)
+                    Text(showSpotSentToast ? "Gesendet" : "Send Spot")
+                        .font(.caption)
+                }
+                .foregroundStyle(canSendSpot ? theme.textPrimary : theme.textDim)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(showSpotSentToast
+                            ? theme.accentGreen.opacity(0.15)
+                            : theme.bgCard2)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(showSpotSentToast ? theme.accentGreen : theme.separator,
+                                lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .opacity(canSendSpot ? 1.0 : 0.5)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canSendSpot)
+            .help(canSendSpot
+                  ? "DX-Spot ans Cluster senden"
+                  : "Pflichtfelder: Call + Frequenz")
 
             actionButton("Beam", systemImage: "location.north",
                          tooltip: "Beam-Heading · Phase 3",
