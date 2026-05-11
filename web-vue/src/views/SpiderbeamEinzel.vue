@@ -1,7 +1,11 @@
 <script setup>
 import { reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { pf, fmt } from '../composables/useHam.js'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
+
+const router = useRouter()
 
 const STRAHLER_FAKTOR = 0.466
 
@@ -123,6 +127,39 @@ const tableRows = computed(() => {
   if (!result.value) return []
   return [...result.value.elements].sort((a, b) => a.S - b.S)
 })
+
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// Spiderbeam-Einzelband = Yagi mit Drahtelementen auf Glasfaser-Spreizern.
+// Boom entlang X-Achse, Elemente perpendicular entlang Y-Achse.
+// Strahler ist immer das zweite Element (Element-Index 1 in der Liste).
+function imSimOeffnen() {
+  if (!result.value) return
+  const r = result.value
+  const h = Math.max(8, r.lambda / 2)
+  // Strahler-Position auf der Boom-Achse (S=0). Andere Elemente entsprechend.
+  // Wir nehmen S als X-Koordinate (S < 0 = hinten, S > 0 = vorne).
+  const wires = r.elements.map((el, idx) => {
+    const half = el.L / 2
+    return {
+      tag: idx + 1,
+      segments: 21,
+      x1: el.S, y1: -half, z1: h,
+      x2: el.S, y2:  half, z2: h,
+      radius_mm: 1.5,   // Spiderbeam: Draht statt Alurohr
+    }
+  })
+  // Strahler ist Element 'Strahler' — finde dessen Index
+  const strahlerIdx = r.elements.findIndex(e => e.typ === 'Strahler')
+  const drvTag = (strahlerIdx >= 0 ? strahlerIdx : 1) + 1
+  openInSim(router, {
+    name: `Spiderbeam Einzel ${r.nElements}-Ele @ ${r.f.toFixed(3)} MHz`,
+    freq: r.f,
+    ground: 'average',
+    height: h,
+    wires,
+    excitation: { wire_tag: drvTag, segment: 11 },
+  })
+}
 </script>
 
 <template>
@@ -174,6 +211,9 @@ const tableRows = computed(() => {
         <div class="ken"><div class="ken-val">{{ result.nElements }} Ele</div><div class="ken-lbl">Elemente</div></div>
         <div class="ken"><div class="ken-val">{{ result.maxHalf.toFixed(2) }} m</div><div class="ken-lbl">Halbspreizer</div></div>
         <div class="ken"><div class="ken-val">{{ result.maxHalf <= 5 ? 'Klassisch (5m)' : 'WARC (6m)' }}</div><div class="ken-lbl">Spreizer-Typ</div></div>
+      </div>
+      <div style="margin-top:12px; text-align:right">
+        <button class="btn-sim" @click="imSimOeffnen">📡 Im Sim öffnen</button>
       </div>
     </div>
 

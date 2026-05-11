@@ -1,7 +1,11 @@
 <script setup>
 import { reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { pf, fmt } from '../composables/useHam.js'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
+
+const router = useRouter()
 
 const variants = [
   { id: 'delta110',    label: 'Delta-Loop 110Ω',                    impLabel: '≈ 110Ω → 50Ω via λ/4' },
@@ -95,6 +99,74 @@ const quad = computed(() => {
   const y0 = marginT + (availH - side) / 2
   return { x0, y0, side, feedX: x0 + side / 2, feedY: y0 + side }
 })
+
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// Delta-Loop = geschlossenes Dreieck, Quad-Loop = geschlossenes Rechteck.
+// Aufgespannt in Y-Z-Ebene (Y = horizontal, Z = vertikal), Antenne broadside auf X-Achse.
+function imSimOeffnen() {
+  if (!result.value) return
+  const r = result.value
+  const lambda = 300 / r.f
+  const h = Math.max(8, lambda * 0.25)   // unterer Punkt über Boden
+  const wires = []
+  let excitationTag = 1
+  if (lp.variant === 'quad') {
+    // Quadratischer Loop, gespeist in der Mitte der unteren Seite
+    const side = r.seite
+    const half = side / 2
+    // Unterer Wire links→Mitte (gespeist) und Mitte→rechts
+    wires.push({ tag: 1, segments: 7,  x1: 0, y1: -half, z1: h,        x2: 0, y2: 0,    z2: h,        radius_mm: 1.5 })
+    wires.push({ tag: 2, segments: 7,  x1: 0, y1: 0,     z1: h,        x2: 0, y2: half, z2: h,        radius_mm: 1.5 })
+    // Rechte Seite
+    wires.push({ tag: 3, segments: 11, x1: 0, y1: half,  z1: h,        x2: 0, y2: half, z2: h + side, radius_mm: 1.5 })
+    // Obere Seite
+    wires.push({ tag: 4, segments: 13, x1: 0, y1: half,  z1: h + side, x2: 0, y2: -half, z2: h + side, radius_mm: 1.5 })
+    // Linke Seite (zurück zum Start)
+    wires.push({ tag: 5, segments: 11, x1: 0, y1: -half, z1: h + side, x2: 0, y2: -half, z2: h,        radius_mm: 1.5 })
+    excitationTag = 2   // erstes Segment von Wire 2 = Mitte der unteren Seite
+  } else if (lp.variant === 'delta110') {
+    // Gleichseitig: Spitze oben
+    const side = r.seite
+    const half = side / 2
+    const triH = side * Math.sqrt(3) / 2
+    // Basis links→Mitte (gespeist) und Mitte→rechts
+    wires.push({ tag: 1, segments: 7,  x1: 0, y1: -half, z1: h,         x2: 0, y2: 0,    z2: h,         radius_mm: 1.5 })
+    wires.push({ tag: 2, segments: 7,  x1: 0, y1: 0,     z1: h,         x2: 0, y2: half, z2: h,         radius_mm: 1.5 })
+    // Rechter Schenkel hoch
+    wires.push({ tag: 3, segments: 13, x1: 0, y1: half,  z1: h,         x2: 0, y2: 0,    z2: h + triH,  radius_mm: 1.5 })
+    // Linker Schenkel runter
+    wires.push({ tag: 4, segments: 13, x1: 0, y1: 0,     z1: h + triH,  x2: 0, y2: -half, z2: h,        radius_mm: 1.5 })
+    excitationTag = 2
+  } else if (lp.variant === 'delta50' || lp.variant === 'delta50apex') {
+    // Asymmetrisches Delta — Basis und Schenkel unterschiedlich lang
+    const b = r.basis, s = r.schenkel
+    const half = b / 2
+    const triH = Math.sqrt(Math.max(0, s * s - half * half))
+    if (lp.variant === 'delta50') {
+      // Basis unten, Apex oben
+      wires.push({ tag: 1, segments: 7,  x1: 0, y1: -half, z1: h,         x2: 0, y2: 0,    z2: h,         radius_mm: 1.5 })
+      wires.push({ tag: 2, segments: 7,  x1: 0, y1: 0,     z1: h,         x2: 0, y2: half, z2: h,         radius_mm: 1.5 })
+      wires.push({ tag: 3, segments: 13, x1: 0, y1: half,  z1: h,         x2: 0, y2: 0,    z2: h + triH,  radius_mm: 1.5 })
+      wires.push({ tag: 4, segments: 13, x1: 0, y1: 0,     z1: h + triH,  x2: 0, y2: -half, z2: h,        radius_mm: 1.5 })
+      excitationTag = 2   // Mitte der Basis (unten)
+    } else {
+      // Apex unten, Basis oben (Apex-Variante 18/41/41)
+      wires.push({ tag: 1, segments: 13, x1: 0, y1: 0,     z1: h,         x2: 0, y2: -half, z2: h + triH, radius_mm: 1.5 })
+      wires.push({ tag: 2, segments: 7,  x1: 0, y1: -half, z1: h + triH,  x2: 0, y2: 0,     z2: h + triH, radius_mm: 1.5 })
+      wires.push({ tag: 3, segments: 7,  x1: 0, y1: 0,     z1: h + triH,  x2: 0, y2: half,  z2: h + triH, radius_mm: 1.5 })
+      wires.push({ tag: 4, segments: 13, x1: 0, y1: half,  z1: h + triH,  x2: 0, y2: 0,     z2: h,        radius_mm: 1.5 })
+      excitationTag = 4   // letztes Segment am Apex unten
+    }
+  }
+  openInSim(router, {
+    name: `${variants.find(v => v.id === lp.variant)?.label || 'Loop'} ${r.total.toFixed(2)}m @ ${r.f} MHz`,
+    freq: r.f,
+    ground: 'average',
+    height: h,
+    wires,
+    excitation: { wire_tag: excitationTag, segment: 1 },
+  })
+}
 </script>
 
 <template>
@@ -159,6 +231,9 @@ const quad = computed(() => {
       <hr class="div">
       <div class="rr"><span class="lbl">Wellenlänge λ</span><span class="val">{{ fmt(300 / result.f) }} m</span></div>
       <div class="rr"><span class="lbl">Frequenz</span><span class="val">{{ fmt(result.f) }} MHz</span></div>
+      <div style="margin-top:12px; text-align:right">
+        <button class="btn-sim" @click="imSimOeffnen">📡 Im Sim öffnen</button>
+      </div>
     </div>
 
     <div class="card">

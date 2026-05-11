@@ -1,9 +1,12 @@
 <script setup>
 import { reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { pf, fmt } from '../composables/useHam.js'
 import BandGrid from '../components/BandGrid.vue'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
 
+const router = useRouter()
 const efhw = reactive({ freq: '7.1', vf: '0.96' })
 
 const bRanges = [
@@ -38,6 +41,31 @@ const cy = SVG_H / 2
 const boxX = 40, boxW = 56, boxH = 32
 const wireStart = boxX + boxW
 const wireEnd = SVG_W - 24
+
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// EFHW = endgespeister λ/2-Strahler. Speisung am Ende über 49:1 Unun (~2450 Ω).
+// Wire 1 = Hauptstrahler (λ/2 × VF). Wire 2 = Counterpoise (~0.05λ).
+// Excitation am Anfang von Wire 1 (am Unun-Anschluss).
+function imSimOeffnen() {
+  if (!result.value) return
+  const r = result.value
+  const h = Math.max(8, r.lambda / 2)
+  const segs = 21
+  openInSim(router, {
+    name: `EFHW ${r.draht.toFixed(2)}m @ ${r.f} MHz`,
+    freq: r.f,
+    ground: 'average',
+    height: h,
+    wires: [
+      // Hauptstrahler — Anfang am Unun (x=0), läuft horizontal nach rechts
+      { tag: 1, segments: segs, x1: 0, y1: 0, z1: h, x2: r.draht, y2: 0, z2: h, radius_mm: 1.0 },
+      // Gegengewicht (Counterpoise) — kurzer Wire in Gegenrichtung
+      { tag: 2, segments: 5, x1: 0, y1: 0, z1: h, x2: -r.gegengew, y2: 0, z2: h, radius_mm: 1.0 },
+    ],
+    // Speisung am ersten Segment des Hauptstrahlers (am Unun)
+    excitation: { wire_tag: 1, segment: 1 },
+  })
+}
 </script>
 
 <template>
@@ -67,6 +95,9 @@ const wireEnd = SVG_W - 24
       <div class="rr"><span class="lbl">Wellenlänge λ</span><span class="val">{{ fmt(result.lambda) }} m</span></div>
       <div class="rr"><span class="lbl">Frequenz</span><span class="val">{{ result.f.toFixed(4) }} MHz</span></div>
       <div class="rr"><span class="lbl">Verkürzungsfaktor</span><span class="val">{{ result.vf.toFixed(3) }}</span></div>
+      <div style="margin-top:12px; text-align:right">
+        <button class="btn-sim" @click="imSimOeffnen">📡 Im Sim öffnen</button>
+      </div>
     </div>
 
     <div class="card">

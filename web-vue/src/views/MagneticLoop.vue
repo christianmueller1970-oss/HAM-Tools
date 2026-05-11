@@ -1,9 +1,12 @@
 <script setup>
 import { reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { pf, fmt } from '../composables/useHam.js'
 import BandGrid from '../components/BandGrid.vue'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
 
+const router = useRouter()
 const ml = reactive({ freq: '14.2', d: '1.0', wire_mm: '22.0', power: '10', shape: 'kreis' })
 
 const result = computed(() => {
@@ -57,6 +60,73 @@ const result = computed(() => {
 
 function voltString(v) {
   return v >= 1000 ? (v / 1000).toFixed(1) + ' kV' : v.toFixed(0) + ' V'
+}
+
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// Magnetic Loop: geschlossene Stromschleife mit Vakuum-Kondensator zur Abstimmung.
+// NEC2 modelliert keinen konzentrierten Kondensator direkt — wir exportieren die
+// Loop-Geometrie OHNE Kondensator. Im NEC2-Sim ist die Loop dann nicht resonant
+// (wäre als reine Drahtschleife ein Full-Wave-Loop), die Strahlungsverteilung
+// (Doughnut-Pattern) bleibt aber sichtbar. Echter Magloop-Sim braucht eine
+// LD-Karte (Loading mit Kapazität) — kommt in einer späteren AntennenSim-Phase.
+function imSimOeffnen() {
+  if (!result.value) return
+  const r = result.value
+  const lambda = 300 / r.f
+  const h = Math.max(2, lambda * 0.1)
+  const radius_mm = r.wire_mm / 2
+  const D = r.d                 // Loop-Durchmesser
+  const radius = D / 2
+  const wires = []
+  if (ml.shape === 'kreis') {
+    // Kreis-Loop als 12-Eck approximieren, in Y-Z-Ebene (Antenne broadside auf X)
+    const N = 12
+    for (let i = 0; i < N; i++) {
+      const a1 = (i / N) * 2 * Math.PI
+      const a2 = ((i + 1) / N) * 2 * Math.PI
+      wires.push({
+        tag: i + 1, segments: 5,
+        x1: 0, y1: radius * Math.cos(a1), z1: h + radius * Math.sin(a1),
+        x2: 0, y2: radius * Math.cos(a2), z2: h + radius * Math.sin(a2),
+        radius_mm,
+      })
+    }
+  } else if (ml.shape === 'quadrat') {
+    const corners = [
+      { y:  radius, z: h - radius }, { y:  radius, z: h + radius },
+      { y: -radius, z: h + radius }, { y: -radius, z: h - radius },
+    ]
+    for (let i = 0; i < 4; i++) {
+      const a = corners[i], b = corners[(i + 1) % 4]
+      wires.push({
+        tag: i + 1, segments: 7,
+        x1: 0, y1: a.y, z1: a.z, x2: 0, y2: b.y, z2: b.z, radius_mm,
+      })
+    }
+  } else {
+    // Achteck
+    const N = 8
+    const rPoly = radius
+    for (let i = 0; i < N; i++) {
+      const a1 = (i / N) * 2 * Math.PI + Math.PI / N
+      const a2 = ((i + 1) / N) * 2 * Math.PI + Math.PI / N
+      wires.push({
+        tag: i + 1, segments: 5,
+        x1: 0, y1: rPoly * Math.cos(a1), z1: h + rPoly * Math.sin(a1),
+        x2: 0, y2: rPoly * Math.cos(a2), z2: h + rPoly * Math.sin(a2),
+        radius_mm,
+      })
+    }
+  }
+  openInSim(router, {
+    name: `Magnetic Loop ${D.toFixed(2)}m (${ml.shape}, ohne C) @ ${r.f} MHz`,
+    freq: r.f,
+    ground: 'average',
+    height: h,
+    wires,
+    // Speisung am ersten Wire-Segment (Loop-Spitze)
+    excitation: { wire_tag: 1, segment: 3 },
+  })
 }
 function bwString(hz) {
   return hz >= 1000 ? (hz / 1000).toFixed(1) + ' kHz' : hz.toFixed(0) + ' Hz'
@@ -145,6 +215,12 @@ const sketchGeom = computed(() => {
         <div class="ken"><div class="ken-val">{{ result.Q.toFixed(0) }}</div><div class="ken-lbl">Güte Q</div></div>
         <div class="ken"><div class="ken-val">{{ bwString(result.BW_hz) }}</div><div class="ken-lbl">Bandbreite BW</div></div>
         <div class="ken"><div class="ken-val">{{ fmt(result.eta, 1) }} %</div><div class="ken-lbl">Wirkungsgrad η</div></div>
+      </div>
+      <div style="margin-top:12px; text-align:right">
+        <button class="btn-sim" @click="imSimOeffnen"
+                title="Exportiert nur die Loop-Geometrie. NEC2 modelliert den Abstimmkondensator nicht — Sim ist nicht resonant, aber Strahlungspattern wird sichtbar">
+          📡 Im Sim öffnen (ohne C)
+        </button>
       </div>
     </div>
 

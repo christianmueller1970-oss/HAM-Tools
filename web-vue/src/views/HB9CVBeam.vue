@@ -1,8 +1,11 @@
 <script setup>
 import { reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { pf, fmt } from '../composables/useHam.js'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
 
+const router = useRouter()
 const hb = reactive({
   freq: '144.3', d_mm: '6.0', boomFaktor: 0.125, speise: 'gamma', isWire: false,
 })
@@ -50,6 +53,34 @@ const svgGeom = computed(() => {
     arrowY: dir_y + 36,
   }
 })
+
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// HB9CV: 2-Element-Beam mit beiden Elementen aktiv gespeist über Phaseshifter
+// (~135° Phasenversatz). NEC2 modelliert keinen Phaseshifter direkt — wir
+// exportieren beide Elemente als parallele Wires, speisen aber nur den Director
+// (das ist eine Yagi-Approximation). Für echte HB9CV-Simulation müsste man
+// eine NT-Karte mit zwei EX-Sources verwenden — das ist hier vereinfacht.
+function imSimOeffnen() {
+  if (!result.value) return
+  const r = result.value
+  const h = Math.max(8, r.lambda / 2)
+  const halfR = r.l_refl / 2
+  const halfD = r.l_dir / 2
+  const radius_mm = r.d_mm / 2 || 1.5
+  // Reflektor bei X=0, Director (vorderes, gespeistes Element) bei X=+boom
+  openInSim(router, {
+    name: `HB9CV @ ${r.f.toFixed(3)} MHz (Approximation als Yagi)`,
+    freq: r.f,
+    ground: 'average',
+    height: h,
+    wires: [
+      { tag: 1, segments: 21, x1: 0,      y1: -halfR, z1: h, x2: 0,      y2: halfR, z2: h, radius_mm },
+      { tag: 2, segments: 21, x1: r.boom, y1: -halfD, z1: h, x2: r.boom, y2: halfD, z2: h, radius_mm },
+    ],
+    // Speisung am Director-Mittelsegment (Wire 2)
+    excitation: { wire_tag: 2, segment: 11 },
+  })
+}
 </script>
 
 <template>
@@ -101,6 +132,9 @@ const svgGeom = computed(() => {
       <div class="rr"><span class="lbl">Direktor, halbe Seite</span><span class="val">{{ fmt(result.l_dir / 2) }} m  ({{ (result.l_dir * 50).toFixed(0) }} cm)</span></div>
       <div class="rr"><span class="lbl">Boom-Länge</span><span class="val">{{ fmt(result.boom) }} m  ({{ (result.boom * 100).toFixed(0) }} cm)</span></div>
       <div class="rr"><span class="lbl">Refl–Direk Abstand</span><span class="val">{{ fmt(result.boom) }} m  ({{ (result.boom * 100).toFixed(0) }} cm)</span></div>
+      <div style="margin-top:12px; text-align:right">
+        <button class="btn-sim" @click="imSimOeffnen" title="Exportiert vereinfacht als Yagi — HB9CV-Phaseshifter ist nicht modellierbar">📡 Im Sim öffnen</button>
+      </div>
     </div>
 
     <div class="card">

@@ -1,8 +1,11 @@
 <script setup>
 import { reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { pf, fmt } from '../composables/useHam.js'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
 
+const router = useRouter()
 const wd = reactive({ freq: '7.1', vf: '0.95' })
 
 const wdBands = [['160m',1.85],['80m',3.65],['60m',5.36],['40m',7.1],['30m',10.125]]
@@ -43,6 +46,30 @@ const availW = SVG_W - 2 * margin
 const feedX = margin + availW * 0.36
 const leftX = margin
 const rightX = SVG_W - margin
+
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// Windom (OCFD) = λ/2 Dipol, off-center gespeist bei 36/64-Aufteilung.
+// 2 Wires (kurz + lang), Speisepunkt am Übergang (Endpunkt von Wire 1 = Anfang von Wire 2).
+function imSimOeffnen() {
+  if (!result.value) return
+  const r = result.value
+  const lambda = 300 / r.f
+  const h = Math.max(8, lambda / 2)
+  // Wire 1: kurzer Schenkel (von x=-kurz bis Feedpoint x=0)
+  // Wire 2: langer Schenkel (von Feedpoint x=0 bis x=+lang)
+  openInSim(router, {
+    name: `Windom (OCFD) ${r.gesamt.toFixed(2)}m @ ${r.f} MHz`,
+    freq: r.f,
+    ground: 'average',
+    height: h,
+    wires: [
+      { tag: 1, segments: 9,  x1: -r.kurz, y1: 0, z1: h, x2: 0,      y2: 0, z2: h, radius_mm: 1.0 },
+      { tag: 2, segments: 17, x1: 0,       y1: 0, z1: h, x2: r.lang, y2: 0, z2: h, radius_mm: 1.0 },
+    ],
+    // Speisung am ersten Segment von Wire 2 (am Übergang von kurz zu lang)
+    excitation: { wire_tag: 2, segment: 1 },
+  })
+}
 </script>
 
 <template>
@@ -70,6 +97,9 @@ const rightX = SVG_W - margin
       <div class="rr"><span class="lbl">Speisepunkt-Impedanz</span><span class="val">≈ 200–300 Ω</span></div>
       <div class="rr"><span class="lbl">Balun</span><span class="val">4:1 Current Balun (empfohlen) oder 6:1</span></div>
       <div class="rr"><span class="lbl">Frequenz (Grundwelle)</span><span class="val">{{ fmt(result.f) }} MHz</span></div>
+      <div style="margin-top:12px; text-align:right">
+        <button class="btn-sim" @click="imSimOeffnen">📡 Im Sim öffnen</button>
+      </div>
     </div>
 
     <div class="card">

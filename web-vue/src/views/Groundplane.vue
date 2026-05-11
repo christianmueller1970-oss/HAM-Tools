@@ -1,9 +1,12 @@
 <script setup>
 import { reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { pf, fmt } from '../composables/useHam.js'
 import BandGrid from '../components/BandGrid.vue'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
 
+const router = useRouter()
 const gp = reactive({ freq: '14.175', vf: '0.95', anzahl: 4, winkel: 45 })
 
 const result = computed(() => {
@@ -27,6 +30,48 @@ const cx = SVG_W / 2
 const topY = 20
 const feedY = SVG_H * 0.55
 const strahlerPx = feedY - topY
+
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// Vertikalstrahler λ/4 + N geneigte Radials.
+// Vertikal-Wire: von (0,0,h) nach oben um Strahler-Länge
+// Radials: vom Fußpunkt (0,0,h) gleichmäßig auf 360° verteilt, geneigt um -winkel
+// Speisung: am Fuß des Vertikals (segment 1 von Wire 1)
+function imSimOeffnen() {
+  if (!result.value) return
+  const r = result.value
+  const lambda = 300 / r.f
+  const h = Math.max(lambda * 0.1, 3)   // Fußpunkt über Boden (Mindesthöhe)
+  const winkelRad = r.winkel * Math.PI / 180
+  const radialDz = -Math.sin(winkelRad) * r.radial   // Radials gehen leicht nach unten
+  const radialDr =  Math.cos(winkelRad) * r.radial
+  const wires = []
+  // Vertikal-Strahler
+  wires.push({
+    tag: 1, segments: 11,
+    x1: 0, y1: 0, z1: h, x2: 0, y2: 0, z2: h + r.strahler,
+    radius_mm: 2.0,
+  })
+  // Radials, gleichmäßig auf 360° verteilt
+  for (let i = 0; i < r.anzahl; i++) {
+    const angle = (i / r.anzahl) * 2 * Math.PI
+    const dx = Math.cos(angle) * radialDr
+    const dy = Math.sin(angle) * radialDr
+    wires.push({
+      tag: 2 + i, segments: 9,
+      x1: 0, y1: 0, z1: h,
+      x2: dx, y2: dy, z2: h + radialDz,
+      radius_mm: 1.0,
+    })
+  }
+  openInSim(router, {
+    name: `Groundplane ${r.strahler.toFixed(2)}m @ ${r.f} MHz (${r.anzahl} Radials)`,
+    freq: r.f,
+    ground: 'average',
+    height: h,
+    wires,
+    excitation: { wire_tag: 1, segment: 1 },
+  })
+}
 
 const radialEnds = computed(() => {
   if (!result.value) return []
@@ -85,6 +130,9 @@ const radialEnds = computed(() => {
       <div class="rr"><span class="lbl">Radiale-Neigung</span><span class="val">{{ result.winkel }}° unter horizontal</span></div>
       <div class="rr"><span class="lbl">Speisepunkt-Impedanz</span><span class="val">{{ result.imp }}</span></div>
       <div class="rr"><span class="lbl">Frequenz</span><span class="val">{{ fmt(result.f) }} MHz</span></div>
+      <div style="margin-top:12px; text-align:right">
+        <button class="btn-sim" @click="imSimOeffnen">📡 Im Sim öffnen</button>
+      </div>
     </div>
 
     <div class="card">

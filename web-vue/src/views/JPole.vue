@@ -1,8 +1,11 @@
 <script setup>
 import { reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { pf, fmt, isBandActive } from '../composables/useHam.js'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
 
+const router = useRouter()
 const jp = reactive({ freq: '145.0', vf: '0.95', typ: 'jpole' })
 
 const jpBands = [
@@ -30,6 +33,43 @@ const stubTop = computed(() => result.value
   ? botY - totalPx * (result.value.strahler / result.value.gesamt) : 0)
 const feedY = computed(() => result.value
   ? botY - totalPx * (result.value.feed / result.value.gesamt) : 0)
+
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// J-Pole = λ/4 Stub + λ/2 Strahler, parallele Leiter mit ~25-50mm Abstand
+// am Boden kurzgeschlossen. Einspeisepunkt ~5% vom Boden auf dem Stub-Bein.
+function imSimOeffnen() {
+  if (!result.value) return
+  const r = result.value
+  const lambda = 300 / r.f
+  const zBase = Math.max(3, lambda * 0.5)   // J-Pole-Basis über Boden
+  const d = 0.03                            // 30mm Leiterabstand
+  // Strahler-Leiter: vom Stub-Top hoch auf gesamte Höhe (Strahler λ/2)
+  // Stub-Leiter:    vom Stub-Top runter um λ/4
+  // Kurzschluss am Boden + Einspeisung bei feed-Höhe
+  const zStubBottom = zBase
+  const zStubTop    = zBase + r.stub
+  const zRadTop     = zStubTop + r.strahler
+  const zFeed       = zBase + r.feed
+  const wires = [
+    // Rechter Leiter (Strahler-Seite): vom Stub-Bottom durch Stub-Top bis Strahler-Top
+    { tag: 1, segments: 9,  x1: d/2, y1: 0, z1: zStubBottom, x2: d/2, y2: 0, z2: zStubTop, radius_mm: 2.0 },
+    { tag: 2, segments: 17, x1: d/2, y1: 0, z1: zStubTop,    x2: d/2, y2: 0, z2: zRadTop,  radius_mm: 2.0 },
+    // Linker Leiter (Stub-Seite, parallel, kürzer — endet am Stub-Top)
+    { tag: 3, segments: 9,  x1: -d/2, y1: 0, z1: zStubBottom, x2: -d/2, y2: 0, z2: zStubTop, radius_mm: 2.0 },
+    // Kurzschluss am Boden (horizontaler Verbinder)
+    { tag: 4, segments: 3,  x1: -d/2, y1: 0, z1: zStubBottom, x2: d/2,  y2: 0, z2: zStubBottom, radius_mm: 2.0 },
+  ]
+  // Slim Jim: Strahler-Top hat noch einen offenen Ablauf — approximieren wir nicht (würde NEC2-Tuning brauchen)
+  openInSim(router, {
+    name: `${jp.typ === 'slimjim' ? 'Slim Jim' : 'J-Pole'} ${r.gesamt.toFixed(2)}m @ ${r.f} MHz`,
+    freq: r.f,
+    ground: 'average',
+    height: zBase,
+    wires,
+    // Speisung am rechten Leiter, am Feed-Punkt (~5% des Stubs vom Boden)
+    excitation: { wire_tag: 1, segment: Math.max(1, Math.round(9 * (zFeed - zStubBottom) / (zStubTop - zStubBottom))) },
+  })
+}
 </script>
 
 <template>
@@ -71,6 +111,9 @@ const feedY = computed(() => result.value
       <div class="rr"><span class="lbl">Einspeisepunkt ab unten</span><span class="val">{{ fmt(result.feed) }} m  ({{ result.feedProzent.toFixed(0) }}% des Stubs)</span></div>
       <div class="rr"><span class="lbl">Speisepunkt-Impedanz</span><span class="val">≈ 50 Ω am Einspeisepunkt</span></div>
       <div class="rr"><span class="lbl">Frequenz</span><span class="val">{{ fmt(result.f) }} MHz</span></div>
+      <div style="margin-top:12px; text-align:right">
+        <button class="btn-sim" @click="imSimOeffnen">📡 Im Sim öffnen</button>
+      </div>
     </div>
 
     <div class="card">

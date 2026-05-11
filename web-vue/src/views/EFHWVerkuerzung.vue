@@ -1,8 +1,11 @@
 <script setup>
 import { reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { pf, fmt } from '../composables/useHam.js'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
 
+const router = useRouter()
 const v = reactive({
   freq: '7.1', len: '15.0', coilD: '50.0', wireD: '1.5', posMitte: true,
 })
@@ -83,6 +86,32 @@ const spulenPath = computed(() => {
   }
   return path
 })
+
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// EFHW mit Verlängerungsspule — NEC2 modelliert keine konzentrierte Induktivität
+// direkt (Loading-Karte LD wäre möglich, ist aber im AntennenSim noch nicht
+// implementiert). Wir exportieren daher eine IDEALISIERTE EFHW der vollen
+// λ/2-Länge (ohne Spule). Sim zeigt Strahlungseigenschaften, aber die echte
+// Resonanz hängt von Spulenposition und L-Wert ab.
+function imSimOeffnen() {
+  const f = pf(v.freq)
+  if (!f) return
+  const fl = 142.5 / f   // volle resonante Länge (≈ λ/2 mit VF≈0.95)
+  const lambda = 300 / f
+  const hz = Math.max(8, lambda / 2)
+  openInSim(router, {
+    name: `EFHW (idealisiert, ohne Spule) ${fl.toFixed(2)}m @ ${f} MHz`,
+    freq: f,
+    ground: 'average',
+    height: hz,
+    wires: [
+      { tag: 1, segments: 21, x1: 0, y1: 0, z1: hz, x2: fl, y2: 0, z2: hz, radius_mm: 1.0 },
+      // Kurzes Gegengewicht
+      { tag: 2, segments: 5,  x1: 0, y1: 0, z1: hz, x2: -lambda * 0.05, y2: 0, z2: hz, radius_mm: 1.0 },
+    ],
+    excitation: { wire_tag: 1, segment: 1 },
+  })
+}
 </script>
 
 <template>
@@ -158,6 +187,12 @@ const spulenPath = computed(() => {
         <div class="rr"><span class="lbl">Wickellänge</span><span class="val">{{ fmt(result.coilLen_mm, 1) }} mm</span></div>
         <div class="rr"><span class="lbl">Drahtlänge gesamt</span><span class="val">{{ fmt(result.wireLen_m, 2) }} m</span></div>
         <div class="rr"><span class="lbl">Spulen-Außen-Ø</span><span class="val">{{ fmt(result.outerD_mm, 1) }} mm</span></div>
+        <div style="margin-top:12px; text-align:right">
+          <button class="btn-sim" @click="imSimOeffnen"
+                  title="Exportiert vereinfacht als volle λ/2 EFHW (ohne konzentrierte Spule — NEC2 modelliert die Loading-Spule nicht)">
+            📡 Im Sim öffnen (idealisiert)
+          </button>
+        </div>
       </div>
 
       <div class="card">

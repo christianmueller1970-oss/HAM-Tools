@@ -1,6 +1,16 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
+
+const router = useRouter()
+
+// Standard-Mittelfrequenzen pro Band (für Sim-Export)
+const BAND_FREQ = {
+  '30m': 10.125, '20m': 14.150, '17m': 18.118,
+  '15m': 21.200, '12m': 24.940, '10m': 28.500,
+}
 
 const SB_BAND_COLORS = {
   '30m': '#7D2E12',
@@ -215,6 +225,58 @@ const tableRows = computed(() => {
   return result
 })
 
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// Spiderbeam Multi: pro aktivem Band ein eigenes Yagi-Wire-Set.
+// Excitation: Strahler des vom User gewählten Bands. Frequenz = Mittelband.
+const excitedSpiderBand = ref(null)
+const effectiveExcitedSpiderBand = computed(() => {
+  const akt = activeBands.value
+  if (akt.length === 0) return null
+  if (excitedSpiderBand.value && akt.includes(excitedSpiderBand.value)) return excitedSpiderBand.value
+  // Default: niedrigstes aktives Band
+  return [...akt].sort((a, b) => (BAND_FREQ[a] || 999) - (BAND_FREQ[b] || 999))[0]
+})
+
+function imSimOeffnen() {
+  const akt = activeBands.value
+  if (akt.length === 0) return
+  const exBand = effectiveExcitedSpiderBand.value
+  const exFreq = BAND_FREQ[exBand] || 14.150
+  const lambda = 300 / exFreq
+  const h = Math.max(8, lambda / 2)
+
+  const wires = []
+  let tag = 0
+  let excitationTag = null
+
+  for (const bandName of akt) {
+    const elems = version.value.data[bandName] || []
+    for (const el of elems) {
+      tag++
+      const half = el.Lel / 2
+      wires.push({
+        tag, segments: 21,
+        x1: el.S, y1: -half, z1: h,
+        x2: el.S, y2:  half, z2: h,
+        radius_mm: 1.5,
+      })
+      if (bandName === exBand && el.typ === 'Strahler') {
+        excitationTag = tag
+      }
+    }
+  }
+  if (!excitationTag) excitationTag = 1
+
+  openInSim(router, {
+    name: `Spiderbeam ${version.value.label} (${akt.join('/')}) — Speisung ${exBand}`,
+    freq: exFreq,
+    ground: 'average',
+    height: h,
+    wires,
+    excitation: { wire_tag: excitationTag, segment: 11 },
+  })
+}
+
 function legendX(i, count) {
   const itemW = 68
   return (SVG_W - count * itemW) / 2 + i * itemW
@@ -371,6 +433,24 @@ function legendX(i, count) {
     <div class="rr"><span class="lbl">L_el</span><span class="val">Elektrische Drahtlänge (Strahler-Schenkel × 2, ohne Speiseleitung)</span></div>
     <div class="rr"><span class="lbl">Zuschnitt Arm (mm)</span><span class="val">Physikalischer Schnitt für einen Arm (L_el/2 + Toleranz)</span></div>
     <div class="rr"><span class="lbl">S (m)</span><span class="val">Position auf dem Boom; + = Direktor-Seite, – = Reflektor-Seite</span></div>
+  </div>
+
+  <div v-if="activeBands.length > 0" class="card">
+    <h2>Im Antennen-Simulator öffnen</h2>
+    <div class="small" style="margin-bottom:10px; line-height:1.5">
+      Alle aktiven Bänder werden als NEC2-Drahtmodell exportiert (Strahler + Reflektor + Direktoren pro Band).
+      Ein Band wird gespeist — die anderen wirken als passive Parasiten.
+    </div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+      <label class="small" for="spider-excite-band">Speisung Band:</label>
+      <select id="spider-excite-band" v-model="excitedSpiderBand"
+              style="padding:6px 10px; border-radius:4px; border:1px solid var(--border, #444); background:var(--bg-input, #1a1a1a); color:inherit">
+        <option v-for="b in [...activeBands].sort((a, bb) => (BAND_FREQ[a] || 999) - (BAND_FREQ[bb] || 999))" :key="b" :value="b">
+          {{ b }} ({{ BAND_FREQ[b] || '?' }} MHz)
+        </option>
+      </select>
+      <button class="btn-sim" @click="imSimOeffnen">📡 Im Sim öffnen</button>
+    </div>
   </div>
 
   <RechnerBeschreibung name="spidermulti" />

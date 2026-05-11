@@ -1,9 +1,12 @@
 <script setup>
 import { reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { pf, fmt } from '../composables/useHam.js'
 import BandGrid from '../components/BandGrid.vue'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
 
+const router = useRouter()
 const mox = reactive({ freq: '14.175', vf: '0.95' })
 
 const result = computed(() => {
@@ -49,6 +52,45 @@ const svgGeom = computed(() => {
     bRueT, gapPx, dRueR,
   }
 })
+
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// Moxon: 2 horizontale Hauptdrähte (Driver vorne, Reflektor hinten) + je 2 Tails
+// die aufeinander zu zeigen. Total 6 Wires. Driver in Strahlungsrichtung (X-Achse Vorderseite).
+function imSimOeffnen() {
+  if (!result.value) return
+  const r = result.value
+  const lambda = 300 / r.f
+  const h = Math.max(8, lambda / 2)
+  // Driver vorne (X = +halfDepth/2), Reflektor hinten (X = -halfDepth/2)
+  const depth = r.gesamttiefe   // B + C + D
+  const xDriver = depth / 2
+  const xReflLevel = -depth / 2
+  const xDriverTailEnd = xDriver - r.B
+  const xReflTailEnd = xReflLevel + r.D
+  const halfA = r.A / 2
+  const halfE = r.E / 2
+  openInSim(router, {
+    name: `Moxon ${r.A.toFixed(2)}×${depth.toFixed(2)}m @ ${r.f} MHz`,
+    freq: r.f,
+    ground: 'average',
+    height: h,
+    wires: [
+      // Driver-Hauptteil entlang Y bei x=xDriver, gespeist in der Mitte
+      { tag: 1, segments: 11, x1: xDriver, y1: -halfA, z1: h, x2: xDriver, y2: 0,     z2: h, radius_mm: 2.0 },
+      { tag: 2, segments: 11, x1: xDriver, y1: 0,     z1: h, x2: xDriver, y2: halfA, z2: h, radius_mm: 2.0 },
+      // Driver-Tails (auf jeder Seite, zeigen nach hinten Richtung Reflektor)
+      { tag: 3, segments: 5,  x1: xDriver, y1: -halfA, z1: h, x2: xDriverTailEnd, y2: -halfA, z2: h, radius_mm: 2.0 },
+      { tag: 4, segments: 5,  x1: xDriver, y1:  halfA, z1: h, x2: xDriverTailEnd, y2:  halfA, z2: h, radius_mm: 2.0 },
+      // Reflektor-Hauptteil entlang Y bei x=xReflLevel
+      { tag: 5, segments: 21, x1: xReflLevel, y1: -halfE, z1: h, x2: xReflLevel, y2: halfE, z2: h, radius_mm: 2.0 },
+      // Reflektor-Tails (zeigen nach vorne Richtung Driver)
+      { tag: 6, segments: 5,  x1: xReflLevel, y1: -halfE, z1: h, x2: xReflTailEnd, y2: -halfE, z2: h, radius_mm: 2.0 },
+      { tag: 7, segments: 5,  x1: xReflLevel, y1:  halfE, z1: h, x2: xReflTailEnd, y2:  halfE, z2: h, radius_mm: 2.0 },
+    ],
+    // Speisung am Übergang Wire 1 → Wire 2 (Driver-Mitte): erstes Segment von Wire 2
+    excitation: { wire_tag: 2, segment: 1 },
+  })
+}
 </script>
 
 <template>
@@ -78,6 +120,9 @@ const svgGeom = computed(() => {
       <div class="rr"><span class="lbl">Drahtlänge Treiber</span><span class="val">{{ fmt(result.drahtTreiber) }} m</span></div>
       <div class="rr"><span class="lbl">Drahtlänge Reflektor</span><span class="val">{{ fmt(result.drahtReflektor) }} m</span></div>
       <div class="rr"><span class="lbl">Speisepunkt-Impedanz</span><span class="val">≈ 50 Ω</span></div>
+      <div style="margin-top:12px; text-align:right">
+        <button class="btn-sim" @click="imSimOeffnen">📡 Im Sim öffnen</button>
+      </div>
     </div>
 
     <div class="card">
