@@ -82,7 +82,7 @@ struct SpotListView: View {
             .width(min: 100, ideal: 160)
 
             TableColumn("Spotter / Quelle", value: \.spotter) { s in
-                VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 6) {
                     Text(s.spotter)
                         .font(.system(size: 12, design: .monospaced))
                         .foregroundStyle(watchList?.matches(s.dxCall) == true
@@ -95,7 +95,7 @@ struct SpotListView: View {
                         .truncationMode(.tail)
                 }
             }
-            .width(min: 90, ideal: 130)
+            .width(min: 130, ideal: 200)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .font(.system(size: 12))
