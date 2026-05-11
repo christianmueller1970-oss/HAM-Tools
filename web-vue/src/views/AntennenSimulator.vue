@@ -250,6 +250,9 @@ const running = ref(false)
 const result = ref(null)
 const errorMsg = ref(null)
 const showAntennaIn3D = ref(true)
+// Vergleichs-Modus: Referenz-Sim-Ergebnis (Snapshot vom letzten "Als Referenz"-Klick)
+const referenceResult = ref(null)
+const referenceLabel  = ref('')
 
 let worker = null
 let pendingId = 0
@@ -414,6 +417,22 @@ function formatSavedDate(iso) {
     return d.toLocaleDateString('de-DE') + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
   } catch { return '' }
 }
+// ─── Vergleichs-Modus (Reference Snapshot) ───────────────────────────────────
+function setAsReference() {
+  if (!result.value) return
+  // Deep-Copy damit das Original unverändert bleibt
+  referenceResult.value = JSON.parse(JSON.stringify(result.value))
+  referenceLabel.value  = cfg.name || 'Referenz'
+  status.value = `Aktuelles Ergebnis als Referenz gespeichert: "${referenceLabel.value}"`
+}
+function clearReference() {
+  referenceResult.value = null
+  referenceLabel.value  = ''
+}
+// Sweep-Blocks der Referenz (für Overlay-Plots)
+const refBlocks = computed(() => referenceResult.value?.blocks || [])
+const refPrimary = computed(() => referenceResult.value?.primary || null)
+
 // NEC2-Deck als .nec-Datei downloaden
 function downloadDeck() {
   if (!result.value?.deck) {
@@ -681,12 +700,33 @@ const swrChart = computed(() => sweepChart(
   b => Math.min(5, b.swr_50),
   '#3b82f6', 1, 5, 'SWR (50 Ω)'
 ))
+// Referenz-SWR-Pfad — gleiche Skalierung wie aktuelles Chart, damit beide visuell vergleichbar sind
+const swrChartRef = computed(() => {
+  if (!referenceResult.value || !swrChart.value.path) return null
+  const blocks = referenceResult.value.blocks || []
+  if (blocks.length < 2) return null
+  // Mit gleichem fMin/fMax-Range zeichnen wie aktuelles Chart (Range vom AKTUELLEN Chart)
+  const m = swrChart.value.margin, W = swrChart.value.W, H = swrChart.value.H
+  const fMin = swrChart.value.fMin, fMax = swrChart.value.fMax
+  const yMin = 1, yMax = 5
+  let d = ''
+  for (let i = 0; i < blocks.length; i++) {
+    const f = blocks[i].frequency_mhz
+    if (f < fMin || f > fMax) continue
+    const v = Math.min(5, blocks[i].swr_50)
+    const x = m.l + (f - fMin) / (fMax - fMin) * W
+    const y = m.t + H - Math.max(0, Math.min(1, (v - yMin) / (yMax - yMin))) * H
+    d += (d === '' ? `M ${x.toFixed(1)} ${y.toFixed(1)}` : ` L ${x.toFixed(1)} ${y.toFixed(1)}`)
+  }
+  return d
+})
 const zChart = computed(() => {
-  // R und X auf gleichem Chart; auto-scale
+  // R und X auf gleichem Chart; auto-scale (auch Referenz miteinbeziehen damit Skala fair vergleichbar)
   const blocks = sweepBlocks.value
   if (blocks.length < 2) return null
   let yMin = -300, yMax = 300
-  for (const b of blocks) {
+  const allBlocks = [...blocks, ...(referenceResult.value?.blocks || [])]
+  for (const b of allBlocks) {
     if (b.impedance.real > yMax) yMax = b.impedance.real
     if (b.impedance.real < yMin) yMin = b.impedance.real
     if (b.impedance.imag > yMax) yMax = b.impedance.imag
@@ -696,7 +736,21 @@ const zChart = computed(() => {
   yMax = Math.ceil(yMax / 50) * 50
   const r = sweepChart(blocks, b => b.impedance.real, '#22c55e', yMin, yMax, '')
   const x = sweepChart(blocks, b => b.impedance.imag, '#f97316', yMin, yMax, '')
-  return { ...r, rPath: r.path, xPath: x.path, yMin, yMax }
+  // Referenz-Pfade
+  let rRef = '', xRef = ''
+  if (referenceResult.value) {
+    const rb = referenceResult.value.blocks || []
+    const m = r.margin, W = r.W, H = r.H
+    const xOf = f => m.l + (f - r.fMin) / (r.fMax - r.fMin) * W
+    const yOf = v => m.t + H - Math.max(0, Math.min(1, (v - yMin) / (yMax - yMin))) * H
+    for (let i = 0; i < rb.length; i++) {
+      const f = rb[i].frequency_mhz
+      if (f < r.fMin || f > r.fMax) continue
+      rRef += (rRef === '' ? 'M ' : ' L ') + `${xOf(f).toFixed(1)} ${yOf(rb[i].impedance.real).toFixed(1)}`
+      xRef += (xRef === '' ? 'M ' : ' L ') + `${xOf(f).toFixed(1)} ${yOf(rb[i].impedance.imag).toFixed(1)}`
+    }
+  }
+  return { ...r, rPath: r.path, xPath: x.path, rRefPath: rRef, xRefPath: xRef, yMin, yMax }
 })
 
 // Bandbreite (SWR < 2)
@@ -755,6 +809,22 @@ function polarPath(points, kind) {
 }
 const azimuthPath  = computed(() => polarPath(polarPoints.value, 'azimuth'))
 const elevationPath = computed(() => polarPath(elevationPoints.value, 'elevation'))
+// Referenz-Polar-Pfade
+const refPolarPoints = computed(() => {
+  const p = refPrimary.value
+  if (!p || !p.pattern) return []
+  const isFree = cfg.ground === 'free_space'
+  const targetTheta = isFree ? 90 : 80
+  const tol = 5
+  return p.pattern.filter(pt => Math.abs(pt.theta - targetTheta) < tol).sort((a, b) => a.phi - b.phi)
+})
+const refElevationPoints = computed(() => {
+  const p = refPrimary.value
+  if (!p || !p.pattern) return []
+  return p.pattern.filter(pt => Math.abs(pt.phi) < 5).sort((a, b) => a.theta - b.theta)
+})
+const azimuthPathRef   = computed(() => polarPath(refPolarPoints.value, 'azimuth'))
+const elevationPathRef = computed(() => polarPath(refElevationPoints.value, 'elevation'))
 const PLOT_R = PLOT_SIZE / 2 - 24
 const PLOT_C = PLOT_SIZE / 2
 </script>
@@ -1048,10 +1118,21 @@ const PLOT_C = PLOT_SIZE / 2
       Bei aktiviertem Sweep wird kein Strahlungsdiagramm berechnet (nur Z + SWR pro Frequenz).
       Für Pattern den Sweep abschalten und auf Mitten-Frequenz simulieren.
     </p>
-    <div style="display:flex; gap:8px; align-items:center">
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
       <button class="btn primary" @click="simulate" :disabled="running">
         {{ running ? 'Simuliere…' : 'Simulieren ▶' }}
       </button>
+      <button class="btn" @click="setAsReference" :disabled="!result"
+              title="Speichert das aktuelle Ergebnis als Referenz — spätere Simulationen werden dann überlagert dargestellt">
+        📌 Als Referenz setzen
+      </button>
+      <button v-if="referenceResult" class="btn" @click="clearReference"
+              style="border-color:#fb923c; color:#fb923c" title="Referenz löschen">
+        ✕ Referenz entfernen
+      </button>
+      <span v-if="referenceResult" style="font-size:12px; padding:4px 10px; background:rgba(251,146,60,0.12); border:1px solid #fb923c; border-radius:4px; color:#fb923c">
+        Vergleich aktiv: {{ referenceLabel }}
+      </span>
       <span style="opacity:0.7; font-size:12px">{{ status }}</span>
     </div>
     <div v-if="errorMsg" style="color:#ef4444; margin-top:10px; font-size:12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-all; max-height: 380px; overflow-y: auto; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.3); padding: 8px; border-radius: 6px">⚠ {{ errorMsg }}</div>
@@ -1112,10 +1193,14 @@ const PLOT_C = PLOT_SIZE / 2
       <text v-for="(f, i) in [swrChart.fMin, (swrChart.fMin + swrChart.fMax)/2, swrChart.fMax]" :key="`fx${i}`"
             :x="swrChart.margin.l + swrChart.W * i/2" :y="SWEEP_H - 8"
             text-anchor="middle" font-size="10" fill="#888">{{ f.toFixed(3) }}</text>
-      <!-- SWR-Kurve -->
+      <!-- SWR-Kurve Referenz (gestrichelt drunter, vor der aktiven Kurve gezeichnet) -->
+      <path v-if="swrChartRef" :d="swrChartRef" fill="none" stroke="#fb923c" stroke-width="1.8"
+            stroke-dasharray="5,3" opacity="0.85"/>
+      <!-- SWR-Kurve aktuell -->
       <path :d="swrChart.path" fill="none" :stroke="swrChart.color" stroke-width="2"/>
       <text :x="swrChart.margin.l + 8" :y="swrChart.margin.t + 14" font-size="10" fill="#3b82f6" font-weight="600">SWR (50 Ω)</text>
       <text :x="swrChart.margin.l + 8" :y="swrChart.margin.t + 26" font-size="9" fill="#22c55e">— SWR=2 Schwelle</text>
+      <text v-if="swrChartRef" :x="swrChart.margin.l + 8" :y="swrChart.margin.t + 38" font-size="9" fill="#fb923c">- - - Referenz</text>
     </svg>
 
     <!-- Z Chart -->
@@ -1143,10 +1228,16 @@ const PLOT_C = PLOT_SIZE / 2
       <text v-for="(f, i) in [zChart.fMin, (zChart.fMin + zChart.fMax)/2, zChart.fMax]" :key="`zfx${i}`"
             :x="zChart.margin.l + zChart.W * i/2" :y="SWEEP_H - 8"
             text-anchor="middle" font-size="10" fill="#888">{{ f.toFixed(3) }}</text>
+      <!-- Referenz-Pfade gestrichelt -->
+      <path v-if="zChart.rRefPath" :d="zChart.rRefPath" fill="none" stroke="#86efac" stroke-width="1.6"
+            stroke-dasharray="5,3" opacity="0.85"/>
+      <path v-if="zChart.xRefPath" :d="zChart.xRefPath" fill="none" stroke="#fdba74" stroke-width="1.6"
+            stroke-dasharray="5,3" opacity="0.85"/>
       <path :d="zChart.rPath" fill="none" stroke="#22c55e" stroke-width="2"/>
       <path :d="zChart.xPath" fill="none" stroke="#f97316" stroke-width="2"/>
       <text :x="zChart.margin.l + 8" :y="zChart.margin.t + 14" font-size="10" fill="#22c55e" font-weight="600">— R (Realteil)</text>
       <text :x="zChart.margin.l + 8" :y="zChart.margin.t + 26" font-size="10" fill="#f97316" font-weight="600">— X (Imag, ind/kap)</text>
+      <text v-if="zChart.rRefPath" :x="zChart.margin.l + 8" :y="zChart.margin.t + 38" font-size="9" fill="#fb923c">- - - Referenz (R, X)</text>
     </svg>
   </div>
 
@@ -1162,6 +1253,9 @@ const PLOT_C = PLOT_SIZE / 2
           <circle :cx="PLOT_C" :cy="PLOT_C" :r="PLOT_R*0.25" fill="none" stroke="#444" stroke-width="0.5"/>
           <line :x1="PLOT_C" y1="14" :x2="PLOT_C" :y2="PLOT_SIZE-14" stroke="#555" stroke-width="0.5"/>
           <line x1="14" :y1="PLOT_C" :x2="PLOT_SIZE-14" :y2="PLOT_C" stroke="#555" stroke-width="0.5"/>
+          <!-- Referenz-Pattern (gestrichelt) -->
+          <path v-if="azimuthPathRef" :d="azimuthPathRef" fill="none" stroke="#fb923c" stroke-width="1.6"
+                stroke-dasharray="5,3" opacity="0.9"/>
           <path :d="azimuthPath" fill="rgba(59,130,246,0.25)" stroke="#3b82f6" stroke-width="2"/>
           <text :x="PLOT_C" y="11" text-anchor="middle" font-size="9" fill="#888">N (φ=0°)</text>
           <text :x="PLOT_SIZE-10" :y="PLOT_C+4" text-anchor="end" font-size="9" fill="#888">E</text>
@@ -1178,6 +1272,8 @@ const PLOT_C = PLOT_SIZE / 2
           <circle :cx="PLOT_C" :cy="PLOT_C" :r="PLOT_R*0.25" fill="none" stroke="#444" stroke-width="0.5"/>
           <line :x1="PLOT_C" y1="14" :x2="PLOT_C" :y2="PLOT_SIZE-14" stroke="#555" stroke-width="0.5"/>
           <line x1="14" :y1="PLOT_C" :x2="PLOT_SIZE-14" :y2="PLOT_C" stroke="#555" stroke-width="0.5"/>
+          <path v-if="elevationPathRef" :d="elevationPathRef" fill="none" stroke="#fb923c" stroke-width="1.6"
+                stroke-dasharray="5,3" opacity="0.9"/>
           <path :d="elevationPath" fill="rgba(34,197,94,0.25)" stroke="#22c55e" stroke-width="2"/>
           <text :x="PLOT_C" y="11" text-anchor="middle" font-size="9" fill="#888">Zenith (θ=0°)</text>
           <text :x="PLOT_SIZE-10" :y="PLOT_C+4" text-anchor="end" font-size="9" fill="#888">Horizon</text>
