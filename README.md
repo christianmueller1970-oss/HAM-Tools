@@ -6,9 +6,42 @@ Entwickelt von **Christian Mueller HB9HJI**
 
 ---
 
-## Funktionen (V1.3)
+## Funktionen (V1.5)
 
-### Live-Tools (NEU in V1.1)
+### Logbuch (NEU in V1.5)
+
+Vollständiges Logger-Modul im MacLoggerDX-Stil mit Multi-Log-Architektur, Online-Lookups und Cross-Modul-Integration.
+
+| Feature | Beschreibung |
+|---|---|
+| Multi-Log-Architektur | Eine SQLite-Datei pro Logbuch (.htlog), Standard / Contest / POTA / SOTA |
+| Konfigurierbarer Datenordner | Default `~/Documents/HAM-Tools/`, alle Daten zentral (Logs/Cache/Exports/Backups/Audio) |
+| QSO-Eingabe-Panel | Drei-Spalten-Form im Desktop-Logger-Look mit Auto-Band, RST-Mode-Defaults, Time-On-Live |
+| Frequenz aus Radio-Panel | Zentrale Quelle (manuell oder ab Phase 5 via CAT/Hamlib) |
+| Spot-Bridge | DX-Cluster-Spot doppelklicken → QSO-Form vorausgefüllt, POTA/SOTA-Refs aus Comment extrahiert |
+| Callbook-Lookup | QRZ.com + HamQTH.com mit Primary/Fallback-Logik, Cache 30 Tage, Profilbild |
+| Auto-Fill bei TAB | Sobald der Call eingegeben wird, füllen Name/QTH/Locator/CQ/ITU/DXCC automatisch |
+| Bulk-Lookup | QSOs in der Tabelle markieren → »QRZ für N Auswahl« ergänzt fehlende Daten |
+| Previous-Button | Frühere QSOs mit demselben Call über ALLE Logs als Popover |
+| Duplicate-Warnung | Exact-Match (Call+Band+Mode) + Recent-Match (selber Call in 30 min) |
+| ADIF Import/Export/Merge | Phase 2: ADIF 3.x mit Duplikat-Erkennung, drei Strategien |
+| Cabrillo V3 Export | Phase 4b: Contest-Log-Einreichungsformat mit allen Header-Tags |
+| Auto-Backup | Vor Log-Löschung und ADIF-Import wird ein ADIF-Backup in `Backups/` geschrieben |
+| Sortierbare/anpassbare Tabelle | Klick-Sort, Drag-Reorder, Hide/Show pro Spalte, 5 zusätzliche optionale Spalten |
+| Tab-Bar mit Context-Filter-Zeile | Log · Map · Bands · DXClusters · Awards · Memories · History · QSL · Schedules |
+| Awards-Live-Counter | DXCC/WAZ/WAS/Total über alle Logs, Worked + Confirmed (LoTW/eQSL), Detail-Tab |
+| History-Map | Eigene QSOs als Linien Home→DX, Mode-Farben, Filter Band/Mode/Zeitraum |
+| Memories | Schnellzugriffs-Karten für häufige Calls + Sked-Termine mit Countdown |
+| Send-Spot-Button | DX-Spot direkt aus dem QSO-Form ans Cluster |
+| Propagation-Panel | Rechte Seitenleiste mit Solar/Magnetic Gauges, SFI, Band-Activity (wiederverwendet aus DX-Cluster) |
+| Vollbild-Layout | Logbuch übernimmt das ganze Fenster, eigene Sidebar/Toolbar |
+
+**Pfade:** Datenordner zentral konfigurierbar in Einstellungen → Daten. Auto-Migration vom Legacy-Pfad beim ersten Start.  
+**Persistenz:** SQLite per Log (`.htlog`), Spot/Callbook/Memories als JSON in `Cache/`, App-Settings in UserDefaults.
+
+---
+
+### Live-Tools
 
 #### DX-Cluster
 Vollständige DX-Cluster-Workstation mit TCP-Verbindung zu DXSpider-Knoten und REST-API-Integration für SOTA, POTA und WWFF.
@@ -107,20 +140,50 @@ Oder in Xcode öffnen: `File › Open › Package.swift`
 Sources/HAMRechner/
 ├── App/                        ContentView, Router, AppEntry
 ├── Shared/
+│   ├── AppDataRoot.swift       zentrale Datenordner-Verwaltung
 │   ├── Components/             SectionCard, ResultRow, gemeinsame UI-Bausteine
 │   └── Theme/                  AppTheme, ThemeManager (3 Themes)
 └── Features/
+    ├── Logbuch/                Logger-Modul (Phase 1 + 2 + 3 + 4b)
+    │   ├── Models/             Log, QSO, HamBand, LogType, LogbookManager,
+    │   │                       LogbookSettings, MemoryStore, RadioState, LogEntryBridge
+    │   ├── Callbook/           CallbookService-Protokoll, QRZService, HamQTHService,
+    │   │                       CallbookManager, CallbookSettings
+    │   ├── Persistence/        SQLite, LogbookDatabase, ADIFCodec, CabrilloExporter
+    │   └── Views/              LogbuchView, NewLogSheet, QSOFormSheet, LogsPopover,
+    │                           Desktop/{LogbookTopBar, RadioControlPanel, QSOEntryPanel,
+    │                                    LogActionBar, LogbookTabBar, QSOTableView,
+    │                                    LogContextBar, ClusterContextBar,
+    │                                    LogbookClusterTab, AwardsTab, HistoryTab,
+    │                                    MemoriesTab, NewMemorySheet, ADIFImportSheet,
+    │                                    CabrilloExportSheet, PreviousQSOsPopover}
     ├── DXCluster/              Live DX-Cluster Workstation
     │   ├── Models/             DXSpot, BandData, DXCCData, Persistenz, WatchList
     │   ├── Network/            ClusterClient (TCP), PropagationFetcher, APIFetcher
     │   ├── ViewModels/         DXClusterViewModel (@MainActor)
     │   └── Views/              SpotList, Bandmap, Weltkarte, Statistik, Log, Panel
-    ├── Settings/               EinstellungenView (Station, Cluster, Darstellung, Alerts)
+    ├── Settings/               EinstellungenView (Station, Cluster, Daten, Callbook, …)
     ├── Hexbeam/
     ├── YagiRechner/
     ├── QTHLocator/
     └── …                       25 weitere Rechner-Features
 ```
+
+### Datenordner
+
+Alle App-Daten leben unter einem konfigurierbaren Root (Default `~/Documents/HAM-Tools/`):
+
+```
+HAM-Tools/
+├── Logs/        — .htlog SQLite-Dateien pro Logbuch
+├── Cache/       — spots.json, callbook-cache.json, memories.json
+├── Exports/     — ADIF (.adi) + Cabrillo (.cbr) Exports
+├── Backups/     — Auto-Backups vor riskanten Aktionen
+└── Audio/       — Voice-Keyer/Recordings (Phase 11)
+```
+
+Pfad wechselbar in Einstellungen → Daten. UserDefaults bleiben im macOS-Standard-Pfad
+(`~/Library/Preferences/com.hb9hji.hamrechner.plist`).
 
 ---
 

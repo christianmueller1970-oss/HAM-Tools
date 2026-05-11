@@ -24,11 +24,28 @@ Convention:
 
 ### DX-Cluster
 - [x] **N:** **Alerting** — vollständig: (a) Watch-Liste für Calls/Präfixe (gold-Markierung in Spot-Liste, macOS-Notification mit Sound), (b) DXCC-Watch-Liste mit Picker auf 57 Most-Wanted-Entitäten beschränkt (`MOST_WANTED_DXCC` in WatchListStore.swift; häufige Länder bewusst ausgeschlossen, dafür gibt's die Call-/Präfix-Watch), (c) konfigurierbarer Cooldown 1–60 Min (Slider in Settings, `@AppStorage("alertCooldownMin")`, Default 15) — verhindert Pile-Up-Spam. `lastNotifiedAt: [String: Date]` ersetzt `notifiedThisSession: Set<String>`. Bell-Counter im Header bleibt. DXCC_DATA von 108 auf 163 Entitäten erweitert (Most-Wanted: Bouvet, Crozet, Heard, Pratas, Scarborough Reef, Spratly, North Korea, Pitcairn, Tristan da Cunha etc. — Caveat: Sub-Präfix-Konflikte z.B. VP8 → defaultet auf Falklands).
-- [ ] **N:** **Logbuch-Modul (eigenes Folge-Projekt — Konzept noch offen)** — größeres Vorhaben, das mehrere Komponenten umfasst:
-  - **CAT-Anbindung** an TRX (Hamlib/rigctld als Universal-Layer, oder direkt CI-V Icom / Yaesu CAT / FlexRadio API) — Frequenz, Band, Mode automatisch auslesen beim Loggen
-  - **In-App-QSO-Erfassung** mit allen Standard-Feldern (Call, RST, Name, QTH, Locator, Comment …) + Auto-Fill via Cluster-Spot oder Callbook
-  - **Multi-Format-Export**: ADIF (LoTW/eQSL/Club Log), Cabrillo (Contest)
-  - **ADIF-Import** bestehender Logs (z.B. Migration von Logger32, MacLoggerDX, N1MM)
+- [~] **N:** **Logbuch-Modul** — Phase 1 + 2 + 3 + 4b fertig (v1.5.0, 2026-05-11). Siehe `LOGBUCH_PLAN.md` für den vollen Plan.
+  - [x] **Phase 1 MVP**: Multi-Log + SQLite (.htlog) + Desktop-Layout (MacLoggerDX-Stil) + sortier-/customizable Tabelle + Auto-Backup + Spot-Bridge + Previous-Popover + Dupe-Warnung + Settings + Vollbild-Layout + zentraler Datenordner `~/Documents/HAM-Tools/`
+  - [x] **Phase 2 ADIF**: Roundtrip Import/Export/Merge mit Strategien (skip-dupes / alle / neues Log)
+  - [x] **Phase 3 Online**: QRZ.com + HamQTH.com mit Primary/Fallback-Logik, Cache 30 Tage, Profilbild (4. Spalte), Auto-Fill bei TAB, Bulk-Lookup für Tabellen-Auswahl
+  - [x] **Phase 4b Cabrillo V3**: kompletter Header + Mode-Mapping (CW/PH/RY/DG)
+  - [x] **Phase 7 Vorgriff Awards**: DXCC/WAZ/WAS Live-Counter + Detail-Tab mit Tabellen + Zonen-Grid
+  - [x] **History-Tab**: Karte eigener QSOs als Linien Home→DX
+  - [x] **Memories-Tab**: Schnellzugriffs-Karten für Calls + Sked-Termine
+  - [x] **Send-Spot-Button** direkt aus dem QSO-Form
+  - [x] **RadioState** zentrale Frequenz-Quelle (manuell jetzt, ab Phase 5 CAT)
+  - [x] **Time-On läuft sekündlich mit**, beim Loggen aktuelle Zeit
+  - **Offen:**
+    - [ ] **Phase 4** Contest-Engine vollständig (contests.json Templates + Live-Score + SCP + F1-F8 Macros + Run/S&P-Toggle)
+    - [ ] **Phase 4c** POTA-Modus (Park-DB offline, Activator/Hunter, P2P-Erkennung, 10-QSO-Counter, pota.app-Upload)
+    - [ ] **Phase 4d** SOTA-Modus (Summit-DB, Activator/Chaser, S2S, 4-QSO-Counter, SOTA-CSV-Export + sotadata.org.uk-Upload)
+    - [ ] **Phase 5** CAT-Anbindung (Hamlib-Subprocess + TRX-Profil-DB für IC-7300/705/9700/etc.)
+    - [ ] **Phase 6** LoTW + eQSL + Club Log + POTA.app + SOTAwatch Upload
+    - [ ] **Phase 3-Rest**: Distance/Bearing-Berechnung pro QSO, QRZ-Image-Cache-Persistierung
+    - [ ] **i18n** (DE/EN) — Localizable.xcstrings
+    - [ ] **QSL-Tab** als Übersicht offener Konfirmationen
+    - [ ] **Schedules-Tab** als Liste anstehender Skeds (aus Memories ableitbar)
+    - [ ] **Stats-Dashboard** (Phase 8 — QSOs/Band/Mode/Jahr, Best DX, Operator-Aktivität)
   - **Award-Tracking** baut darauf auf: DXCC/SOTA/POTA-Fortschritt (gearbeitet/bestätigt) → Karte + Statistiken
   - **Live-ATNO-Erkennung** im DX-Cluster: Spot-Liste markiert "neu" / "neue Band" / "neuer Mode" / "schon gearbeitet"
   - Erst gründlich planen, dann iterativ umsetzen — kein Quick-Fix.
