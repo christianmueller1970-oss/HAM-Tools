@@ -44,6 +44,7 @@ struct HexbeamView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                ueberarbeitungsHinweis
                 bandWahl
                 if !aktiveBaender.isEmpty {
                     masseBereich
@@ -58,6 +59,36 @@ struct HexbeamView: View {
             .padding(24)
         }
         .navigationTitle("Hexbeam")
+    }
+
+    // MARK: Überarbeitungs-Hinweis
+
+    private var ueberarbeitungsHinweis: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+                .font(.title3)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Überarbeitung notwendig")
+                    .font(.callout).bold()
+                Text("Die berechneten Spreizer-Längen und die Draufsicht-Geometrie entsprechen aktuell nicht der G3TXQ-Bauanleitung (z. B. 20 m: berechnet 5,70 m, G3TXQ ≈ 3,46 m). Korrigierte Formeln und eine korrekte Skizze folgen in einer der nächsten Versionen — bitte bis dahin die Originaldoku von G3TXQ verwenden.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("Danke an Markus, HB9EIZ, für den Hinweis.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .italic()
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(Color.orange.opacity(0.12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.orange.opacity(0.5), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     // MARK: Band-Wahl

@@ -117,6 +117,21 @@ const sideGeom = computed(() => {
 <template>
   <div class="calc-title">Hexbeam</div>
 
+  <div class="card" style="background:rgba(251,146,60,0.10);border-color:#fb923c">
+    <div style="display:flex;gap:10px;align-items:flex-start">
+      <span style="color:#fb923c;font-size:20px;line-height:1">⚠</span>
+      <div>
+        <div style="font-weight:600;color:var(--ts);margin-bottom:4px">Überarbeitung notwendig</div>
+        <div class="small" style="color:var(--ts);line-height:1.5">
+          Die berechneten Spreizer-Längen und die Draufsicht-Geometrie entsprechen aktuell nicht der G3TXQ-Bauanleitung
+          (z. B. 20 m: berechnet 5,70 m, G3TXQ ≈ 3,46 m). Korrigierte Formeln und eine korrekte Skizze folgen in einer
+          der nächsten Versionen — bitte bis dahin die Originaldoku von G3TXQ verwenden.
+        </div>
+        <div class="small" style="color:var(--tm);font-style:italic;margin-top:4px">Danke an Markus, HB9EIZ, für den Hinweis.</div>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <h2>Bänder auswählen  (W = WARC)</h2>
     <div class="band-toggles" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
