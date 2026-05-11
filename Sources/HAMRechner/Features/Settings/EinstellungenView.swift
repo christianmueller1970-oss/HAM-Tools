@@ -9,8 +9,8 @@ struct EinstellungenView: View {
                 .tabItem { Label("Station", systemImage: "antenna.radiowaves.left.and.right") }
             ClusterTab()
                 .tabItem { Label("Cluster", systemImage: "server.rack") }
-            LogbuchTab()
-                .tabItem { Label("Logbuch", systemImage: "book.closed") }
+            DatenTab()
+                .tabItem { Label("Daten", systemImage: "internaldrive") }
             DarstellungTab()
                 .tabItem { Label("Darstellung", systemImage: "paintpalette") }
             AlertsTab()
@@ -20,21 +20,20 @@ struct EinstellungenView: View {
     }
 }
 
-// MARK: - Logbuch
+// MARK: - Daten (zentraler App-Datenordner)
 
-private struct LogbuchTab: View {
-    @EnvironmentObject var settings: LogbookSettings
+private struct DatenTab: View {
+    @EnvironmentObject var dataRoot: AppDataRoot
     @EnvironmentObject var manager:  LogbookManager
-    @State private var showFolderPicker = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                GroupBox("Logbuch-Speicherort") {
+                GroupBox("Datenordner") {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(alignment: .firstTextBaseline) {
-                            Text("Ordner").frame(width: 80, alignment: .leading)
-                            Text(settings.logbookDirectory.path)
+                            Text("Pfad").frame(width: 60, alignment: .leading)
+                            Text(dataRoot.rootURL.path)
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundStyle(.secondary)
                                 .textSelection(.enabled)
@@ -42,29 +41,36 @@ private struct LogbuchTab: View {
                             Spacer()
                         }
                         HStack {
-                            Button("Ordner wählen …") {
-                                pickFolder()
-                            }
+                            Button("Ordner wählen …") { pickRoot() }
                             Button("Im Finder zeigen") {
-                                NSWorkspace.shared.activateFileViewerSelecting(
-                                    [settings.logbookDirectory])
+                                NSWorkspace.shared.activateFileViewerSelecting([dataRoot.rootURL])
                             }
                             Button("Auf Standard zurücksetzen") {
-                                settings.logbookDirectory = LogbookSettings.defaultDirectory
+                                dataRoot.rootURL = AppDataRoot.defaultRoot
                             }
                         }
-                        Text("Jedes Logbuch ist eine eigene SQLite-Datei (\(LogbookDatabase.fileExtension)). Du kannst hier z.B. iCloud Drive, Documents oder ein externes Volume wählen.")
+                        Text("Alle Daten der App liegen unter diesem Ordner — Logbücher, Spot-Cache, künftig auch Exporte/Backups/Audio. Du kannst z.B. iCloud Drive wählen, dann ist alles automatisch zwischen deinen Macs synchronisiert.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                     .padding(4)
                 }
 
+                GroupBox("Struktur") {
+                    VStack(alignment: .leading, spacing: 5) {
+                        subdirRow("Logs",    "Logbuch-SQLite-Dateien (.htlog)",     url: dataRoot.logsDir)
+                        subdirRow("Cache",   "DX-Cluster-Spot-Cache (spots.json)",   url: dataRoot.cacheDir)
+                        subdirRow("Exports", "ADIF / Cabrillo / CSV (Phase 2)",      url: dataRoot.exportsDir)
+                        subdirRow("Backups", "Auto-Backups vor riskanten Aktionen",   url: dataRoot.backupsDir)
+                        subdirRow("Audio",   "QSO-Recordings / Voice-Keyer (Phase 10)", url: dataRoot.audioDir)
+                    }
+                    .padding(4)
+                }
+
                 GroupBox("Bestandsaufnahme") {
                     HStack {
-                        Image(systemName: "books.vertical")
-                            .foregroundStyle(.blue)
-                        Text("\(manager.logs.count) Logbuch\(manager.logs.count == 1 ? "" : "s") im aktuellen Ordner")
+                        Image(systemName: "books.vertical").foregroundStyle(.blue)
+                        Text("\(manager.logs.count) Logbuch\(manager.logs.count == 1 ? "" : "s")")
                             .foregroundStyle(.secondary)
                         Spacer()
                     }
@@ -76,17 +82,40 @@ private struct LogbuchTab: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func pickFolder() {
+    private func subdirRow(_ name: String, _ desc: String, url: URL) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "folder")
+                .foregroundStyle(.blue)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(name)
+                    .font(.system(.caption, design: .monospaced).weight(.semibold))
+                Text(desc)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button {
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            } label: {
+                Image(systemName: "arrow.up.right.square")
+            }
+            .buttonStyle(.borderless)
+            .help("Im Finder zeigen")
+        }
+    }
+
+    private func pickRoot() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
-        panel.directoryURL = settings.logbookDirectory
+        panel.directoryURL = dataRoot.rootURL
         panel.prompt = "Wählen"
-        panel.message = "Verzeichnis für Logbücher wählen"
+        panel.message = "Datenordner wählen (alle HAM-Tools-Daten liegen hier)"
         if panel.runModal() == .OK, let url = panel.url {
-            settings.logbookDirectory = url
+            dataRoot.rootURL = url
         }
     }
 }

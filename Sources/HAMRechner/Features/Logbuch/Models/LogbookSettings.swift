@@ -1,25 +1,18 @@
 import Foundation
 import Combine
 
-// Globale Logbuch-Einstellungen — vor allem der Ordner in dem die
-// .htlog-Dateien liegen. Persistiert in UserDefaults als Bookmark
-// (sandboxing-tauglich, behält Zugriffsrechte auch über App-Neustarts).
+// Logbuch-spezifische Settings. Das aktuelle Standard-Verzeichnis kommt
+// jetzt aus AppDataRoot (Root/Logs/). Wir tracken zusätzlich
+// `knownLogPaths` damit Logs die per Import von außerhalb des Roots
+// hinzugefügt wurden, weiter geöffnet werden können.
+@MainActor
 final class LogbookSettings: ObservableObject {
-    private let directoryKey = "logbook.directory.path"
     private let knownPathsKey = "logbook.knownPaths"
 
-    // Standard-Ordner für neue Logbücher (wird in der "Neues Log"-Maske
-    // als Default vorgeschlagen, kann pro Log überschrieben werden).
-    @Published var logbookDirectory: URL {
-        didSet {
-            UserDefaults.standard.set(logbookDirectory.path, forKey: directoryKey)
-            ensureExists(logbookDirectory)
-        }
-    }
+    // Source-of-truth für den Standard-Logs-Ordner.
+    private let dataRoot: AppDataRoot
+    private var dataRootObserver: AnyCancellable?
 
-    // Liste aller Logbuch-Dateien die der Manager kennt — egal wo sie liegen.
-    // So funktioniert auch ein Logbuch in iCloud Drive, auf einer externen
-    // Platte, oder in den Documents.
     @Published var knownLogPaths: [URL] {
         didSet {
             let strings = knownLogPaths.map(\.path)
@@ -27,26 +20,25 @@ final class LogbookSettings: ObservableObject {
         }
     }
 
-    init() {
-        let stored = UserDefaults.standard.string(forKey: directoryKey)
-        let url = stored.map { URL(fileURLWithPath: $0, isDirectory: true) }
-            ?? Self.defaultDirectory
-        self.logbookDirectory = url
-
+    init(dataRoot: AppDataRoot) {
+        self.dataRoot = dataRoot
         let storedPaths = (UserDefaults.standard.stringArray(forKey: knownPathsKey) ?? [])
             .map { URL(fileURLWithPath: $0) }
         self.knownLogPaths = storedPaths
 
-        ensureExists(url)
+        // Wenn der Root sich ändert, eventuell aufräumen.
+        dataRootObserver = dataRoot.$rootURL
+            .dropFirst()
+            .sink { [weak self] _ in
+                // Bei Root-Wechsel: nichts automatisch verschieben (User entscheidet).
+                // Aber die knownLogPaths-Liste bleibt — alte Pfade bleiben gültig
+                // solange die Dateien existieren.
+                self?.objectWillChange.send()
+            }
     }
 
-    static var defaultDirectory: URL {
-        let base = FileManager.default
-            .urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        return base
-            .appendingPathComponent("HAMRechner", isDirectory: true)
-            .appendingPathComponent("Logs", isDirectory: true)
-    }
+    // Aktueller Default-Logs-Ordner = AppDataRoot/Logs/
+    var logbookDirectory: URL { dataRoot.logsDir }
 
     // MARK: - Known paths API
 
@@ -57,10 +49,5 @@ final class LogbookSettings: ObservableObject {
 
     func removeKnownLog(_ url: URL) {
         knownLogPaths.removeAll { $0 == url }
-    }
-
-    private func ensureExists(_ url: URL) {
-        try? FileManager.default.createDirectory(at: url,
-                                                 withIntermediateDirectories: true)
     }
 }

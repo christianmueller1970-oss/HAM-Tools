@@ -113,8 +113,8 @@ struct LogbuchView: View {
             }
         }
         .sheet(isPresented: $showNewLogSheet) {
-            NewLogSheet { newLog, customDir in
-                manager.createLog(newLog, in: customDir)
+            NewLogSheet { newLog in
+                manager.createLog(newLog)
             }
             .environmentObject(themeManager)
             .environmentObject(settings)

@@ -21,16 +21,19 @@ final class LogbookManager: ObservableObject {
     @Published private(set) var wasBreakdown:  [WASEntry]  = []
 
     private let settings: LogbookSettings
+    private let dataRoot: AppDataRoot
     private var openDB: LogbookDatabase?
     private var directoryObserver: AnyCancellable?
 
-    init(settings: LogbookSettings) {
+    init(settings: LogbookSettings, dataRoot: AppDataRoot) {
         self.settings = settings
+        self.dataRoot = dataRoot
         reloadAll()
         ensureLebensLog()
         recomputeAwards()
 
-        directoryObserver = settings.$logbookDirectory
+        // Bei Wechsel des Datenordners alles neu scannen.
+        directoryObserver = dataRoot.$rootURL
             .dropFirst()
             .sink { [weak self] _ in
                 self?.reloadAll()

@@ -5,13 +5,22 @@ struct HAMRechnerApp: App {
     @StateObject private var themeManager     = ThemeManager()
     @StateObject private var clusterStore     = ClusterSettingsStore()
     @StateObject private var watchList        = WatchListStore()
-    @StateObject private var logbookSettings  = LogbookSettings()
-    @StateObject private var logbookManager: LogbookManager
+    @StateObject private var dataRoot:        AppDataRoot
+    @StateObject private var logbookSettings: LogbookSettings
+    @StateObject private var logbookManager:  LogbookManager
 
     init() {
-        let settings = LogbookSettings()
+        // Root zuerst — alle anderen Komponenten hängen davon ab.
+        let root = AppDataRoot()
+        _dataRoot = StateObject(wrappedValue: root)
+
+        // Spot-Cache liegt jetzt in Root/Cache/.
+        SpotPersistence.cacheDirectory = root.cacheDir
+
+        let settings = LogbookSettings(dataRoot: root)
         _logbookSettings = StateObject(wrappedValue: settings)
-        _logbookManager  = StateObject(wrappedValue: LogbookManager(settings: settings))
+        _logbookManager  = StateObject(wrappedValue:
+            LogbookManager(settings: settings, dataRoot: root))
     }
 
     var body: some Scene {
@@ -20,6 +29,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(themeManager)
                 .environmentObject(clusterStore)
                 .environmentObject(watchList)
+                .environmentObject(dataRoot)
                 .environmentObject(logbookSettings)
                 .environmentObject(logbookManager)
                 .frame(minWidth: 900, minHeight: 580)
@@ -37,6 +47,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(themeManager)
                 .environmentObject(clusterStore)
                 .environmentObject(watchList)
+                .environmentObject(dataRoot)
                 .environmentObject(logbookSettings)
                 .environmentObject(logbookManager)
                 .preferredColorScheme(themeManager.theme.colorScheme)
