@@ -99,6 +99,20 @@ struct SpotListView: View {
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .font(.system(size: 12))
+        .contextMenu(forSelectionType: DXSpot.ID.self) { ids in
+            if let id = ids.first, let spot = sortedSpots.first(where: { $0.id == id }) {
+                Button {
+                    LogEntryBridge.shared.openInLog(from: spot)
+                } label: {
+                    Label("Ins Logbuch eintragen", systemImage: "book.closed.fill")
+                }
+            }
+        } primaryAction: { ids in
+            // Doppelklick → auch ins Log
+            if let id = ids.first, let spot = sortedSpots.first(where: { $0.id == id }) {
+                LogEntryBridge.shared.openInLog(from: spot)
+            }
+        }
     }
 
     private func sourceColor(_ type: String) -> Color {

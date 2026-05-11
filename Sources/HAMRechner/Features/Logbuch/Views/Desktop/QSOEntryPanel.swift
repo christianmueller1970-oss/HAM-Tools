@@ -6,8 +6,10 @@ import SwiftUI
 struct QSOEntryPanel: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
+    @EnvironmentObject var logBridge: LogEntryBridge
 
     @State private var entryMode: EntryMode = .dx
+    @State private var lastFilledFromSpot: Date? = nil
 
     // Pflichtfelder
     @State private var call: String = ""
@@ -62,6 +64,10 @@ struct QSOEntryPanel: View {
         VStack(spacing: 0) {
             modeTabs
             Divider().background(theme.separator)
+            if lastFilledFromSpot != nil {
+                spotBanner
+                Divider().background(theme.separator)
+            }
             entryGrid
                 .padding(10)
             Divider().background(theme.separator)
@@ -79,6 +85,71 @@ struct QSOEntryPanel: View {
                 .stroke(theme.separator, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .onAppear(perform: consumeBridge)
+        .onChange(of: logBridge.navigationRequest) {
+            consumeBridge()
+        }
+    }
+
+    // Spot-Banner: zeigt an dass Daten aus dem DX-Cluster vorausgefüllt wurden
+    private var spotBanner: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "antenna.radiowaves.left.and.right.circle.fill")
+                .foregroundStyle(theme.accentBlue)
+            Text("Vorausgefüllt aus DX-Cluster-Spot")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(theme.textSecondary)
+            Spacer()
+            Button {
+                resetForm()
+                lastFilledFromSpot = nil
+            } label: {
+                Text("Verwerfen")
+                    .font(.caption2)
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(theme.accentBlue)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(theme.accentBlue.opacity(0.12))
+    }
+
+    private func consumeBridge() {
+        guard let draft = logBridge.consume() else { return }
+        applyDraft(draft)
+    }
+
+    private func applyDraft(_ draft: QSODraft) {
+        call = draft.call.uppercased()
+        if let f = draft.frequencyMHz {
+            freqMHz = String(format: "%.3f", f)
+        }
+        if let b = draft.band, !b.isEmpty {
+            bandRaw = b
+        } else if let f = draft.frequencyMHz,
+                  let auto = HamBand.from(frequencyMHz: f) {
+            bandRaw = auto.rawValue
+        }
+        if let m = draft.mode, !m.isEmpty {
+            mode = m
+            // Mode-abhängige RST-Defaults
+            if m == "CW" || m == "RTTY" || m == "PSK31" {
+                rstSent = "599"; rstReceived = "599"
+            }
+        }
+        if let c = draft.country, !c.isEmpty { country = c }
+        // Beim Hunten: der Spot zeigt einen Activator-Park/-Summit — das
+        // landet im "their"-Feld des QSOs (wir sind Hunter).
+        // Im Eingabeformular gibt es aktuell nur ein generisches POTA/SOTA-
+        // Feld pro Award; das nutzen wir.
+        if let s = draft.mySotaRef { sota = s }
+        if let p = draft.myPotaRef { pota = p }
+        if let w = draft.myWwffRef { wwff = w }
+        if let dx = draft.spotterCall { dxDe = dx }
+        if let cmt = draft.spotComment, !cmt.isEmpty { notes = cmt }
+        timeOn = Date()
+        lastFilledFromSpot = Date()
     }
 
     // MARK: - Header mit DX | Contest-Tabs
@@ -357,6 +428,7 @@ struct QSOEntryPanel: View {
         qslVia = ""
         url = ""
         dxDe = ""
+        lastFilledFromSpot = nil
         // freqMHz/band/mode/rst/power bleiben (Run-Mode)
     }
 }

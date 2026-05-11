@@ -112,6 +112,7 @@ struct ContentView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @StateObject private var dxClusterVM = DXClusterViewModel()
     @StateObject private var simBridge   = AntennaSimBridge.shared
+    @StateObject private var logBridge   = LogEntryBridge.shared
     @State private var selectedCalculator: Calculator? = .dxCluster
 
     private var theme: AppTheme { themeManager.theme }
@@ -125,6 +126,7 @@ struct ContentView: View {
                     selectedCalculator = .dxCluster
                 })
                 .environmentObject(themeManager)
+                .environmentObject(logBridge)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(theme.bgApp)
                 .preferredColorScheme(theme.colorScheme)
@@ -137,6 +139,7 @@ struct ContentView: View {
                             .environmentObject(dxClusterVM)
                             .environmentObject(themeManager)
                             .environmentObject(simBridge)
+                            .environmentObject(logBridge)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .background(theme.bgApp)
                             .preferredColorScheme(theme.colorScheme)
@@ -153,6 +156,11 @@ struct ContentView: View {
         .onChange(of: simBridge.navigationRequest) {
             if simBridge.navigationRequest != nil {
                 selectedCalculator = .antennenSim
+            }
+        }
+        .onChange(of: logBridge.navigationRequest) {
+            if logBridge.navigationRequest != nil {
+                selectedCalculator = .logbuch
             }
         }
     }
