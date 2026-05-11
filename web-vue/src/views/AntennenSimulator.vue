@@ -322,6 +322,48 @@ function removeWire(idx) {
   cfg.wires.splice(idx, 1)
 }
 
+// ─── Modell um 90° drehen (H ↔ V Polarisation, Pole-Orientierung ändern) ────
+// Rotation um die jeweilige Achse durch (0, 0, h_center).
+// Nach der Rotation wird der niedrigste Z-Wert geprüft — wenn < 0.5m,
+// wird das Modell entsprechend nach oben verschoben (damit nichts unter dem Boden landet).
+function rotateModel(axis) {
+  const h = cfg.height || 10
+  function rot(x, y, z) {
+    if (axis === 'X') {
+      // Rotation 90° um X-Achse durch (0, 0, h): elements-entlang-Y → vertikal
+      return { x, y: h - z, z: y + h }
+    }
+    if (axis === 'Y') {
+      // Rotation 90° um Y-Achse durch (0, 0, h): elements-entlang-X → vertikal
+      return { x: z - h, y, z: -x + h }
+    }
+    // Z-Achse: dreht horizontal, ändert Polarisation nicht (nur Beam-Richtung)
+    return { x: -y, y: x, z }
+  }
+  const newWires = cfg.wires.map(w => {
+    const p1 = rot(w.x1, w.y1, w.z1)
+    const p2 = rot(w.x2, w.y2, w.z2)
+    return { ...w, x1: p1.x, y1: p1.y, z1: p1.z, x2: p2.x, y2: p2.y, z2: p2.z }
+  })
+  // Min-Z prüfen, ggf. Modell hochheben damit nichts unter dem Boden ist
+  let minZ = Infinity
+  for (const w of newWires) {
+    if (w.z1 < minZ) minZ = w.z1
+    if (w.z2 < minZ) minZ = w.z2
+  }
+  if (minZ < 0.5) {
+    const offset = 0.5 - minZ
+    for (const w of newWires) {
+      w.z1 += offset
+      w.z2 += offset
+    }
+  }
+  cfg.wires = newWires
+  result.value = null
+  errorMsg.value = null
+  status.value = `Modell um 90° gedreht (${axis}-Achse) — neu berechnen`
+}
+
 // ─── Simulation ──────────────────────────────────────────────────────────────
 
 function simulate() {
@@ -635,16 +677,23 @@ const PLOT_C = PLOT_SIZE / 2
         </tbody>
       </table>
     </div>
-    <div style="display:flex; align-items:center; gap:12px; margin-top:8px">
+    <div style="display:flex; align-items:center; gap:12px; margin-top:8px; flex-wrap: wrap">
       <button class="btn" @click="addWire">+ Draht hinzufügen</button>
       <div class="inp-g" style="flex-direction: row; align-items:center; gap:6px">
         <label style="margin:0">SP-Segment:</label>
         <input type="number" v-model.number="cfg.excitation.segment" min="1" class="cell xs">
         <span style="font-size:11px; opacity:0.7">(an Tag {{ cfg.excitation.wire_tag }})</span>
       </div>
+      <div style="display:flex; align-items:center; gap:6px; margin-left:auto">
+        <span style="font-size:11px; opacity:0.7">90° drehen:</span>
+        <button class="btn" @click="rotateModel('X')" title="Rotiert um X-Achse — passend wenn Elemente entlang Y liegen (z.B. 5-El Yagi)">↻ X</button>
+        <button class="btn" @click="rotateModel('Y')" title="Rotiert um Y-Achse — passend wenn Elemente entlang X liegen (z.B. 2-El/3-El Yagi, Dipol)">↻ Y</button>
+        <button class="btn" @click="rotateModel('Z')" title="Rotiert um Z-Achse (vertikal) — ändert Beam-Richtung, nicht Polarisation">↻ Z</button>
+      </div>
     </div>
     <p style="font-size:11px; opacity:0.6; margin-top:6px">
       <strong>SP</strong> = Speisepunkt (Excitation). Pro Modell ein Speisepunkt: Wähle den Draht (Radio) und das Segment (Nummer, mittig ist üblich).
+      <strong>↻ X/Y</strong> kippen horizontal/vertikal-Polarisation — die richtige Achse hängt von der Element-Richtung im Modell ab; einfach ausprobieren, Min-Z wird automatisch über Boden gehalten.
     </p>
   </div>
 
