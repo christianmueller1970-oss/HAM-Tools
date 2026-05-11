@@ -13,11 +13,18 @@ const props = defineProps({
   pattern: { type: Array, required: true },
   isFreeSpace: { type: Boolean, default: false },
   height: { type: Number, default: 480 },
+  /**
+   * Optionale Wires zum Overlay (Array von { x1,y1,z1,x2,y2,z2 } im NEC2-Koordinatensystem).
+   * Werden als Linien in der 3D-Szene eingeblendet, skaliert auf die Pattern-Größe.
+   */
+  wires: { type: Array, default: () => [] },
+  excitationWireTag: { type: Number, default: null },
+  showAntenna: { type: Boolean, default: true },
 })
 
 const container = ref(null)
 
-let renderer, scene, camera, controls, mesh, axesGroup, groundPlane
+let renderer, scene, camera, controls, mesh, axesGroup, groundPlane, antennaGroup
 let raf = null
 let resizeObserver = null
 
@@ -196,7 +203,11 @@ function setupScene() {
   groundPlane = new THREE.GridHelper(3.0, 12, 0x2a3144, 0x1a1f2c)
   scene.add(groundPlane)
 
+  antennaGroup = new THREE.Group()
+  scene.add(antennaGroup)
+
   rebuildMesh()
+  rebuildAntenna()
   animate()
 }
 
@@ -234,6 +245,64 @@ function rebuildMesh() {
   })
   mesh = new THREE.Mesh(r.geom, mat)
   scene.add(mesh)
+}
+
+// ─── Antennen-Overlay (Wires als Linien im 3D-Scene) ─────────────────────────
+//
+// Wires kommen im NEC2-Koordinatensystem (X, Y, Z). Three.js-Mapping wie Pattern:
+//   NEC2 X → Three.js X (Front, rot)
+//   NEC2 Y → Three.js Z (Seite, grün)
+//   NEC2 Z → Three.js Y (Zenit, blau)
+//
+// Skalierung: Antennen-Bounding-Sphere wird auf ~0.7 (Pattern-Radius 1.0) skaliert.
+// Antennen-Centroid wird ins Three.js-Origin verschoben (Pattern ist auch dort zentriert).
+
+function rebuildAntenna() {
+  if (!antennaGroup) return
+  while (antennaGroup.children.length) {
+    const c = antennaGroup.children.pop()
+    if (c.geometry) c.geometry.dispose()
+    if (c.material) c.material.dispose()
+  }
+  if (!props.showAntenna || !props.wires || props.wires.length === 0) return
+
+  // Centroid + max-Distance bestimmen
+  let sumX = 0, sumY = 0, sumZ = 0, n = 0
+  for (const w of props.wires) {
+    sumX += w.x1 + w.x2; sumY += w.y1 + w.y2; sumZ += w.z1 + w.z2; n += 2
+  }
+  const cx = sumX / n, cy = sumY / n, cz = sumZ / n
+
+  let maxDist = 0
+  for (const w of props.wires) {
+    for (const p of [[w.x1, w.y1, w.z1], [w.x2, w.y2, w.z2]]) {
+      const d = Math.hypot(p[0] - cx, p[1] - cy, p[2] - cz)
+      if (d > maxDist) maxDist = d
+    }
+  }
+  if (maxDist <= 0) return
+  const scale = 0.7 / maxDist   // Antenne füllt 70% des Pattern-Radius
+
+  const matNormal  = new THREE.LineBasicMaterial({ color: 0xeeeeee, linewidth: 2, depthTest: false, transparent: true, opacity: 0.92 })
+  const matExcited = new THREE.LineBasicMaterial({ color: 0xff6b6b, linewidth: 3, depthTest: false, transparent: true, opacity: 0.95 })
+
+  for (const w of props.wires) {
+    // NEC2 → Three.js Mapping
+    const a = new THREE.Vector3((w.x1 - cx) * scale, (w.z1 - cz) * scale, (w.y1 - cy) * scale)
+    const b = new THREE.Vector3((w.x2 - cx) * scale, (w.z2 - cz) * scale, (w.y2 - cy) * scale)
+    const geom = new THREE.BufferGeometry().setFromPoints([a, b])
+    const mat = (props.excitationWireTag !== null && w.tag === props.excitationWireTag) ? matExcited : matNormal
+    const line = new THREE.Line(geom, mat)
+    line.renderOrder = 999  // über das Pattern-Mesh rendern
+    antennaGroup.add(line)
+  }
+
+  // Speisepunkt-Marker (kleiner Würfel am Center)
+  const feedGeom = new THREE.SphereGeometry(0.03, 8, 8)
+  const feedMat = new THREE.MeshBasicMaterial({ color: 0xff6b6b, depthTest: false, transparent: true, opacity: 0.9 })
+  const feedSphere = new THREE.Mesh(feedGeom, feedMat)
+  feedSphere.renderOrder = 1000
+  antennaGroup.add(feedSphere)
 }
 
 function animate() {
@@ -279,6 +348,10 @@ onBeforeUnmount(() => {
 watch(() => props.pattern, () => {
   if (scene) rebuildMesh()
 }, { deep: false })
+
+watch(() => [props.wires, props.showAntenna, props.excitationWireTag], () => {
+  if (scene) rebuildAntenna()
+}, { deep: true })
 
 const meshStats = computed(() => {
   if (!props.pattern || props.pattern.length === 0) return null

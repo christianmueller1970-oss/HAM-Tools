@@ -249,6 +249,7 @@ const status = ref('Worker noch nicht initialisiert')
 const running = ref(false)
 const result = ref(null)
 const errorMsg = ref(null)
+const showAntennaIn3D = ref(true)
 
 let worker = null
 let pendingId = 0
@@ -886,12 +887,21 @@ const PLOT_C = PLOT_SIZE / 2
   </div>
 
   <div v-if="primary && primary.pattern && primary.pattern.length > 0 && !isSweep" class="card">
-    <h2>3D-Strahlungsdiagramm</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap">
+      <h2 style="margin:0">3D-Strahlungsdiagramm</h2>
+      <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer">
+        <input type="checkbox" v-model="showAntennaIn3D">
+        <span>Antenne im 3D einblenden</span>
+      </label>
+    </div>
     <Pattern3D
       :key="`p3d-${primary.gain_max_dbi.toFixed(3)}-${primary.gain_max_theta}-${primary.gain_max_phi}`"
       :pattern="primary.pattern"
       :is-free-space="cfg.ground === 'free_space'"
       :height="480"
+      :wires="cfg.wires"
+      :excitation-wire-tag="cfg.excitation?.wire_tag ?? null"
+      :show-antenna="showAntennaIn3D"
     />
   </div>
 
