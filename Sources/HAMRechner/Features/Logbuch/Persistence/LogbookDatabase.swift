@@ -76,6 +76,18 @@ final class LogbookDatabase {
         qsos.removeAll { $0.id == qso.id }
     }
 
+    /// Schnelle Suche aller QSOs zu einem Call (Case-Insensitive,
+    /// exakter Call-Match). Nutzt den idx_qso_call-Index.
+    func findQSOs(matching call: String) -> [QSO] {
+        let upper = call.uppercased().trimmingCharacters(in: .whitespaces)
+        guard !upper.isEmpty else { return [] }
+        // Suche bereits geladene QSOs (in-memory) — schneller als
+        // erneute SQLite-Query für das offene Log.
+        return qsos
+            .filter { $0.call.uppercased() == upper }
+            .sorted { $0.datetime > $1.datetime }
+    }
+
     var qsoCount: Int { qsos.count }
     var lastQsoDate: Date? { qsos.map(\.datetime).max() }
 

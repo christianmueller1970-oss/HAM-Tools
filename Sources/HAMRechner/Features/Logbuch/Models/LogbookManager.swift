@@ -128,6 +128,32 @@ final class LogbookManager: ObservableObject {
         fileURLs[log.id]
     }
 
+    // MARK: - Cross-Log-Suche
+
+    /// Sucht alle QSOs zu einem Call über ALLE bekannten Logs.
+    /// Aktives Log nutzt den in-memory Cache, andere werden lazy geöffnet.
+    func findQSOs(forCall call: String) -> [QSOMatch] {
+        let upper = call.uppercased().trimmingCharacters(in: .whitespaces)
+        guard !upper.isEmpty else { return [] }
+
+        var results: [QSOMatch] = []
+        for log in logs {
+            let matches: [QSO]
+            if log.id == currentLogID, let db = openDB {
+                matches = db.findQSOs(matching: upper)
+            } else if let url = fileURLs[log.id],
+                      let db = try? LogbookDatabase(opening: url) {
+                matches = db.findQSOs(matching: upper)
+            } else {
+                continue
+            }
+            for qso in matches {
+                results.append(QSOMatch(qso: qso, logName: log.name, logID: log.id))
+            }
+        }
+        return results.sorted { $0.qso.datetime > $1.qso.datetime }
+    }
+
     // MARK: - Scan / Reload
 
     /// Lädt alle Logs aus der `knownLogPaths`-Liste plus auto-discovery
@@ -198,4 +224,12 @@ final class LogbookManager: ObservableObject {
         if result.isEmpty { result = "Logbuch" }
         return result
     }
+}
+
+// Treffer aus der Cross-Log-Suche: QSO + Log-Name (woher).
+struct QSOMatch: Identifiable {
+    var id: UUID { qso.id }
+    let qso: QSO
+    let logName: String
+    let logID: UUID
 }

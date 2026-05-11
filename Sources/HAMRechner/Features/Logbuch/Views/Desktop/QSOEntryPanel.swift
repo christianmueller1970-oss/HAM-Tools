@@ -73,6 +73,7 @@ struct QSOEntryPanel: View {
             Divider().background(theme.separator)
             LogActionBar(
                 canLog: canLog,
+                currentCall: call,
                 onLogQSO: commitQSO,
                 onClear: resetForm,
                 onTimeOn: { timeOn = Date() },

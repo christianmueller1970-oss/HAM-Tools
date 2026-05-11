@@ -5,21 +5,37 @@ struct LogActionBar: View {
     @EnvironmentObject var themeManager: ThemeManager
 
     let canLog: Bool
+    let currentCall: String        // für Previous-Button + Popover-Inhalt
     let onLogQSO: () -> Void
     let onClear: () -> Void
     let onTimeOn: () -> Void
     let onTimeOff: () -> Void
 
+    @State private var showPreviousPopover: Bool = false
+
     private var theme: AppTheme { themeManager.theme }
+
+    private var hasCall: Bool {
+        !currentCall.trimmingCharacters(in: .whitespaces).isEmpty
+    }
 
     var body: some View {
         HStack(spacing: 8) {
             actionButton("LookUp", systemImage: "magnifyingglass",
                          tooltip: "QRZ.com-Lookup · Phase 3",
                          enabled: false) { }
+
             actionButton("Previous", systemImage: "clock.arrow.circlepath",
-                         tooltip: "Frühere QSOs mit diesem Call · Phase 3",
-                         enabled: false) { }
+                         tooltip: hasCall
+                            ? "Frühere QSOs mit \(currentCall) über alle Logs anzeigen"
+                            : "Erst einen Call ins Form eintragen",
+                         enabled: hasCall) {
+                showPreviousPopover = true
+            }
+            .popover(isPresented: $showPreviousPopover, arrowEdge: .bottom) {
+                PreviousQSOsPopover(call: currentCall)
+                    .environmentObject(themeManager)
+            }
 
             Divider()
                 .frame(height: 18)
