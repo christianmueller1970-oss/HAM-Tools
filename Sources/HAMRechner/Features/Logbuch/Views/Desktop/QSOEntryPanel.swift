@@ -62,6 +62,11 @@ struct QSOEntryPanel: View {
     @FocusState private var callFieldFocused: Bool
     @State private var lastLookedUpCall: String = ""
 
+    // Time On läuft sekündlich mit — wird beim Loggen mit dem aktuellen
+    // Wert übernommen. So muss der User nicht manuell die Zeit setzen.
+    private let timeOnTimer = Timer.publish(every: 1, on: .main, in: .common)
+        .autoconnect()
+
     // Pflichtfelder
     @State private var call: String = ""
     @State private var timeOn: Date = Date()
@@ -140,6 +145,12 @@ struct QSOEntryPanel: View {
         .onAppear(perform: consumeBridge)
         .onChange(of: logBridge.navigationRequest) {
             consumeBridge()
+        }
+        .onReceive(timeOnTimer) { _ in
+            // Time On läuft mit — wird auf Date() gesetzt bis der QSO
+            // geloggt oder das Form resettet wird. Time Off bleibt
+            // userkontrolliert.
+            timeOn = Date()
         }
         .alert(item: $pendingDupe) { dupe in
             Alert(
