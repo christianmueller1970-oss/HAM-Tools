@@ -316,7 +316,7 @@ struct QSOEntryPanel: View {
 
             // Spalte 4: Callbook-Profil-Karte (Bild + Summary + Link)
             callbookCard
-                .frame(width: 160)
+                .frame(width: 250)
         }
     }
 
@@ -344,7 +344,7 @@ struct QSOEntryPanel: View {
                         EmptyView()
                     }
                 }
-                .frame(width: 160, height: 130)
+                .frame(width: 250, height: 200)
                 .clipShape(RoundedRectangle(cornerRadius: 5))
                 .overlay(
                     RoundedRectangle(cornerRadius: 5)
@@ -377,7 +377,7 @@ struct QSOEntryPanel: View {
                     Rectangle().fill(theme.bgCard2)
                     ProgressView().controlSize(.small)
                 }
-                .frame(width: 160, height: 130)
+                .frame(width: 250, height: 200)
                 .clipShape(RoundedRectangle(cornerRadius: 5))
                 Text("QRZ-Lookup …")
                     .font(.caption2)
