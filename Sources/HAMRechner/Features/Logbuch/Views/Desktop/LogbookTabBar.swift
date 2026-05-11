@@ -42,6 +42,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
 
 struct LogbookTabBar: View {
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var manager: LogbookManager
     @Binding var selected: LogbookBottomTab
 
     private var theme: AppTheme { themeManager.theme }
@@ -97,30 +98,51 @@ struct LogbookTabBar: View {
         .help(tab.isAvailable ? "" : "\(tab.rawValue) — kommt in späterer Phase")
     }
 
-    // Platzhalter für Award-Counter (Phase 7) — dezent
+    // Live-Award-Counter aus allen Logs (Worked / Confirmed).
     private var awardCounter: some View {
-        HStack(spacing: 10) {
-            awardBadge("DXCC", "0/0")
-            awardBadge("WAZ",  "0/0")
-            awardBadge("WAS",  "0/0")
-            awardBadge("IOTA", "0/0")
+        let a = manager.awards
+        return HStack(spacing: 10) {
+            awardBadge("DXCC", worked: a.dxccWorked, confirmed: a.dxccConfirmed,
+                       tooltip: "DXCC: \(a.dxccWorked) Länder gearbeitet, \(a.dxccConfirmed) bestätigt (LoTW/eQSL)")
+            awardBadge("WAZ",  worked: a.wazWorked,  confirmed: a.wazConfirmed,
+                       tooltip: "WAZ: \(a.wazWorked) CQ-Zonen gearbeitet, \(a.wazConfirmed) bestätigt")
+            awardBadge("WAS",  worked: a.wasWorked,  confirmed: a.wasConfirmed,
+                       tooltip: "WAS: \(a.wasWorked) US-States gearbeitet (nur QSOs aus den USA)")
+            awardBadge("QSOs", worked: a.totalQSOs,  confirmed: nil,
+                       tooltip: "Gesamt-QSOs über alle Logs")
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal, 6)
         .padding(.vertical, 2)
         .background(theme.bgCard2)
         .clipShape(RoundedRectangle(cornerRadius: 4))
-        .opacity(0.7)
-        .help("Award-Counter — Phase 7")
     }
 
-    private func awardBadge(_ name: String, _ value: String) -> some View {
+    private func awardBadge(_ name: String,
+                            worked: Int,
+                            confirmed: Int?,
+                            tooltip: String) -> some View {
         HStack(spacing: 3) {
             Text(name)
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(theme.textDim)
-            Text(value)
-                .font(.caption2.monospaced())
-                .foregroundStyle(theme.textSecondary)
+            if let c = confirmed {
+                HStack(spacing: 1) {
+                    Text("\(worked)")
+                        .font(.caption2.monospaced().weight(.semibold))
+                        .foregroundStyle(worked > 0 ? theme.textPrimary : theme.textDim)
+                    Text("/")
+                        .font(.caption2)
+                        .foregroundStyle(theme.textDim)
+                    Text("\(c)")
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(c > 0 ? theme.accentGreen : theme.textDim)
+                }
+            } else {
+                Text("\(worked)")
+                    .font(.caption2.monospaced().weight(.semibold))
+                    .foregroundStyle(worked > 0 ? theme.textPrimary : theme.textDim)
+            }
         }
+        .help(tooltip)
     }
 }

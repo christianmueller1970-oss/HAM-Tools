@@ -12,6 +12,8 @@ final class LogbookManager: ObservableObject {
     @Published private(set) var currentQSOs: [QSO] = []
     // Mapping: Log-ID → konkrete Datei (für openLog / deleteLog / Anzeige)
     @Published private(set) var fileURLs: [UUID: URL] = [:]
+    // Live-aktualisierte Award-Counter (über ALLE Logs aggregiert).
+    @Published private(set) var awards: AwardCounts = AwardCounts()
 
     private let settings: LogbookSettings
     private var openDB: LogbookDatabase?
@@ -21,11 +23,13 @@ final class LogbookManager: ObservableObject {
         self.settings = settings
         reloadAll()
         ensureLebensLog()
+        recomputeAwards()
 
         directoryObserver = settings.$logbookDirectory
             .dropFirst()
             .sink { [weak self] _ in
                 self?.reloadAll()
+                self?.recomputeAwards()
             }
     }
 
@@ -65,6 +69,7 @@ final class LogbookManager: ObservableObject {
             self.openDB = db
             self.currentLogID = db.log.id
             self.currentQSOs = []
+            recomputeAwards()
         } catch {
             print("createLog failed: \(error.localizedDescription)")
         }
@@ -83,6 +88,7 @@ final class LogbookManager: ObservableObject {
         settings.removeKnownLog(url)
         fileURLs[log.id] = nil
         logs.removeAll { $0.id == log.id }
+        recomputeAwards()
     }
 
     /// Bestehendes .htlog importieren (nur Pfad merken, Datei bleibt wo sie ist).
@@ -102,20 +108,26 @@ final class LogbookManager: ObservableObject {
 
     func addQSO(_ qso: QSO) {
         guard let db = openDB else { return }
-        do { try db.addQSO(qso); currentQSOs = db.qsos }
-        catch { print("addQSO failed: \(error.localizedDescription)") }
+        do {
+            try db.addQSO(qso); currentQSOs = db.qsos
+            recomputeAwards()
+        } catch { print("addQSO failed: \(error.localizedDescription)") }
     }
 
     func updateQSO(_ qso: QSO) {
         guard let db = openDB else { return }
-        do { try db.updateQSO(qso); currentQSOs = db.qsos }
-        catch { print("updateQSO failed: \(error.localizedDescription)") }
+        do {
+            try db.updateQSO(qso); currentQSOs = db.qsos
+            recomputeAwards()
+        } catch { print("updateQSO failed: \(error.localizedDescription)") }
     }
 
     func deleteQSO(_ qso: QSO) {
         guard let db = openDB else { return }
-        do { try db.deleteQSO(qso); currentQSOs = db.qsos }
-        catch { print("deleteQSO failed: \(error.localizedDescription)") }
+        do {
+            try db.deleteQSO(qso); currentQSOs = db.qsos
+            recomputeAwards()
+        } catch { print("deleteQSO failed: \(error.localizedDescription)") }
     }
 
     func qsoCount(for log: Log) -> Int {
@@ -126,6 +138,65 @@ final class LogbookManager: ObservableObject {
 
     func fileURL(for log: Log) -> URL? {
         fileURLs[log.id]
+    }
+
+    // MARK: - Award-Aggregation
+
+    /// Zählt unique DXCC-Countries, CQ-Zonen, US-States über ALLE Logs.
+    /// Wird nach jeder QSO/Log-Mutation aufgerufen.
+    func recomputeAwards() {
+        var workedCountries = Set<String>()
+        var confirmedCountries = Set<String>()
+        var workedZones = Set<Int>()
+        var confirmedZones = Set<Int>()
+        var workedStates = Set<String>()
+        var confirmedStates = Set<String>()
+        var totalQSOs = 0
+
+        for log in logs {
+            let qsos: [QSO]
+            if log.id == currentLogID {
+                qsos = currentQSOs
+            } else if let url = fileURLs[log.id],
+                      let db = try? LogbookDatabase(opening: url) {
+                qsos = db.qsos
+            } else {
+                continue
+            }
+            totalQSOs += qsos.count
+            for qso in qsos {
+                let confirmed = qso.lotwConfirmed || qso.eqslConfirmed
+                if let c = qso.country?.trimmingCharacters(in: .whitespaces),
+                   !c.isEmpty {
+                    workedCountries.insert(c)
+                    if confirmed { confirmedCountries.insert(c) }
+                }
+                if let z = qso.cqZone, z > 0 {
+                    workedZones.insert(z)
+                    if confirmed { confirmedZones.insert(z) }
+                }
+                if let s = qso.country?.trimmingCharacters(in: .whitespaces),
+                   s.localizedCaseInsensitiveContains("United States") || s == "USA",
+                   let st = qso.qth?.trimmingCharacters(in: .whitespaces),
+                   !st.isEmpty {
+                    // US-State steckt im QTH-Feld (das QSO-Schema hat
+                    // kein dediziertes state-Feld). Pragmatisch: solang
+                    // wir keine ADIF-Importe haben, bleibt das hier oft 0.
+                    workedStates.insert(st)
+                    if confirmed { confirmedStates.insert(st) }
+                }
+            }
+        }
+
+        awards = AwardCounts(
+            dxccWorked:    workedCountries.count,
+            dxccConfirmed: confirmedCountries.count,
+            wazWorked:     workedZones.count,
+            wazConfirmed:  confirmedZones.count,
+            wasWorked:     workedStates.count,
+            wasConfirmed:  confirmedStates.count,
+            totalQSOs:     totalQSOs
+        )
     }
 
     // MARK: - Cross-Log-Suche
@@ -232,4 +303,17 @@ struct QSOMatch: Identifiable {
     let qso: QSO
     let logName: String
     let logID: UUID
+}
+
+// Live-Award-Zähler aus allen Logs. "Worked" = mindestens 1 QSO mit dieser
+// Entity, "Confirmed" = mindestens 1 QSO mit dieser Entity bestätigt (LoTW
+// oder eQSL). Wird nach jeder QSO-Mutation neu berechnet.
+struct AwardCounts {
+    var dxccWorked: Int    = 0
+    var dxccConfirmed: Int = 0
+    var wazWorked: Int     = 0
+    var wazConfirmed: Int  = 0
+    var wasWorked: Int     = 0
+    var wasConfirmed: Int  = 0
+    var totalQSOs: Int     = 0
 }
