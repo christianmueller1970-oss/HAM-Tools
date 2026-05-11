@@ -11,6 +11,7 @@ struct LogbookTopBar: View {
     let onShowLogs: () -> Void
 
     @State private var nowUTC: String = ""
+    @Environment(\.openSettings) private var openSettings
 
     private var theme: AppTheme { themeManager.theme }
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -102,6 +103,21 @@ struct LogbookTopBar: View {
                 .padding(.vertical, 4)
                 .background(theme.accentBlue.opacity(0.10))
                 .clipShape(RoundedRectangle(cornerRadius: 5))
+
+                Button {
+                    openSettings()
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(theme.textSecondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(theme.bgCard2)
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                }
+                .buttonStyle(.plain)
+                .help("Einstellungen (⌘,)")
+                .keyboardShortcut(",", modifiers: .command)
             }
         }
         .padding(.horizontal, 12)

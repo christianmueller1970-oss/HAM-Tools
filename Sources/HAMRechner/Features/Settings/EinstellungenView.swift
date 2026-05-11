@@ -86,7 +86,7 @@ private struct CallbookTab: View {
                                 .frame(maxWidth: 160)
                                 .onChange(of: testCall) { _, v in testCall = v.uppercased() }
                             Button("Lookup") { runTestLookup() }
-                                .disabled(testCall.isEmpty || !settings.qrzIsConfigured)
+                                .disabled(testCall.isEmpty)
                             Spacer()
                         }
                         if let r = testResult {
