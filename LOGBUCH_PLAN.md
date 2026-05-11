@@ -5,39 +5,67 @@
 Web-Portierung später dort wo möglich (CAT-Anbindung geht im Browser nicht,
 QSO-Erfassung schon).
 
-## Priorisierung (nach Q&A 2026-05-11)
+## Priorisierung (nach Q&A 2026-05-11, revidiert)
+
+**Kern-Architektur — "Multi-Log statt Mega-Log":**
+
+Beim Anlegen einer neuen Logsession wählt der User den **Log-Typ**:
+
+| Log-Typ | Workflow | Spezial-Export |
+|---|---|---|
+| **Standard-Log** | Normales Tages-/Lebens-Log, beliebige Felder | ADIF |
+| **Contest-Log** | Contest-Template + Exchange + Live-Score | **Cabrillo V3** |
+| **POTA-Session** | Park-Referenz, Aktivierungs-/Hunter-Modus | ADIF mit POTA-Feldern (SIG/SIG_INFO) |
+| **SOTA-Session** | Summit-Referenz, Aktivierungs-/Chaser-Modus | ADIF mit SOTA-Feldern + SOTA-CSV |
+
+Jede Session ist ein **eigenes Log-Objekt** (`Log`-Entity) mit eigenen QSOs.
+Ein Standard-Log läuft "ewig" (mein Lebens-Log), Contest-/POTA-/SOTA-Sessions
+sind kurz und in sich abgeschlossen. Über alle Logs hinweg gibt es ein
+**Master-Index** für Award-Tracking + Duplicate-Check.
 
 **HB9HJI-Setup:**
 - **Migration:** kein bestehendes Log — Start von Null. ADIF-Import bleibt
   wichtig, aber NICHT blockierend für Phase 1 → Phase 2.
-- **Contests:** große Internationale (CQ WW, CQ WPX, IARU HF) +
-  WAE EU DX (mit QTC-Feature) + Outdoor (SOTA/POTA/WWFF/Field Day).
-  → Contest-Modus muss QTC unterstützen + Activator-Mode für SOTA/POTA.
-- **CAT:** Icom CI-V + klassische Yaesu/Kenwood/Elecraft. FlexRadio raus.
-  → Hamlib-Subprocess als alleinige Strategie (deckt alles ab).
+- **Contests:** **ALLE gängigen Contests** als ladbare Templates
+  (CQ WW / WPX / IARU / ARRL DX / WAE mit QTC / Field Day national /
+  Russian DX / SP / OK-OM / IARU R1 UHF/SHF / VHF Marconi etc.).
+  Templates kommen aus einer JSON-Definition (`contests.json`) die per Update
+  erweitert werden kann, ohne App-Rebuild.
+- **POTA + SOTA als Fokus-Modi:** eigene UI-Modi mit Park-/Summit-Referenz,
+  Activator/Hunter-Toggle, P2P-Erkennung (Park-to-Park, Summit-to-Summit),
+  Activation-Status (10-QSO-Schwelle bei POTA, 4 bei SOTA).
+- **CAT:** Hamlib-Subprocess als Universal-Layer (~200 Rigs out-of-the-box).
+  **Architektur muss offen für Zukunft sein:** TRX-Profile in der DB, neue
+  Rigs ohne Code-Änderung anlegbar. Konkret heute: Icom IC-7300/705/9700,
+  klassische Yaesu/Kenwood/Elecraft — morgen alles was Hamlib spricht.
+- **Sprache:** **Deutsch + Englisch** (i18n-Setup von Anfang an, sonst wird
+  Nach-Migration teuer). Schweizer + deutsche + österreichische User lesen
+  beides, internationale POTA-/SOTA-Hunter wollen EN.
 - **Sync:** lokal first. iCloud-Toggle erst später als Settings-Option.
 
 **Daraus abgeleiteter Phasen-Plan:**
 
 | # | Phase | Dauer | Begründung |
 |---|---|---|---|
-| 1 | QSO-Form + lokale DB + Tabellen-Ansicht | 2–3 Sessions | MVP |
-| 2 | ADIF Import/Export + Cabrillo Skelett | 1–2 | Datenaustausch |
+| 1 | QSO-Form + Log-Entity (Standard) + lokale DB + i18n-Setup (DE/EN) | 3–4 Sessions | MVP, ein Log-Typ als Anfang |
+| 2 | ADIF Import/Export pro Log | 1–2 | Datenaustausch |
 | 3 | QRZ.com-Lookup + Geo (Distance/Bearing/Locator) | 1 | sichtbarer Nutzen |
-| 4 | **Contest-Mode (CQ WW + CQ WPX + IARU HF)** | 2–3 | erste 3 Templates |
-| 4b | **WAE mit QTC** | 1 | spezieller Modus |
-| 4c | **SOTA/POTA-Activator** + DX-Cluster-Integration | 1–2 | Outdoor |
-| 5 | CAT via Hamlib-Subprocess (Icom + Yaesu/Kenwood) | 2 | Auto-Fill TRX |
-| 6 | LoTW + eQSL + Club Log Upload | 2–3 | Konfirmationen |
-| 7 | Award-Tracking (DXCC, WAS, IOTA, SOTA, POTA) | 2 | Visualisierung |
-| 8 | QSO-Karte + Stats-Dashboard | 1–2 | Sahnehäubchen |
+| 4 | **Contest-Engine: Template-System aus `contests.json` + alle gängigen Tests** | 3–4 | Generisch statt fest verdrahtet |
+| 4b | **Cabrillo V3 Export** + WAE-QTC-Spezialfall | 1–2 | Einreichungsfähig |
+| 4c | **POTA-Modus** (Park-DB, Activator/Hunter, P2P, 10-QSO-Aktivierung) | 2 | Fokus-Feature |
+| 4d | **SOTA-Modus** (Summit-DB, Activator/Chaser, S2S, 4-QSO-Aktivierung) | 2 | Fokus-Feature |
+| 5 | CAT via Hamlib-Subprocess + erweiterbare TRX-Profile in DB | 2–3 | Auto-Fill, offen für Zukunft |
+| 6 | LoTW + eQSL + Club Log + POTA-Upload (pota.app) + SOTA-Upload (sotadata.org.uk) | 3–4 | Konfirmationen + Activator-Logs |
+| 7 | Award-Tracking (DXCC, WAS, IOTA) + **POTA/SOTA-Awards prominent** | 2 | Visualisierung |
+| 8 | QSO-Karte + Stats-Dashboard (alle Logs aggregiert) | 1–2 | Sahnehäubchen |
 | 9 | iCloud-Sync (CloudKit, optional) | 1–2 | als Settings-Toggle |
 | 10 | QSL-Management + Druck | optional |  |
 | 11 | Voice/CW-Keyer | optional | nur wenn gewünscht |
 
-**Grob 18–25 Sessions** für ein produktionsreifes Logbuch das alle wichtigen
-HB9HJI-Workflows abdeckt. Cabrillo + QTC + SOTA-Activator sind die
-"besonderen" Punkte gegenüber generischen Loggern.
+**Grob 22–30 Sessions** für ein produktionsreifes Logbuch das den
+HB9HJI-Workflow plus POTA/SOTA-Outdoor + beliebige Contests abdeckt.
+Das Multi-Log-Modell + die contests.json-Engine sind die "besonderen"
+Architektur-Punkte gegenüber generischen Loggern.
 
 ---
 
@@ -56,26 +84,45 @@ HB9HJI-Workflows abdeckt. Cabrillo + QTC + SOTA-Activator sind die
 ## Phasen-Vorschlag
 
 ### Phase 1 — QSO-Erfassung & Lokale Datenbank
+- [ ] **Log-Auswahl-UI beim Start**:
+  - "Neues Log anlegen" mit Typ-Picker (Standard / Contest / POTA / SOTA)
+  - Liste vorhandener Logs (Name, Typ, Anzahl QSOs, letztes Datum)
+  - Standard-Log "Lebens-Log" wird beim ersten Start automatisch angelegt
+- [ ] **Log-Entity** (Container für QSOs, eigener Typ + Metadaten)
+  - Felder: id, name, type, startDate, endDate, contestID?, potaRef?, sotaRef?,
+    notes, createdAt
 - [ ] **QSO-Form** mit allen Standard-Feldern
   - Call, RST sent/received, Frequenz/Band, Mode, Datum/Zeit (UTC), Name, QTH,
     Locator, Comment, Operator, Station-Call, Power
   - Auto-Fill aktueller UTC-Zeit + Band aus Frequenz
+  - QSO ist immer Teil genau eines Logs (Foreign Key)
 - [ ] **Local DB** mit SwiftData (CoreData-Nachfolger, schnell + iCloud-ready)
-  - QSO-Entity, Indexe auf Call/Date/Band/Mode
+  - Log-Entity + QSO-Entity, Indexe auf Call/Date/Band/Mode + logID
   - Lookup-Geschwindigkeit ist kritisch (10.000+ QSOs üblich)
-- [ ] **Tabellen-Ansicht** mit Sort + Filter (Datum / Call / Band / Mode / Confirmed)
-- [ ] **QSO-Detailansicht** mit Edit + Delete + Duplicate-Warnung
+- [ ] **Tabellen-Ansicht** pro Log mit Sort + Filter (Datum / Call / Band / Mode / Confirmed)
+- [ ] **QSO-Detailansicht** mit Edit + Delete + Duplicate-Warnung (innerhalb des Logs)
 - [ ] **Backup**: Datei-basiert + iCloud-Sync optional (Settings-Toggle)
+- [ ] **i18n-Setup von Anfang an** (DE + EN)
+  - SwiftUI `LocalizedStringKey` + `Localizable.xcstrings`
+  - Sprach-Toggle in Settings (Default: Systemsprache)
+  - String-Konstanten konsequent außen halten, kein Inline-Deutsch
 
 ### Phase 2 — Import/Export
-- [ ] **ADIF 3.x Import** (LoTW, eQSL, anderer Logger)
+- [ ] **ADIF 3.x Import** in beliebiges Log (LoTW, eQSL, anderer Logger)
   - Robust gegen Encoding-Probleme
   - Duplicate-Detection beim Import
   - Mapping unbekannter Felder ins Comment
 - [ ] **ADIF Export** (gefiltert: Range, Band, Mode, alle, nur unconfirmed …)
+  - Pro Log oder Log-übergreifend (für DXCC-Submission)
+  - **Log-Typ-spezifisch:**
+    - Standard-Log: generisches ADIF 3.x
+    - POTA-Session: ADIF mit `MY_SIG=POTA`, `MY_SIG_INFO=<Park-Ref>`,
+      `SIG=POTA` für Park-to-Park-QSOs, ready for pota.app-Upload
+    - SOTA-Session: ADIF mit SOTA-Feldern + zusätzlich SOTA-CSV-Export
+      (Format für sotadata.org.uk: V2-CSV-Schema)
+    - Contest-Log: ADIF + Cabrillo (siehe Phase 4b)
 - [ ] **CSV Export** für Excel/Numbers-Auswertung
-- [ ] **Cabrillo Export** für Contests (siehe Phase 4)
-- [ ] **JSON Backup/Restore** für saubere Vollsicherung
+- [ ] **JSON Backup/Restore** für saubere Vollsicherung (alle Logs)
 
 ### Phase 3 — Online-Integration
 - [ ] **QRZ.com Lookup** (XML-API mit Abo, Free-Tier-Fallback)
@@ -89,34 +136,85 @@ HB9HJI-Workflows abdeckt. Cabrillo + QTC + SOTA-Activator sind die
 - [ ] **eQSL**: Upload via XML + Inbox-Pull
 - [ ] **Club Log**: Real-time Upload + DXCC-Stats
 - [ ] **HRDLog** (klassischer Online-Service)
+- [ ] **POTA-Upload** (pota.app API)
+  - Activator-Log nach Aktivierung mit einem Klick einreichen
+  - ADIF mit MY_SIG/MY_SIG_INFO direkt akzeptiert
+- [ ] **SOTA-Upload** (sotadata.org.uk)
+  - SOTA-CSV V2 + ADIF-Variante
+  - Activator + Chaser separat
 
-### Phase 4 — Contest-Modus
-- [ ] **Contest-Templates** für bekannte Tests:
-  - CQ WW (DX, Multipliers per zone/country)
-  - CQ WPX (prefix)
-  - IARU HF World Championship
-  - ARRL DX, ARRL Sweepstakes
-  - SP DX, OK/OM DX, Russian DX
-  - WAE (mit QTC!)
-  - Field Day (national, ARRL/REF/DARC)
-  - SOTA-Activator-Modus / POTA-Activator-Modus
-- [ ] **Exchange-Felder pro Contest** dynamisch
-- [ ] **Live-Score** (Q × Multiplier, pro Band-Bonus etc.)
+### Phase 4 — Contest-Engine (generisch, Template-getrieben)
+- [ ] **Contest-Definitions-Datei** `contests.json` im App-Bundle
+  - JSON-Schema pro Contest: id, name, sponsor, period, exchange-fields[],
+    scoring (QSO-points pro Band/Continent), multiplier-rules,
+    cabrillo-template-block
+  - Beim App-Start in DB laden, User kann zusätzlich eigene Templates
+    importieren (für seltene/lokale Tests)
+  - **Updates ohne App-Rebuild** möglich (neue contests.json per
+    Auto-Download oder als Settings-Import)
+- [ ] **Mitgelieferte Contest-Templates** (Startset):
+  - Major DX: CQ WW (CW/SSB/RTTY), CQ WPX (CW/SSB), IARU HF, ARRL DX, WAE (mit QTC)
+  - Regional: SP DX, OK/OM DX, Russian DX, REF, DARC WAG, HB-Contest
+  - VHF/UHF: IARU R1 VHF/UHF/SHF, Marconi, Helvetia VHF
+  - Sprint/Mini: NA Sprint, CWops Mini-Test, FOC Marathon
+  - Field Day national: ARRL FD, REF FD, DARC FD, IARU FD
+  - User-Forderung: "alle die es gibt" → Template-Liste mit Auto-Update-Quelle
+    (vorgeschlagen: GitHub-Repo `hamtools/contests`)
+- [ ] **Exchange-Felder pro Contest** dynamisch (aus Template generiert)
+- [ ] **Live-Score** (Q × Multiplier, pro Band-Bonus etc., aus Scoring-Rules)
 - [ ] **Rate Meter** (QSOs/h, letzte 10/60 min)
 - [ ] **Duplicate-Check während Contest** (gleicher Call/Band/Mode → roter Flash)
 - [ ] **Super Check Partial (SCP)** Database — Auto-Complete-Vorschlag aus
   bekannten Calls beim Tippen
-- [ ] **Cabrillo Export** kontestspezifisch (V3 Format)
 - [ ] **Run / S&P Toggle** (Run-Mode-Speech-Macros vs Search-and-Pounce)
 - [ ] **CW/SSB Macros** (F1–F8 Sendefenster, Variablen wie $MYCALL $RST $NR)
 
-### Phase 5 — CAT / Radio Control
+### Phase 4b — Cabrillo V3 Export + WAE-QTC
+- [ ] **Cabrillo V3 Generator** aus Contest-Log
+  - Header (CALLSIGN, CATEGORY-OPERATOR/POWER/MODE/BAND, CLAIMED-SCORE etc.)
+  - QSO-Zeile passend zum Contest-Template
+  - Per-Contest-Validation (Pflichtfelder gesetzt? Score plausibel?)
+- [ ] **WAE-QTC-Spezialfall**: QTC-Eingabemaske + QTC-Reporting im Cabrillo
+
+### Phase 4c — POTA-Modus (Parks On The Air)
+- [ ] **POTA-Park-Datenbank** offline (CSV-Import von pota.app oder Live-Sync)
+  - Park-Ref (z.B. HB-0123), Name, Locator, Geo, Park-Typ
+- [ ] **POTA-Log-Anlage**:
+  - Activator vs. Hunter (Park-to-Park ist beides)
+  - Aktivierungs-Park-Ref oben gesetzt (für Activator)
+  - QSO-Form schlank: Call, RST sent/received, Park-Ref des Partners (wenn P2P)
+- [ ] **Park-to-Park-Erkennung**: Wenn Gegenstation auch im POTA-Cluster
+  spotted ist → Park-Ref vorgeschlagen
+- [ ] **Aktivierungs-Status-Anzeige**: "X/10 QSOs für Aktivierung" Live-Counter
+- [ ] **Multi-Park-Aktivierung** (n-fers): wenn der Standort mehrere Parks deckt
+- [ ] **Export ADIF mit POTA-Feldern** + One-Click-Upload zu pota.app (Phase 6)
+
+### Phase 4d — SOTA-Modus (Summits On The Air)
+- [ ] **SOTA-Summit-Datenbank** offline (CSV von sotadata.org.uk)
+  - Summit-Ref (z.B. HB/BE-001), Name, Locator, Höhe, Punkte, Aktivierungszone
+- [ ] **SOTA-Log-Anlage**:
+  - Activator vs. Chaser (S2S ist beides)
+  - Aktivierungs-Summit-Ref oben gesetzt (für Activator)
+- [ ] **Summit-to-Summit-Erkennung** über RBN/SOTAwatch-Spots
+- [ ] **Aktivierungs-Status**: "X/4 QSOs für Aktivierung" + Activator-Punkte-
+  Vorschau (saisonaler Bonus Winter)
+- [ ] **SOTA-CSV-Export** im sotadata.org.uk-Format (V2)
+- [ ] **ADIF mit SOTA-Feldern** als Alternative
+
+### Phase 5 — CAT / Radio Control (erweiterbar)
 - [ ] **Hamlib / rigctld als Universal-Layer**
   - Subprocess starten + TCP-Verbindung
-  - Unterstützt ~200 Rigs out-of-the-box
-- [ ] **Direkt-Implementationen** (für Spezial-Features die Hamlib nicht hat):
-  - Icom CI-V (Yaesu CAT, Kenwood CAT, Elecraft)
-  - FlexRadio SmartSDR API (TCP/JSON)
+  - Unterstützt ~200 Rigs out-of-the-box → deckt jetzt + zukünftig fast alles ab
+- [ ] **TRX-Profil-Tabelle in der DB** (offene Architektur):
+  - Felder: name, rigID (Hamlib-Modell-Nummer), port, baudrate, civAddress (Icom),
+    pollInterval, notes, isDefault
+  - User legt neue Rigs ohne Code-Änderung an
+  - Vor-Profile mitgeliefert: IC-7300 (rig=3073, addr=0x94, 115200),
+    IC-705 (rig=3085, addr=0xA4), IC-9700 (rig=3081, addr=0xA2),
+    FT-991A, TS-590S, K3 — als Inspiration, nicht hart codiert
+- [ ] **Direkt-Implementationen** als Fallback (Spezial-Features die Hamlib
+  nicht hat): Icom CI-V Stack als eigene Swift-Implementation für Sub-RX,
+  Memories, Band-Stacking
 - [ ] **Auto-Fill aus Rig**: Frequenz, Mode, Band, Power → in QSO-Form bei Submit
 - [ ] **PTT-Control** (HW-PTT via DTR/RTS oder VOX)
 - [ ] **Multi-Radio** Setup (Logger entscheidet aus welchem TRX QSO kommt)
@@ -176,8 +274,34 @@ HB9HJI-Workflows abdeckt. Cabrillo + QTC + SOTA-Activator sind die
 ## Datenmodell-Skizze (SwiftData)
 
 ```swift
+enum LogType: String, Codable {
+    case standard       // Lebens-Log, dauerhaft
+    case contest        // ein Contest-Wochenende
+    case pota           // POTA-Aktivierungs- oder Hunter-Session
+    case sota           // SOTA-Aktivierungs- oder Chaser-Session
+}
+
+@Model class Log {
+    var id: UUID
+    var name: String                  // "Lebens-Log", "CQ WW CW 2026", "POTA HB-0123 11.05."
+    var type: LogType
+    var startDate: Date
+    var endDate: Date?
+    // Typ-spezifisch:
+    var contestID: String?            // Referenz in contests.json
+    var contestCategory: String?      // "SOAB HP", "M/S" etc.
+    var potaParkRef: String?          // "HB-0123" (Activator-Park)
+    var sotaSummitRef: String?        // "HB/BE-001" (Activator-Summit)
+    var role: String?                 // "activator" | "hunter" | "chaser" | nil
+    var notes: String?
+    var createdAt: Date
+    // Beziehung:
+    @Relationship(deleteRule: .cascade, inverse: \QSO.log) var qsos: [QSO]
+}
+
 @Model class QSO {
     var id: UUID
+    var log: Log                      // welches Log gehört das QSO
     var call: String                  // Indexed
     var datetime: Date                // Indexed (UTC)
     var frequency_mhz: Double
@@ -197,8 +321,15 @@ HB9HJI-Workflows abdeckt. Cabrillo + QTC + SOTA-Activator sind die
     var stationCall: String?          // wenn Multi-OP
     var power_w: Double?
     var antenna: String?
-    var contest: String?              // Contest-ID
+    var contest: String?              // Contest-ID (redundant zu log.contestID, hilft Queries)
     var contestExchange: String?      // sent/received exchange
+    // POTA/SOTA pro QSO (für Park-to-Park / Summit-to-Summit + Hunter-Mode):
+    var myPotaRef: String?            // mein Park (Activator)
+    var myPotaRefs: String?           // mehrere bei n-fers, komma-sep
+    var theirPotaRef: String?         // Park-to-Park: Park der Gegenstation
+    var mySotaRef: String?            // mein Summit (Activator)
+    var theirSotaRef: String?         // Summit-to-Summit: Summit der Gegenstation
+    var theirSotaPoints: Int?         // SOTA-Punkte (Chaser-Score)
     var qslSentDate: Date?
     var qslSentVia: String?           // "bureau", "direct", "lotw", "eqsl"
     var qslReceivedDate: Date?
@@ -277,26 +408,33 @@ im Native-Client.
 
 ---
 
-## Geklärte Fragen (2026-05-11)
+## Geklärte Fragen (2026-05-11, finale Runde)
 
 - [x] **iCloud-Sync:** lokal first, CloudKit als Settings-Toggle (Phase 9).
 - [x] **Migration:** kein bestehendes Log — von Null. ADIF-Import in Phase 2.
-- [x] **Contests:** CQ WW + CQ WPX + IARU HF (Standard-Multis), WAE mit QTC,
-  SOTA/POTA/WWFF + Field Day als Activator.
-- [x] **CAT:** Hamlib-Subprocess. Konkrete TRX: **Icom IC-7300, IC-705,
-  IC-9700** sowie ggf. ein weiterer Icom — UI braucht TRX-Auswahl als
-  Profile (Adresse + Baudrate + Device-Path) statt fixer Voreinstellung.
-- [x] **Antennen-Pool:** **EFHW** (HF, allgemein) und **VHF/UHF separat**
-  (eigene Yagi/Vertikal für 2m/70cm). Hexbeam kommt nach Aufbau im Juni
-  zur Liste dazu. Antennen-Editor soll flexibel sein — User legt seine
-  Antennen selbst an.
-- [x] **Operator:** **Multi-OP denkbar** — StationProfile bekommt eine
-  Liste aller Operator-Calls (HB9HJI + andere für Field Day / Club).
-  Pro QSO ist `operatorCall` aus dieser Liste wählbar.
-- [x] **Sprache:** **Deutsch only** — kein i18n-Overhead. Standard-Felder
-  (ADIF/Cabrillo) bleiben englisch wegen Format-Konformität.
-- [x] **Audio-Features:** **nicht prio** — kein Voice-Keyer, kein CW-Keyer.
-  Phase 10/11 fallen weg (bleibt im Plan als "optional, später vielleicht").
+- [x] **Multi-Log-Modell:** beim Anlegen wählt User Log-Typ — **Standard,
+  Contest, POTA, SOTA**. Jede Session ist ein eigenes Log. Standard-Log
+  "Lebens-Log" ist dauerhaft.
+- [x] **Contests:** **alle gängigen Tests** — über erweiterbares Template-
+  System `contests.json` (Auto-Update-fähig, keine hart codierte Liste).
+  Cabrillo-V3-Export pro Contest + WAE-QTC-Spezialfall.
+- [x] **POTA + SOTA als Fokus-Modi:** eigene UI mit Park-/Summit-DB,
+  Activator/Hunter-Toggle, P2P-/S2S-Erkennung, Aktivierungs-Counter
+  (10/4 QSOs), Export ins pota.app- bzw. sotadata.org.uk-Format.
+- [x] **CAT:** Hamlib-Subprocess + **TRX-Profil-Tabelle in DB** (offen für
+  Zukunft, neue Rigs ohne Code-Änderung). Mitgelieferte Voreinstellungen:
+  IC-7300, IC-705, IC-9700, FT-991A, TS-590S, K3 — User kann frei
+  ergänzen.
+- [x] **Antennen-Pool:** **EFHW** (HF) und **VHF/UHF separat**
+  (Yagi/Vertikal für 2m/70cm). Hexbeam ergänzt nach Juni-Aufbau.
+  Antennen-Editor ist flexibel, User legt seine Antennen selbst an.
+- [x] **Operator:** **Multi-OP** — StationProfile bekommt Liste aller
+  Operator-Calls, pro QSO wählbar (Field Day / Club).
+- [x] **Sprache:** **Deutsch + Englisch** (i18n von Anfang an) —
+  Localizable.xcstrings, Sprach-Toggle in Settings, Default = Systemsprache.
+  Format-Felder (ADIF/Cabrillo) bleiben sowieso EN.
+- [x] **Audio-Features:** **nicht prio** — kein Voice-/CW-Keyer. Phase 10/11
+  bleibt im Plan als optional-später.
 
 **Damit ist die Konzept-Phase abgeschlossen — startklar für Phase 1.**
 
@@ -308,4 +446,7 @@ im Native-Client.
 - LoTW Tech-Docs: https://lotw.arrl.org/lotw-help/
 - Hamlib: https://hamlib.github.io/
 - Club Log API: https://clublog.freshdesk.com/support/solutions/articles/3000027450
+- POTA API + Park-DB: https://docs.pota.app/
+- SOTA Datenbank: https://www.sotadata.org.uk/
 - SwiftData Doku: https://developer.apple.com/documentation/swiftdata
+- SwiftUI Localization (xcstrings): https://developer.apple.com/documentation/xcode/localizing-and-varying-text-with-a-string-catalog
