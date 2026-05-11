@@ -89,7 +89,7 @@ struct LogbuchView: View {
             QSOEntryPanel()
                 .frame(maxWidth: .infinity)
         }
-        .frame(height: 310)
+        .frame(height: 380)
     }
 
     // MARK: - Bottom-Content (je nach gewähltem Tab)

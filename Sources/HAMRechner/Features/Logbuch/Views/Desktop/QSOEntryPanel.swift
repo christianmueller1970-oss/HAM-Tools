@@ -203,9 +203,9 @@ struct QSOEntryPanel: View {
     // MARK: - Entry-Grid (drei Spalten)
 
     private var entryGrid: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: 12) {
             // Spalte 1: Call + Personen / Adresse
-            VStack(spacing: 5) {
+            VStack(spacing: 4) {
                 fieldRow("Call",     value: $call, monospaced: true, uppercased: true, accent: true)
                 fieldRow("First",    value: $firstName)
                 fieldRow("Last",     value: $lastName)
@@ -220,7 +220,7 @@ struct QSOEntryPanel: View {
             .frame(maxWidth: .infinity)
 
             // Spalte 2: Zeit + Frequenz / Band / Mode / RST / Power
-            VStack(spacing: 5) {
+            VStack(spacing: 4) {
                 timeFieldRow("Time On",  value: $timeOn)
                 timeFieldRow("Time Off", value: Binding(
                     get: { timeOff ?? Date() },
@@ -238,7 +238,7 @@ struct QSOEntryPanel: View {
             .frame(maxWidth: .infinity)
 
             // Spalte 3: Award-Refs + Zonen
-            VStack(spacing: 5) {
+            VStack(spacing: 4) {
                 fieldRow("DXCC",  value: $dxcc)
                 fieldRow("CQ",    value: $cq)
                 fieldRow("ITU",   value: $itu)
