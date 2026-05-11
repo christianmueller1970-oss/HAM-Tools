@@ -163,18 +163,16 @@ struct HexbeamView: View {
 
     // MARK: Draufsicht
     //
-    // G3TXQ-Topologie (Top View, horizontale Projektion):
+    // G3TXQ-Topologie (Top View, horizontale Projektion, nach Original G3TXQ-Bild):
     // - 6 Spreader bei 30°, 90°, 150°, 210°, 270°, 330° (im Uhrzeigersinn ab "vorne")
     // - 30° und 330° sind die FRONT-Spreader (Driver-Seite)
-    // - 90°, 150°, 210°, 270° sind die hinteren 4 Spreader (Reflector-Seite)
-    // Pro Band:
-    // - Driver (solid): V mit Apex am Center, Endpunkte an Front-Spreader-Tips (30°, 330°)
-    // - Reflector (dashed): 3-Sehnen-Polygon durch die 4 hinteren Spreader-Tips
-    //   (90° → 150° → 210° → 270°). Vorne offen (Tip Spacer trennt elektrisch vom Driver).
-    // - Tip Spacer (kleiner Marker): am Spreader-Tip 30°/330° zwischen Driver-Endpunkt
-    //   und Reflector-Anfang. Mechanisch verbunden, elektrisch isoliert.
-    // Bänder unterscheiden sich nur im Radius (band.radius_m, λ-skaliert).
-    // Spreader-Länge (graue Achsen) = maxRadius über alle aktiven Bänder.
+    // - 90°, 150°, 210°, 270° sind die 4 hinteren Spreader (Reflector-Seite)
+    // Pro Band entlang der Sehnen 30°→90° und 330°→270°:
+    //   Driver-Tail (solid)  | Tip Spacer (dashed) | Reflector-Shoulder (solid)
+    //   →  vom 30°-Tip ein Stück Richtung 90° (Driver-Wire läuft "weiter nach unten")
+    //   →  kurzer Tip Spacer (PVC-Isolator, gestrichelt mit kleinen Pfeilen)
+    //   →  Reflector beginnt und läuft via 90°→150°→210°→270° → symmetrisch zur 330°-Seite
+    // Reflector ist SOLID; nur der Tip Spacer ist gestrichelt.
 
     private var draufsichtBereich: some View {
         SectionCard(title: "Bauplan – Draufsicht (Vogelperspektive)") {
@@ -197,14 +195,13 @@ struct HexbeamView: View {
                                    y: cy - dist * CGFloat(cos(r)))
                 }
 
-                // ── 6 Spreader arms (bis maxRadius, das ist der Spreader-Tip-Radius) ──
+                // ── 6 Spreader arms ──
                 for b in brgs {
                     let tip = pt(b, radius)
                     ctx.stroke(Path { p in
                         p.move(to: CGPoint(x: cx, y: cy))
                         p.addLine(to: tip)
                     }, with: .color(.gray.opacity(0.40)), lineWidth: 2)
-                    // Spreader-Tip-Marker
                     ctx.stroke(
                         Path(ellipseIn: CGRect(x: tip.x - 5, y: tip.y - 5, width: 10, height: 10)),
                         with: .color(.gray.opacity(0.45)), lineWidth: 1.5)
@@ -213,49 +210,74 @@ struct HexbeamView: View {
                 // ── Wire elements: längstes Band zuerst (Hintergrund), kürzeste oben ──
                 let sorted = aktiveBaender.sorted { $0.radius_m > $1.radius_m }
 
+                // Sehnen-Fraktionen für Driver-Tail | Tip Spacer | Reflector-Shoulder
+                // Markus HB9EIZ (Mai 2026): "Driver läuft viel länger nach unten bis er auf den
+                // Reflector trifft, kurz über der horizontalen Mittelachse — Tip-Spacer-Schnur
+                // etwas länger zeichnen damit man sie gut sieht."
+                // Tip-Spacer-Anteil 18% entspricht dem echten G3TXQ-Verhältnis (24″ / 11′4″).
+                let fDriverTail: CGFloat   = 0.75   // Driver-Wire 75% der Sehne über Spreader-Tip hinaus
+                let fTipSpacerEnd: CGFloat = 0.93   // Tip Spacer 18% lang (gut sichtbar)
+
                 for band in sorted {
                     let color = bandColors[band.id] ?? .blue
                     let r = CGFloat(band.radius_m) * scale
 
-                    // Reflector: dashed 3-Sehnen-Polygon durch die 4 hinteren Spreader-Tips
-                    //   90° → 150° → 210° → 270°
+                    // Hilfspunkte für Tail-Verlängerungen (jeweils Front-Tip → entlang Sehne zum hinteren Nachbarn)
+                    let frontL  = pt(30, r)           // Driver-Endpunkt-Ansatz links (im Bild: rechts oben)
+                    let frontR  = pt(330, r)          // rechts
+                    let backL   = pt(90, r)
+                    let backR   = pt(270, r)
+                    let driverTailL    = CGPoint(x: frontL.x + (backL.x - frontL.x) * fDriverTail,
+                                                 y: frontL.y + (backL.y - frontL.y) * fDriverTail)
+                    let driverTailR    = CGPoint(x: frontR.x + (backR.x - frontR.x) * fDriverTail,
+                                                 y: frontR.y + (backR.y - frontR.y) * fDriverTail)
+                    let reflectorTipL  = CGPoint(x: frontL.x + (backL.x - frontL.x) * fTipSpacerEnd,
+                                                 y: frontL.y + (backL.y - frontL.y) * fTipSpacerEnd)
+                    let reflectorTipR  = CGPoint(x: frontR.x + (backR.x - frontR.x) * fTipSpacerEnd,
+                                                 y: frontR.y + (backR.y - frontR.y) * fTipSpacerEnd)
+
+                    // Treiber: SOLID V, Center → Front-Spreader-Tip → Driver-Tail-Endpunkt
+                    // (V mit "Schwanz" auf beiden Seiten — Markus: "Driver laufen weiter nach unten")
                     ctx.stroke(Path { p in
-                        p.move(to: pt(90, r))
+                        p.move(to: driverTailL)
+                        p.addLine(to: frontL)
+                        p.addLine(to: CGPoint(x: cx, y: cy))
+                        p.addLine(to: frontR)
+                        p.addLine(to: driverTailR)
+                    }, with: .color(color), lineWidth: 2.5)
+
+                    // Reflector: SOLID, 5-Segment-Polylinie:
+                    //   reflectorTipL → 90°-Tip → 150°-Tip → 210°-Tip → 270°-Tip → reflectorTipR
+                    // (Reflector "läuft auch noch etwas weiter wenige cm" — die zwei Front-Schultern)
+                    ctx.stroke(Path { p in
+                        p.move(to: reflectorTipL)
+                        p.addLine(to: backL)
                         for b in [150.0, 210.0, 270.0] {
                             p.addLine(to: pt(b, r))
                         }
-                    }, with: .color(color.opacity(0.65)),
-                               style: StrokeStyle(lineWidth: 1.8, dash: [5, 3]))
+                        p.addLine(to: reflectorTipR)
+                    }, with: .color(color), lineWidth: 2.0)
 
-                    // Treiber: solid V, Front-Spreader-Tip 30° → Center → 330°
-                    ctx.stroke(Path { p in
-                        p.move(to: pt(30, r))
-                        p.addLine(to: CGPoint(x: cx, y: cy))
-                        p.addLine(to: pt(330, r))
-                    }, with: .color(color), lineWidth: 2.5)
-
-                    // Tip Spacer: kurzer dashed Strich am Front-Spreader-Tip, zwischen Driver-Endpunkt
-                    // (auf der Achse 30°/330°) und Reflector-Anfang (entlang Sehne zum hinteren
-                    // Nachbar-Spreader-Tip). Visuell ~16% der Sehne pro Tip Spacer.
-                    let tipFrac: CGFloat = 0.16
-                    for (front, neighbor) in [(30.0, 90.0), (330.0, 270.0)] {
-                        let pDriver   = pt(front, r)
-                        let pNeighbor = pt(neighbor, r)
-                        let pSpacer   = CGPoint(
-                            x: pDriver.x + (pNeighbor.x - pDriver.x) * tipFrac,
-                            y: pDriver.y + (pNeighbor.y - pDriver.y) * tipFrac)
+                    // Tip Spacer: SHORT DASHED zwischen Driver-Tail-End und Reflector-Tip
+                    // (die einzige gestrichelte Linie in der Skizze)
+                    for (a, b) in [(driverTailL, reflectorTipL), (driverTailR, reflectorTipR)] {
                         ctx.stroke(Path { p in
-                            p.move(to: pDriver)
-                            p.addLine(to: pSpacer)
-                        }, with: .color(.secondary.opacity(0.7)),
-                                   style: StrokeStyle(lineWidth: 1.2, dash: [2, 2]))
-                        // Driver-Endpunkt (gefüllt) + Reflector-Anfang (offen)
+                            p.move(to: a)
+                            p.addLine(to: b)
+                        }, with: .color(.secondary.opacity(0.85)),
+                                   style: StrokeStyle(lineWidth: 1.4, dash: [2, 2]))
+                    }
+
+                    // Marker: Driver-Tail-Endpunkt (gefüllt) + Reflector-Tip (offen)
+                    for p in [driverTailL, driverTailR] {
                         ctx.fill(
-                            Path(ellipseIn: CGRect(x: pDriver.x - 4, y: pDriver.y - 4, width: 8, height: 8)),
-                            with: .color(color.opacity(0.9)))
+                            Path(ellipseIn: CGRect(x: p.x - 3, y: p.y - 3, width: 6, height: 6)),
+                            with: .color(color.opacity(0.95)))
+                    }
+                    for p in [reflectorTipL, reflectorTipR] {
                         ctx.stroke(
-                            Path(ellipseIn: CGRect(x: pSpacer.x - 3.5, y: pSpacer.y - 3.5, width: 7, height: 7)),
-                            with: .color(color.opacity(0.7)), lineWidth: 1.3)
+                            Path(ellipseIn: CGRect(x: p.x - 3, y: p.y - 3, width: 6, height: 6)),
+                            with: .color(color.opacity(0.85)), lineWidth: 1.3)
                     }
                 }
 
@@ -310,7 +332,7 @@ struct HexbeamView: View {
 
                 // ── Legend ──
                 ctx.draw(
-                    Text("─── Driver-V   - - - Reflektor (3 Sehnen)   ● Driver-Ende   ○ Reflector-Anfang (Tip Spacer dazw.)")
+                    Text("─── Driver (V vorne)   ─── Reflektor (5-Sehnen-Bogen hinten)   - - - Non-Metallic Tip Spacer (PVC)")
                         .font(.system(size: 8)).foregroundStyle(.secondary),
                     at: CGPoint(x: W / 2, y: H - 10), anchor: .center)
             }
@@ -652,7 +674,7 @@ struct HexbeamView: View {
 
     private var hinweisBereich: some View {
         SectionCard(title: "Hinweis") {
-            Text("G3TXQ Broadband Hexbeam: 6 Spreader im 60°-Abstand, alle gleich lang (dimensioniert für das niedrigste Band). Pro Band ein eigenes Wire-Set (Driver + Reflector) auf einem eigenen Eyelet entlang dem Spreader — niedere Frequenz = größerer Radius (am Spreader-Tip), höhere Frequenz = kleinerer Radius (innen). Driver: V vorne (Apex am Center-Post, Endpunkte an Front-Spreader-Tips 30°/330°). Reflector: 3-Sehnen-Bogen hinten durch die 4 hinteren Spreader-Tips (90°→150°→210°→270°). Tip Spacer: PVC-Isolator am Front-Spreader-Tip, trennt Driver elektrisch vom Reflector-Anfang. Werte G3TXQ-konform (referenziert aus WiMo EAntenna HEX6B Bauanleitung, 20m-Maße: ½ Driver 214″, Reflector 404″, Tip Spacer 24″).")
+            Text("G3TXQ Broadband Hexbeam: 6 Spreader im 60°-Abstand, alle gleich lang (dimensioniert für das niedrigste Band). Pro Band ein eigenes Wire-Set (Driver + Reflector) auf einem eigenen Eyelet entlang dem Spreader — niedere Frequenz = größerer Radius (am Spreader-Tip), höhere Frequenz = kleinerer Radius (innen). Driver: V vorne (Apex am Center-Post), beide Enden laufen am Front-Spreader-Tip 30°/330° noch ein Stück Richtung hinterem Nachbar-Spreader weiter. Reflector: durchgehender 5-Sehnen-Bogen hinten — beginnt knapp vor dem rechten Driver-Ende, läuft via 90°→150°→210°→270° um die Rückseite, endet knapp vor dem linken Driver-Ende. Tip Spacer (PVC-Isolator, 24″): kurze gestrichelte Verbindung zwischen Driver-Ende und Reflector-Anfang an jedem Front-Spreader, mechanisch verbunden, elektrisch isoliert. Werte G3TXQ-konform (referenziert aus WiMo EAntenna HEX6B Bauanleitung, 20m-Maße: ½ Driver 214″, Reflector 404″, Tip Spacer 24″).")
                 .font(.callout).foregroundStyle(.secondary)
         }
     }

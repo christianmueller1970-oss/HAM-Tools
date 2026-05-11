@@ -55,7 +55,12 @@ const referenzBand = computed(() => {
 })
 const maxRadius = computed(() => aktiveBaender.value.length > 0 ? Math.max(...aktiveBaender.value.map(b => b.radius)) : 0)
 
-// Draufsicht SVG (G3TXQ-Topologie: V vorne, 3-Sehnen-Bogen hinten, Tip Spacer am Front-Spreader-Tip)
+// Draufsicht SVG (G3TXQ-Topologie nach Original G3TXQ-Bild):
+//   Driver-Tail (solid)  | Tip Spacer (dashed) | Reflector-Shoulder (solid)
+//   →  vom Front-Spreader-Tip läuft Driver-Wire ein Stück Richtung Nachbar weiter
+//   →  kurzer Tip Spacer (PVC, gestrichelt)
+//   →  Reflector beginnt und läuft als durchgehender Bogen via 90°→150°→210°→270°
+// Reflector ist SOLID; nur der Tip Spacer ist gestrichelt.
 const TOP_W = 600, TOP_H = 440
 const topGeom = computed(() => {
   if (maxRadius.value === 0) return null
@@ -70,33 +75,39 @@ const topGeom = computed(() => {
     const r = bearing * Math.PI / 180
     return { x: cx + dist * Math.sin(r), y: cy - dist * Math.cos(r) }
   }
+  function lerp(a, b, f) {
+    return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f }
+  }
   const spreaders = brgs.map(b => pt(b, radius))
-  // Bänder, sortiert größtes Band zuerst (Hintergrund)
+  // Sehnen-Fraktionen Driver-Tail | Tip Spacer | Reflector-Shoulder
+  // Markus HB9EIZ (Mai 2026): "Driver läuft viel länger nach unten bis er auf den
+  // Reflector trifft, kurz über der horizontalen Mittelachse — Tip-Spacer-Schnur
+  // etwas länger zeichnen damit man sie gut sieht."
+  // Tip-Spacer-Anteil 18% entspricht dem echten G3TXQ-Verhältnis (24″ / 11′4″).
+  const fDriverTail = 0.75      // Driver-Wire 75% der Sehne über Spreader-Tip hinaus
+  const fTipSpacerEnd = 0.93    // Tip Spacer 18% lang (gut sichtbar)
   const sorted = [...aktiveBaender.value].sort((a, b) => b.radius - a.radius)
-  const tipFrac = 0.16   // visueller Tip-Spacer-Anteil der Sehne 30°→90° bzw. 330°→270°
   const bands = sorted.map(band => {
     const r = band.radius * scale
-    // Reflector: 3-Sehnen-Polygon durch hintere 4 Spreader-Tips (90°→150°→210°→270°)
-    const reflPts = [90, 150, 210, 270].map(b => pt(b, r))
+    const frontL = pt(30, r),  backL  = pt(90, r)
+    const frontR = pt(330, r), backR  = pt(270, r)
+    const driverTailL   = lerp(frontL, backL, fDriverTail)
+    const driverTailR   = lerp(frontR, backR, fDriverTail)
+    const reflectorTipL = lerp(frontL, backL, fTipSpacerEnd)
+    const reflectorTipR = lerp(frontR, backR, fTipSpacerEnd)
+    // Driver: SOLID, V mit "Tail" auf beiden Seiten (Driver läuft weiter nach hinten)
+    const drvPath = `M ${driverTailL.x} ${driverTailL.y} L ${frontL.x} ${frontL.y} ` +
+                    `L ${cx} ${cy} L ${frontR.x} ${frontR.y} L ${driverTailR.x} ${driverTailR.y}`
+    // Reflector: SOLID, 5-Segment-Polylinie
+    //   reflectorTipL → 90°-Tip → 150°-Tip → 210°-Tip → 270°-Tip → reflectorTipR
+    const reflPts = [reflectorTipL, backL, pt(150, r), pt(210, r), backR, reflectorTipR]
     const reflPath = reflPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
-    // Driver: V vom Front-Tip 30° zum Center zum Front-Tip 330°
-    const drvLeft = pt(30, r), drvRight = pt(330, r)
-    const drvPath = `M ${drvLeft.x} ${drvLeft.y} L ${cx} ${cy} L ${drvRight.x} ${drvRight.y}`
-    // Tip-Spacer-Endpunkte: tipFrac entlang Sehne 30°→90° bzw. 330°→270°
-    const sp30Neighbor = pt(90, r)
-    const sp330Neighbor = pt(270, r)
-    const tipSpacer30 = {
-      x: drvLeft.x + (sp30Neighbor.x - drvLeft.x) * tipFrac,
-      y: drvLeft.y + (sp30Neighbor.y - drvLeft.y) * tipFrac,
-    }
-    const tipSpacer330 = {
-      x: drvRight.x + (sp330Neighbor.x - drvRight.x) * tipFrac,
-      y: drvRight.y + (sp330Neighbor.y - drvRight.y) * tipFrac,
-    }
     const labelP = pt(90, r)
     return {
       band, color: bandColors[band.id] || '#3b82f6',
-      reflPath, drvPath, drvLeft, drvRight, tipSpacer30, tipSpacer330, labelP,
+      drvPath, reflPath,
+      driverTailL, driverTailR, reflectorTipL, reflectorTipR,
+      labelP,
     }
   })
   const arrowBase = pt(0, radius + 8)
@@ -199,20 +210,20 @@ const sideGeom = computed(() => {
           </g>
           <!-- Wire elements pro Band -->
           <g v-for="(b, i) in topGeom.bands" :key="`b${i}`">
-            <!-- Reflector: 3-Sehnen-Polygon (gestrichelt) -->
-            <path :d="b.reflPath" fill="none" :stroke="b.color" stroke-width="1.8" stroke-dasharray="5,3" opacity="0.65"/>
-            <!-- Driver V solid -->
+            <!-- Driver: SOLID V mit Tail auf beiden Seiten -->
             <path :d="b.drvPath" fill="none" :stroke="b.color" stroke-width="2.5"/>
-            <!-- Tip Spacer: kurzer dashed Strich am Front-Spreader-Tip -->
-            <line :x1="b.drvLeft.x" :y1="b.drvLeft.y" :x2="b.tipSpacer30.x" :y2="b.tipSpacer30.y"
-                  stroke="rgba(140,140,140,0.7)" stroke-width="1.2" stroke-dasharray="2,2"/>
-            <line :x1="b.drvRight.x" :y1="b.drvRight.y" :x2="b.tipSpacer330.x" :y2="b.tipSpacer330.y"
-                  stroke="rgba(140,140,140,0.7)" stroke-width="1.2" stroke-dasharray="2,2"/>
-            <!-- Driver-Ende (gefüllt) + Reflector-Anfang (offen) -->
-            <circle :cx="b.drvLeft.x" :cy="b.drvLeft.y" r="4" :fill="b.color" opacity="0.9"/>
-            <circle :cx="b.drvRight.x" :cy="b.drvRight.y" r="4" :fill="b.color" opacity="0.9"/>
-            <circle :cx="b.tipSpacer30.x" :cy="b.tipSpacer30.y" r="3.5" fill="none" :stroke="b.color" stroke-width="1.3" opacity="0.7"/>
-            <circle :cx="b.tipSpacer330.x" :cy="b.tipSpacer330.y" r="3.5" fill="none" :stroke="b.color" stroke-width="1.3" opacity="0.7"/>
+            <!-- Reflector: SOLID 5-Sehnen-Bogen -->
+            <path :d="b.reflPath" fill="none" :stroke="b.color" stroke-width="2.0"/>
+            <!-- Tip Spacer: SHORT DASHED zwischen Driver-Tail-End und Reflector-Tip (links + rechts) -->
+            <line :x1="b.driverTailL.x" :y1="b.driverTailL.y" :x2="b.reflectorTipL.x" :y2="b.reflectorTipL.y"
+                  stroke="rgba(140,140,140,0.85)" stroke-width="1.4" stroke-dasharray="2,2"/>
+            <line :x1="b.driverTailR.x" :y1="b.driverTailR.y" :x2="b.reflectorTipR.x" :y2="b.reflectorTipR.y"
+                  stroke="rgba(140,140,140,0.85)" stroke-width="1.4" stroke-dasharray="2,2"/>
+            <!-- Marker: Driver-Tail-Ende (gefüllt) + Reflector-Tip (offen) -->
+            <circle :cx="b.driverTailL.x" :cy="b.driverTailL.y" r="3" :fill="b.color" opacity="0.95"/>
+            <circle :cx="b.driverTailR.x" :cy="b.driverTailR.y" r="3" :fill="b.color" opacity="0.95"/>
+            <circle :cx="b.reflectorTipL.x" :cy="b.reflectorTipL.y" r="3" fill="none" :stroke="b.color" stroke-width="1.3" opacity="0.85"/>
+            <circle :cx="b.reflectorTipR.x" :cy="b.reflectorTipR.y" r="3" fill="none" :stroke="b.color" stroke-width="1.3" opacity="0.85"/>
             <!-- Band-Label rechts -->
             <text :x="b.labelP.x + 14" :y="b.labelP.y + 4" font-size="10" font-weight="bold" :fill="b.color">{{ b.band.name }}</text>
           </g>
@@ -230,7 +241,7 @@ const sideGeom = computed(() => {
           </text>
           <!-- Legende -->
           <text :x="TOP_W / 2" :y="TOP_H - 10" text-anchor="middle" font-size="8" fill="var(--ts)">
-            ─── Driver-V   - - - Reflektor (3 Sehnen)   ● Driver-Ende   ○ Reflector-Anfang (Tip Spacer dazw.)
+            ─── Driver (V vorne)   ─── Reflektor (5-Sehnen-Bogen hinten)   - - - Non-Metallic Tip Spacer (PVC)
           </text>
         </svg>
       </div>
