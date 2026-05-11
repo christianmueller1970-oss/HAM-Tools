@@ -2,7 +2,7 @@ import SwiftUI
 
 struct QSOFormSheet: View {
     @EnvironmentObject var themeManager: ThemeManager
-    @EnvironmentObject var store: LogbuchStore
+    @EnvironmentObject var manager: LogbookManager
     @Environment(\.dismiss) private var dismiss
 
     let qso: QSO?           // nil = neu anlegen
@@ -285,7 +285,7 @@ struct QSOFormSheet: View {
             q.powerW = powerW
             q.antenna = antenna.isEmpty ? nil : antenna
             q.modifiedAt = Date()
-            store.updateQSO(q)
+            manager.updateQSO(q)
         } else {
             let q = QSO(
                 logID: log.id,
@@ -303,7 +303,7 @@ struct QSOFormSheet: View {
                 powerW: powerW,
                 antenna: antenna.isEmpty ? nil : antenna
             )
-            store.addQSO(q)
+            manager.addQSO(q)
         }
     }
 }

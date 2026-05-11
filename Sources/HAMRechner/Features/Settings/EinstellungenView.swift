@@ -9,12 +9,85 @@ struct EinstellungenView: View {
                 .tabItem { Label("Station", systemImage: "antenna.radiowaves.left.and.right") }
             ClusterTab()
                 .tabItem { Label("Cluster", systemImage: "server.rack") }
+            LogbuchTab()
+                .tabItem { Label("Logbuch", systemImage: "book.closed") }
             DarstellungTab()
                 .tabItem { Label("Darstellung", systemImage: "paintpalette") }
             AlertsTab()
                 .tabItem { Label("Alerts", systemImage: "bell.badge") }
         }
-        .frame(width: 560, height: 420)
+        .frame(width: 580, height: 440)
+    }
+}
+
+// MARK: - Logbuch
+
+private struct LogbuchTab: View {
+    @EnvironmentObject var settings: LogbookSettings
+    @EnvironmentObject var manager:  LogbookManager
+    @State private var showFolderPicker = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                GroupBox("Logbuch-Speicherort") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text("Ordner").frame(width: 80, alignment: .leading)
+                            Text(settings.logbookDirectory.path)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                                .lineLimit(2)
+                            Spacer()
+                        }
+                        HStack {
+                            Button("Ordner wählen …") {
+                                pickFolder()
+                            }
+                            Button("Im Finder zeigen") {
+                                NSWorkspace.shared.activateFileViewerSelecting(
+                                    [settings.logbookDirectory])
+                            }
+                            Button("Auf Standard zurücksetzen") {
+                                settings.logbookDirectory = LogbookSettings.defaultDirectory
+                            }
+                        }
+                        Text("Jedes Logbuch ist eine eigene SQLite-Datei (\(LogbookDatabase.fileExtension)). Du kannst hier z.B. iCloud Drive, Documents oder ein externes Volume wählen.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(4)
+                }
+
+                GroupBox("Bestandsaufnahme") {
+                    HStack {
+                        Image(systemName: "books.vertical")
+                            .foregroundStyle(.blue)
+                        Text("\(manager.logs.count) Logbuch\(manager.logs.count == 1 ? "" : "s") im aktuellen Ordner")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .padding(4)
+                }
+            }
+            .padding(16)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func pickFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.directoryURL = settings.logbookDirectory
+        panel.prompt = "Wählen"
+        panel.message = "Verzeichnis für Logbücher wählen"
+        if panel.runModal() == .OK, let url = panel.url {
+            settings.logbookDirectory = url
+        }
     }
 }
 

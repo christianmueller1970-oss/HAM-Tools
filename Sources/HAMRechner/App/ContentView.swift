@@ -117,26 +117,39 @@ struct ContentView: View {
     private var theme: AppTheme { themeManager.theme }
 
     var body: some View {
-        NavigationSplitView {
-            SidebarView(selectedCalculator: $selectedCalculator)
-        } detail: {
-            if let calc = selectedCalculator {
-                CalculatorRouter(calculator: calc)
-                    .environmentObject(dxClusterVM)
-                    .environmentObject(themeManager)
-                    .environmentObject(simBridge)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(theme.bgApp)
-                    .preferredColorScheme(theme.colorScheme)
+        Group {
+            if selectedCalculator == .logbuch {
+                // Logbuch übernimmt das ganze Fenster — eigene Sidebar links,
+                // "Zurück"-Button schaltet auf die Startansicht.
+                LogbuchView(onBackToHome: {
+                    selectedCalculator = .dxCluster
+                })
+                .environmentObject(themeManager)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(theme.bgApp)
+                .preferredColorScheme(theme.colorScheme)
             } else {
-                WelcomeView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(theme.bgApp)
+                NavigationSplitView {
+                    SidebarView(selectedCalculator: $selectedCalculator)
+                } detail: {
+                    if let calc = selectedCalculator {
+                        CalculatorRouter(calculator: calc)
+                            .environmentObject(dxClusterVM)
+                            .environmentObject(themeManager)
+                            .environmentObject(simBridge)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(theme.bgApp)
+                            .preferredColorScheme(theme.colorScheme)
+                    } else {
+                        WelcomeView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(theme.bgApp)
+                    }
+                }
+                .navigationSplitViewStyle(.balanced)
             }
         }
-        .navigationSplitViewStyle(.balanced)
         .preferredColorScheme(theme.colorScheme)
-        // "Im Sim öffnen" aus einer Antennen-View → wechselt zum Sim-Tab
         .onChange(of: simBridge.navigationRequest) {
             if simBridge.navigationRequest != nil {
                 selectedCalculator = .antennenSim
@@ -208,7 +221,7 @@ struct CalculatorRouter: View {
         // Live-Tools
         case .dxCluster:             DXClusterView()
         case .bandplan:              BandplanView()
-        case .logbuch:               LogbuchView()
+        case .logbuch:               EmptyView()  // Logbuch wird auf Container-Ebene gerendert
         // Drahtantennen
         case .dipol:             DipolView()
         case .groundplane:       GroundplaneView()

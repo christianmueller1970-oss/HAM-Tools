@@ -2,10 +2,17 @@ import SwiftUI
 
 @main
 struct HAMRechnerApp: App {
-    @StateObject private var themeManager  = ThemeManager()
-    @StateObject private var clusterStore  = ClusterSettingsStore()
-    @StateObject private var watchList     = WatchListStore()
-    @StateObject private var logbuchStore  = LogbuchStore()
+    @StateObject private var themeManager     = ThemeManager()
+    @StateObject private var clusterStore     = ClusterSettingsStore()
+    @StateObject private var watchList        = WatchListStore()
+    @StateObject private var logbookSettings  = LogbookSettings()
+    @StateObject private var logbookManager: LogbookManager
+
+    init() {
+        let settings = LogbookSettings()
+        _logbookSettings = StateObject(wrappedValue: settings)
+        _logbookManager  = StateObject(wrappedValue: LogbookManager(settings: settings))
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -13,7 +20,8 @@ struct HAMRechnerApp: App {
                 .environmentObject(themeManager)
                 .environmentObject(clusterStore)
                 .environmentObject(watchList)
-                .environmentObject(logbuchStore)
+                .environmentObject(logbookSettings)
+                .environmentObject(logbookManager)
                 .frame(minWidth: 900, minHeight: 580)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
@@ -29,7 +37,8 @@ struct HAMRechnerApp: App {
                 .environmentObject(themeManager)
                 .environmentObject(clusterStore)
                 .environmentObject(watchList)
-                .environmentObject(logbuchStore)
+                .environmentObject(logbookSettings)
+                .environmentObject(logbookManager)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
     }

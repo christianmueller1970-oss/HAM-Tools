@@ -2,7 +2,7 @@ import SwiftUI
 
 struct LogDetailView: View {
     @EnvironmentObject var themeManager: ThemeManager
-    @EnvironmentObject var store: LogbuchStore
+    @EnvironmentObject var manager: LogbookManager
 
     let log: Log
 
@@ -12,7 +12,7 @@ struct LogDetailView: View {
     private var theme: AppTheme { themeManager.theme }
 
     private var qsos: [QSO] {
-        store.qsos(for: log).sorted { $0.datetime > $1.datetime }
+        manager.currentQSOs.sorted { $0.datetime > $1.datetime }
     }
 
     var body: some View {
@@ -29,16 +29,14 @@ struct LogDetailView: View {
         .sheet(isPresented: $showNewQSOSheet) {
             QSOFormSheet(qso: nil, log: log)
                 .environmentObject(themeManager)
-                .environmentObject(store)
+                .environmentObject(manager)
         }
         .sheet(item: $editingQSO) { qso in
             QSOFormSheet(qso: qso, log: log)
                 .environmentObject(themeManager)
-                .environmentObject(store)
+                .environmentObject(manager)
         }
     }
-
-    // MARK: Header
 
     private var header: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -54,7 +52,7 @@ struct LogDetailView: View {
                     Text(log.type.displayName)
                     Text("·")
                     Text("\(qsos.count) QSO\(qsos.count == 1 ? "" : "s")")
-                    if let last = store.lastQsoDate(for: log) {
+                    if let last = qsos.first?.datetime {
                         Text("·")
                         Text("Letzter Eintrag: \(last.formatted(date: .abbreviated, time: .shortened))")
                     }
@@ -75,8 +73,6 @@ struct LogDetailView: View {
         .padding(16)
         .background(theme.bgCard)
     }
-
-    // MARK: Empty
 
     private var emptyState: some View {
         VStack(spacing: 14) {
@@ -99,8 +95,6 @@ struct LogDetailView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-
-    // MARK: Tabelle
 
     private var qsoTable: some View {
         Table(qsos) {
@@ -171,7 +165,7 @@ struct LogDetailView: View {
                     .help("Bearbeiten")
 
                     Button(role: .destructive) {
-                        store.deleteQSO(qso)
+                        manager.deleteQSO(qso)
                     } label: {
                         Image(systemName: "trash")
                     }

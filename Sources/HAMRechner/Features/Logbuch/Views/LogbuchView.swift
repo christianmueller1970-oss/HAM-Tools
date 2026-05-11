@@ -1,29 +1,33 @@
 import SwiftUI
 
-// Root-View für das Logbuch-Modul. Zweispaltig:
-// Links: Liste aller Logs. Rechts: QSOs des gewählten Logs + Form.
+// Vollbild-Logbuch-Modul. Wenn der User in der Haupt-Sidebar "Logbuch"
+// klickt, übernimmt diese View das ganze Fenster:
+// links eine Log-Liste, oben ein "Zurück"-Button, rechts die Log-Detail-View.
+// So gewinnen wir Platz für Logbuch-eigene Funktionen die noch kommen.
 struct LogbuchView: View {
     @EnvironmentObject var themeManager: ThemeManager
-    @EnvironmentObject var store: LogbuchStore
+    @EnvironmentObject var manager: LogbookManager
+    @EnvironmentObject var settings: LogbookSettings
 
-    @State private var selectedLogID: UUID?
+    let onBackToHome: () -> Void
+
     @State private var showNewLogSheet: Bool = false
 
     private var theme: AppTheme { themeManager.theme }
 
     private var selectedLog: Log? {
-        guard let id = selectedLogID else { return nil }
-        return store.logs.first(where: { $0.id == id })
+        guard let id = manager.currentLogID else { return nil }
+        return manager.logs.first(where: { $0.id == id })
     }
 
     var body: some View {
         HSplitView {
-            logListSidebar
+            logbookSidebar
                 .frame(minWidth: 240, idealWidth: 280, maxWidth: 380)
 
             if let log = selectedLog {
                 LogDetailView(log: log)
-                    .frame(minWidth: 480)
+                    .frame(minWidth: 480, maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 emptyDetail
             }
@@ -31,12 +35,13 @@ struct LogbuchView: View {
         .navigationTitle("Logbuch")
         .background(theme.bgApp)
         .onAppear {
-            if selectedLogID == nil { selectedLogID = store.logs.first?.id }
+            if manager.currentLogID == nil, let first = manager.logs.first {
+                manager.openLog(first)
+            }
         }
         .sheet(isPresented: $showNewLogSheet) {
             NewLogSheet { newLog in
-                store.addLog(newLog)
-                selectedLogID = newLog.id
+                manager.createLog(newLog)
             }
             .environmentObject(themeManager)
         }
@@ -44,49 +49,127 @@ struct LogbuchView: View {
 
     // MARK: Sidebar
 
-    private var logListSidebar: some View {
+    private var logbookSidebar: some View {
         VStack(spacing: 0) {
-            sidebarHeader
-
+            sidebarTopBar
             Divider().background(theme.separator)
-
-            List(selection: $selectedLogID) {
-                ForEach(store.logs) { log in
-                    LogRow(log: log,
-                           qsoCount: store.qsoCount(for: log))
-                        .tag(log.id)
-                        .listRowBackground(
-                            selectedLogID == log.id ? theme.bgHover : Color.clear
-                        )
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                deleteLog(log)
-                            } label: {
-                                Label("Log löschen", systemImage: "trash")
-                            }
-                        }
-                }
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(theme.bgPanel)
+            logListSection
+            Divider().background(theme.separator)
+            sidebarFooter
         }
         .background(theme.bgPanel)
     }
 
-    private var sidebarHeader: some View {
-        HStack {
-            Text("Meine Logs")
-                .font(.headline)
-                .foregroundStyle(theme.textPrimary)
-            Spacer()
-            Button {
-                showNewLogSheet = true
-            } label: {
-                Label("Neu", systemImage: "plus.circle.fill")
+    private var sidebarTopBar: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Button {
+                    onBackToHome()
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.left")
+                        Text("Startseite")
+                    }
+                    .font(.subheadline.weight(.medium))
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(theme.accentBlue)
+                Spacer()
             }
-            .buttonStyle(.borderless)
-            .foregroundStyle(theme.accentGreen)
+            HStack(spacing: 8) {
+                Image(systemName: "book.closed.fill")
+                    .foregroundStyle(theme.accentBlue)
+                Text("Logbuch")
+                    .font(.title3.bold())
+                    .foregroundStyle(theme.textPrimary)
+                Spacer()
+                Button {
+                    showNewLogSheet = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(theme.accentGreen)
+                .help("Neues Log anlegen")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+    }
+
+    private var logListSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Meine Logs")
+                .font(.caption.bold())
+                .foregroundStyle(theme.textSecondary)
+                .textCase(.uppercase)
+                .padding(.horizontal, 14)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+
+            if manager.logs.isEmpty {
+                Text("Noch kein Log angelegt.")
+                    .font(.callout)
+                    .foregroundStyle(theme.textDim)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                Spacer()
+            } else {
+                List {
+                    ForEach(manager.logs) { log in
+                        LogRow(log: log,
+                               qsoCount: manager.qsoCount(for: log),
+                               selected: log.id == manager.currentLogID)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                manager.openLog(log)
+                            }
+                            .listRowBackground(
+                                log.id == manager.currentLogID
+                                    ? theme.bgHover : Color.clear
+                            )
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    manager.deleteLog(log)
+                                } label: {
+                                    Label("Log löschen (Datei wird entfernt)",
+                                          systemImage: "trash")
+                                }
+                            }
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+            }
+        }
+    }
+
+    private var sidebarFooter: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Speicherort")
+                .font(.caption.bold())
+                .foregroundStyle(theme.textSecondary)
+                .textCase(.uppercase)
+            HStack(spacing: 4) {
+                Image(systemName: "folder")
+                    .font(.caption2)
+                    .foregroundStyle(theme.textDim)
+                Text(settings.logbookDirectory.lastPathComponent)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(theme.textSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.head)
+                Spacer()
+                Button {
+                    NSWorkspace.shared.open(settings.logbookDirectory)
+                } label: {
+                    Image(systemName: "arrow.up.right.square")
+                }
+                .buttonStyle(.borderless)
+                .help("Ordner im Finder öffnen")
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -103,16 +186,15 @@ struct LogbuchView: View {
             Text("Wähle links ein Log oder lege ein neues an.")
                 .font(.callout)
                 .foregroundStyle(theme.textDim)
+            Button {
+                showNewLogSheet = true
+            } label: {
+                Label("Neues Log anlegen", systemImage: "plus.circle.fill")
+            }
+            .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.bgApp)
-    }
-
-    // MARK: Helpers
-
-    private func deleteLog(_ log: Log) {
-        if selectedLogID == log.id { selectedLogID = nil }
-        store.deleteLog(log)
     }
 }
 
@@ -121,6 +203,8 @@ struct LogbuchView: View {
 private struct LogRow: View {
     let log: Log
     let qsoCount: Int
+    let selected: Bool
+
     @EnvironmentObject var themeManager: ThemeManager
     private var theme: AppTheme { themeManager.theme }
 

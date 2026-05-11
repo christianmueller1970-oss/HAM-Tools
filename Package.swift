@@ -11,6 +11,10 @@ let package = Package(
             resources: [
                 .process("Assets.xcassets"),
                 .process("Content")
+            ],
+            linkerSettings: [
+                // Logbuch-SQLite: System-SQLite (macOS hat sqlite3 in /usr/lib)
+                .linkedLibrary("sqlite3")
             ]
         )
     ]
