@@ -33,6 +33,10 @@ struct LogbuchView: View {
     @State private var filterMode: String = ""
     @State private var filterCountry: String = ""
 
+    // Awards-Tab Sub-State
+    @State private var awardsSubTab: AwardsTab.AwardsSubTab = .dxcc
+    @State private var awardsOnlyUnconfirmed: Bool = false
+
     private var theme: AppTheme { themeManager.theme }
 
     var body: some View {
@@ -140,12 +144,79 @@ struct LogbuchView: View {
             )
         case .dxClusters:
             ClusterContextBar()
+        case .awards:
+            awardsContextBar
         default:
             TabContextBarShell {
                 Text("Keine Filter für »\(bottomTab.rawValue)«")
                     .font(.caption)
                     .foregroundStyle(theme.textDim)
             }
+        }
+    }
+
+    private var awardsContextBar: some View {
+        let a = manager.awards
+        return TabContextBarShell {
+            HStack(spacing: 8) {
+                // Sub-Tab-Switcher
+                ForEach(AwardsTab.AwardsSubTab.allCases) { sub in
+                    Button {
+                        awardsSubTab = sub
+                    } label: {
+                        Text("\(sub.rawValue) (\(count(for: sub)))")
+                            .font(.caption.weight(awardsSubTab == sub ? .bold : .regular))
+                            .foregroundStyle(awardsSubTab == sub ? .white : theme.textSecondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 3)
+                            .background(awardsSubTab == sub ? theme.accentBlue : theme.bgCard2)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(awardsSubTab == sub ? theme.accentBlue : theme.separator,
+                                            lineWidth: 1)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Divider().frame(height: 16).background(theme.separator)
+
+                if awardsSubTab == .dxcc {
+                    Toggle(isOn: $awardsOnlyUnconfirmed) {
+                        Text("Nur unbestätigte")
+                            .font(.caption)
+                    }
+                    .toggleStyle(.checkbox)
+                    .controlSize(.mini)
+                }
+
+                Spacer()
+
+                Text(summaryText(for: awardsSubTab, awards: a))
+                    .font(.caption)
+                    .foregroundStyle(theme.textSecondary)
+            }
+        }
+    }
+
+    private func count(for sub: AwardsTab.AwardsSubTab) -> Int {
+        switch sub {
+        case .dxcc: return manager.awards.dxccWorked
+        case .waz:  return manager.awards.wazWorked
+        case .was:  return manager.awards.wasWorked
+        }
+    }
+
+    private func summaryText(for sub: AwardsTab.AwardsSubTab,
+                             awards a: AwardCounts) -> String {
+        switch sub {
+        case .dxcc:
+            return "\(a.dxccWorked) Länder gearbeitet · \(a.dxccConfirmed) bestätigt"
+        case .waz:
+            return "\(a.wazWorked) / 40 Zonen gearbeitet · \(a.wazConfirmed) bestätigt"
+        case .was:
+            return "\(a.wasWorked) / 50 States gearbeitet · \(a.wasConfirmed) bestätigt"
         }
     }
 
@@ -168,6 +239,9 @@ struct LogbuchView: View {
                          filterCountry: $filterCountry)
         case .dxClusters:
             LogbookClusterTab()
+        case .awards:
+            AwardsTab(subTab: $awardsSubTab,
+                      onlyUnconfirmed: $awardsOnlyUnconfirmed)
         default:
             comingSoon(bottomTab)
         }

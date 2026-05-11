@@ -14,6 +14,11 @@ final class LogbookManager: ObservableObject {
     @Published private(set) var fileURLs: [UUID: URL] = [:]
     // Live-aktualisierte Award-Counter (über ALLE Logs aggregiert).
     @Published private(set) var awards: AwardCounts = AwardCounts()
+    // Detail-Breakdown für den Awards-Tab — pro Country / pro CQ-Zone /
+    // pro US-State. Wird zusammen mit awards aktualisiert.
+    @Published private(set) var dxccBreakdown: [DXCCAwardEntry] = []
+    @Published private(set) var wazBreakdown:  [WAZEntry]  = []
+    @Published private(set) var wasBreakdown:  [WASEntry]  = []
 
     private let settings: LogbookSettings
     private var openDB: LogbookDatabase?
@@ -142,15 +147,15 @@ final class LogbookManager: ObservableObject {
 
     // MARK: - Award-Aggregation
 
-    /// Zählt unique DXCC-Countries, CQ-Zonen, US-States über ALLE Logs.
+    /// Aggregiert über ALLE Logs:
+    ///   - Counter (DXCC/WAZ/WAS) für die Tab-Bar
+    ///   - Breakdown pro Country/Zone/State für den Awards-Tab
     /// Wird nach jeder QSO/Log-Mutation aufgerufen.
     func recomputeAwards() {
-        var workedCountries = Set<String>()
-        var confirmedCountries = Set<String>()
-        var workedZones = Set<Int>()
-        var confirmedZones = Set<Int>()
-        var workedStates = Set<String>()
-        var confirmedStates = Set<String>()
+        // Akkumulatoren pro Entity
+        var byCountry: [String: DXCCAccumulator] = [:]
+        var byZone:    [Int: WAZAccumulator]    = [:]
+        var byState:   [String: WASAccumulator] = [:]
         var totalQSOs = 0
 
         for log in logs {
@@ -166,35 +171,52 @@ final class LogbookManager: ObservableObject {
             totalQSOs += qsos.count
             for qso in qsos {
                 let confirmed = qso.lotwConfirmed || qso.eqslConfirmed
+                let dt = qso.datetime
+
                 if let c = qso.country?.trimmingCharacters(in: .whitespaces),
                    !c.isEmpty {
-                    workedCountries.insert(c)
-                    if confirmed { confirmedCountries.insert(c) }
+                    byCountry[c, default: DXCCAccumulator(country: c)]
+                        .add(band: qso.band, mode: qso.mode,
+                             confirmed: confirmed, date: dt)
                 }
                 if let z = qso.cqZone, z > 0 {
-                    workedZones.insert(z)
-                    if confirmed { confirmedZones.insert(z) }
+                    byZone[z, default: WAZAccumulator(zone: z)]
+                        .add(confirmed: confirmed, date: dt)
                 }
                 if let s = qso.country?.trimmingCharacters(in: .whitespaces),
                    s.localizedCaseInsensitiveContains("United States") || s == "USA",
                    let st = qso.qth?.trimmingCharacters(in: .whitespaces),
                    !st.isEmpty {
-                    // US-State steckt im QTH-Feld (das QSO-Schema hat
-                    // kein dediziertes state-Feld). Pragmatisch: solang
-                    // wir keine ADIF-Importe haben, bleibt das hier oft 0.
-                    workedStates.insert(st)
-                    if confirmed { confirmedStates.insert(st) }
+                    // US-State pragmatisch aus QTH-Feld (kein dediziertes
+                    // state-Feld bis ADIF-Import in Phase 2 existiert).
+                    byState[st, default: WASAccumulator(state: st)]
+                        .add(confirmed: confirmed, date: dt)
                 }
             }
         }
 
+        // In Entries umwandeln + sortieren
+        dxccBreakdown = byCountry.values
+            .map { $0.entry }
+            .sorted { $0.qsoCount > $1.qsoCount }
+        wazBreakdown = byZone.values
+            .map { $0.entry }
+            .sorted { $0.zone < $1.zone }
+        wasBreakdown = byState.values
+            .map { $0.entry }
+            .sorted { $0.state < $1.state }
+
+        let confirmedCountries = dxccBreakdown.filter(\.confirmed).count
+        let confirmedZones     = wazBreakdown.filter(\.confirmed).count
+        let confirmedStates    = wasBreakdown.filter(\.confirmed).count
+
         awards = AwardCounts(
-            dxccWorked:    workedCountries.count,
-            dxccConfirmed: confirmedCountries.count,
-            wazWorked:     workedZones.count,
-            wazConfirmed:  confirmedZones.count,
-            wasWorked:     workedStates.count,
-            wasConfirmed:  confirmedStates.count,
+            dxccWorked:    dxccBreakdown.count,
+            dxccConfirmed: confirmedCountries,
+            wazWorked:     wazBreakdown.count,
+            wazConfirmed:  confirmedZones,
+            wasWorked:     wasBreakdown.count,
+            wasConfirmed:  confirmedStates,
             totalQSOs:     totalQSOs
         )
     }
@@ -316,4 +338,91 @@ struct AwardCounts {
     var wasWorked: Int     = 0
     var wasConfirmed: Int  = 0
     var totalQSOs: Int     = 0
+}
+
+// Detail-Eintrag pro DXCC-Country (für die Awards-Tab-Liste).
+struct DXCCAwardEntry: Identifiable {
+    var id: String { country }
+    let country: String
+    let qsoCount: Int
+    let bands: [String]
+    let modes: [String]
+    let confirmed: Bool
+    let firstQSO: Date
+    let lastQSO: Date
+}
+
+struct WAZEntry: Identifiable {
+    var id: Int { zone }
+    let zone: Int
+    let qsoCount: Int
+    let confirmed: Bool
+    let firstQSO: Date
+}
+
+struct WASEntry: Identifiable {
+    var id: String { state }
+    let state: String
+    let qsoCount: Int
+    let confirmed: Bool
+}
+
+// Akku-Helper — sammelt QSO-Infos pro Entity, baut am Ende den Entry.
+struct DXCCAccumulator {
+    let country: String
+    var count: Int = 0
+    var bands: Set<String> = []
+    var modes: Set<String> = []
+    var confirmed: Bool = false
+    var first: Date = .distantFuture
+    var last: Date = .distantPast
+
+    mutating func add(band: String, mode: String, confirmed: Bool, date: Date) {
+        count += 1
+        if !band.isEmpty { bands.insert(band) }
+        if !mode.isEmpty { modes.insert(mode) }
+        self.confirmed = self.confirmed || confirmed
+        if date < first { first = date }
+        if date > last  { last = date }
+    }
+
+    var entry: DXCCAwardEntry {
+        DXCCAwardEntry(country: country, qsoCount: count,
+                  bands: Array(bands).sorted(),
+                  modes: Array(modes).sorted(),
+                  confirmed: confirmed,
+                  firstQSO: first, lastQSO: last)
+    }
+}
+
+struct WAZAccumulator {
+    let zone: Int
+    var count: Int = 0
+    var confirmed: Bool = false
+    var first: Date = .distantFuture
+
+    mutating func add(confirmed: Bool, date: Date) {
+        count += 1
+        self.confirmed = self.confirmed || confirmed
+        if date < first { first = date }
+    }
+
+    var entry: WAZEntry {
+        WAZEntry(zone: zone, qsoCount: count, confirmed: confirmed, firstQSO: first)
+    }
+}
+
+struct WASAccumulator {
+    let state: String
+    var count: Int = 0
+    var confirmed: Bool = false
+
+    mutating func add(confirmed: Bool, date: Date) {
+        count += 1
+        self.confirmed = self.confirmed || confirmed
+    }
+
+    var entry: WASEntry {
+        WASEntry(state: state, qsoCount: count, confirmed: confirmed)
+    }
 }
