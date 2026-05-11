@@ -148,6 +148,86 @@ final class LogbookManager: ObservableObject {
         fileURLs[log.id]
     }
 
+    // MARK: - ADIF Export / Import
+
+    /// Schreibt das aktive Log als ADIF in den Exports-Ordner.
+    /// Liefert die geschriebene URL bei Erfolg, sonst nil.
+    func exportActiveLogAsADIF() -> URL? {
+        guard let logID = currentLogID,
+              let log = logs.first(where: { $0.id == logID }) else { return nil }
+        let text = ADIFCodec.encode(qsos: currentQSOs, logName: log.name)
+        let stamp: String = {
+            let f = DateFormatter()
+            f.dateFormat = "yyyyMMdd-HHmmss"
+            return f.string(from: Date())
+        }()
+        let safeName = log.name.replacingOccurrences(of: "/", with: "_")
+        let fileName = "\(safeName)-\(stamp).adi"
+        let url = dataRoot.exportsDir.appendingPathComponent(fileName)
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            return url
+        } catch {
+            print("ADIF Export fehlgeschlagen: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// Importiert eine ADIF-Datei und liefert die parsierten QSOs zurück
+    /// (noch ohne sie zu schreiben — Caller entscheidet was er damit macht).
+    func parseADIF(at url: URL, targetLogID: UUID) -> [QSO] {
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+        let records = ADIFCodec.parse(text)
+        return records.compactMap { ADIFCodec.qso(from: $0, logID: targetLogID) }
+    }
+
+    /// Importiert eine Liste von QSOs ins angegebene Log. Wenn das Log
+    /// gerade offen ist, geht das über die DB; sonst wird kurz geöffnet.
+    /// Liefert die Anzahl tatsächlich geschriebener QSOs.
+    func importQSOs(_ qsos: [QSO], into logID: UUID) -> Int {
+        var count = 0
+        if logID == currentLogID, let db = openDB {
+            for q in qsos {
+                if (try? db.addQSO(q)) != nil { count += 1 }
+            }
+            currentQSOs = db.qsos
+        } else if let url = fileURLs[logID],
+                  let db = try? LogbookDatabase(opening: url) {
+            for q in qsos {
+                if (try? db.addQSO(q)) != nil { count += 1 }
+            }
+        }
+        recomputeAwards()
+        return count
+    }
+
+    /// Duplikat-Erkennung für Merge: zählt wie viele der QSOs schon im
+    /// Ziel-Log existieren (gleicher Call, Band, Mode, Zeit ±5min).
+    func detectDuplicates(_ qsos: [QSO], in logID: UUID) -> (new: [QSO], duplicates: [QSO]) {
+        let existing: [QSO]
+        if logID == currentLogID {
+            existing = currentQSOs
+        } else if let url = fileURLs[logID],
+                  let db = try? LogbookDatabase(opening: url) {
+            existing = db.qsos
+        } else {
+            existing = []
+        }
+        let tolerance: TimeInterval = 5 * 60
+        var new: [QSO] = []
+        var dupes: [QSO] = []
+        for q in qsos {
+            let dup = existing.contains { e in
+                e.call == q.call
+                    && e.band == q.band
+                    && e.mode == q.mode
+                    && abs(e.datetime.timeIntervalSince(q.datetime)) <= tolerance
+            }
+            if dup { dupes.append(q) } else { new.append(q) }
+        }
+        return (new, dupes)
+    }
+
     // MARK: - Award-Aggregation
 
     /// Aggregiert über ALLE Logs:

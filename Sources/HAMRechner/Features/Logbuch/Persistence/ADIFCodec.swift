@@ -1,0 +1,273 @@
+import Foundation
+
+// ADIF 3.x Codec: Encoder (QSOs → ADIF-Text) + Parser (ADIF-Text → Felder-Dicts).
+// Spec: https://adif.org/315/ADIF_315.htm
+//
+// Format-Grundlage:
+//   <TAG:LEN>value <TAG:LEN:TYPE>value ... <EOR>
+//   Header endet mit <EOH>, dann Records.
+//   Längen sind UTF-8-Byte-Anzahl.
+enum ADIFCodec {
+
+    static let appVersion = "HAM-Tools 1.5"
+
+    // MARK: - Export
+
+    static func encode(qsos: [QSO], logName: String) -> String {
+        var out = "ADIF Export von HAM-Tools — Log: \(logName)\n"
+        out += "Generiert: \(currentISOTimestamp())\n"
+        out += field("ADIF_VER", "3.1.5")
+        out += field("PROGRAMID", "HAM-Tools")
+        out += field("PROGRAMVERSION", appVersion)
+        out += field("CREATED_TIMESTAMP", adifTimestamp(Date()))
+        out += "<EOH>\n\n"
+
+        for qso in qsos {
+            out += encodeRecord(qso)
+            out += "\n"
+        }
+        return out
+    }
+
+    private static func encodeRecord(_ q: QSO) -> String {
+        var s = ""
+        // Pflichtfelder
+        s += field("CALL", q.call)
+        s += field("QSO_DATE", dateField(q.datetime))
+        s += field("TIME_ON", timeField(q.datetime))
+        s += field("BAND", q.band)
+        s += field("FREQ", String(format: "%.6f", q.frequencyMHz))
+        s += field("MODE", q.mode)
+        s += field("RST_SENT", q.rstSent)
+        s += field("RST_RCVD", q.rstReceived)
+
+        // Optional-Felder
+        if let v = q.name        { s += field("NAME", v) }
+        if let v = q.qth         { s += field("QTH", v) }
+        if let v = q.locator     { s += field("GRIDSQUARE", v) }
+        if let v = q.country     { s += field("COUNTRY", v) }
+        if let v = q.continent   { s += field("CONT", v) }
+        if let v = q.cqZone      { s += field("CQZ", String(v)) }
+        if let v = q.ituZone     { s += field("ITUZ", String(v)) }
+        if let v = q.comment     { s += field("COMMENT", v) }
+        if let v = q.operatorCall{ s += field("OPERATOR", v) }
+        if let v = q.stationCall { s += field("STATION_CALLSIGN", v) }
+        if let v = q.powerW      { s += field("TX_PWR", String(format: "%g", v)) }
+        if let v = q.antenna     { s += field("ANTENNA", v) }
+        if let v = q.contest     { s += field("CONTEST_ID", v) }
+        if let v = q.contestExchange { s += field("SRX_STRING", v) }
+        if let v = q.distanceKm  { s += field("DISTANCE", String(format: "%.0f", v)) }
+        if let v = q.bearingDeg  { s += field("ANT_AZ", String(format: "%.0f", v)) }
+
+        // POTA — sowohl spezifische als auch generische SIG-Felder schreiben
+        // (verschiedene Logger lesen das unterschiedlich)
+        if let v = q.myPotaRef, !v.isEmpty {
+            s += field("MY_SIG", "POTA")
+            s += field("MY_SIG_INFO", v)
+            s += field("MY_POTA_REF", v)
+        }
+        if let v = q.theirPotaRef, !v.isEmpty {
+            s += field("SIG", "POTA")
+            s += field("SIG_INFO", v)
+            s += field("POTA_REF", v)
+        }
+        // SOTA
+        if let v = q.mySotaRef, !v.isEmpty {
+            s += field("MY_SOTA_REF", v)
+        }
+        if let v = q.theirSotaRef, !v.isEmpty {
+            s += field("SOTA_REF", v)
+        }
+
+        // QSL-Status
+        s += field("LOTW_QSL_SENT", q.lotwSent ? "Y" : "N")
+        s += field("LOTW_QSL_RCVD", q.lotwConfirmed ? "Y" : "N")
+        s += field("EQSL_QSL_SENT", q.eqslSent ? "Y" : "N")
+        s += field("EQSL_QSL_RCVD", q.eqslConfirmed ? "Y" : "N")
+        if let d = q.qslSentDate     { s += field("QSLSDATE", dateField(d)) }
+        if let v = q.qslSentVia      { s += field("QSL_SENT_VIA", v) }
+        if let d = q.qslReceivedDate { s += field("QSLRDATE", dateField(d)) }
+        if let v = q.qslReceivedVia  { s += field("QSL_RCVD_VIA", v) }
+
+        // Solar (proprietäre Felder als APP_*)
+        if let v = q.sfi    { s += field("APP_HAMTOOLS_SFI",    String(v)) }
+        if let v = q.kIndex { s += field("APP_HAMTOOLS_K",      String(format: "%.1f", v)) }
+        if let v = q.aIndex { s += field("APP_HAMTOOLS_A",      String(format: "%.1f", v)) }
+
+        s += "<EOR>\n"
+        return s
+    }
+
+    private static func field(_ tag: String, _ value: String) -> String {
+        let bytes = value.utf8.count
+        return "<\(tag):\(bytes)>\(value) "
+    }
+
+    // MARK: - Import (Parser)
+
+    /// Liest ADIF-Text und gibt eine Liste von Field-Dictionaries zurück
+    /// (ein Dict pro QSO-Record). Tags sind immer uppercased.
+    static func parse(_ text: String) -> [[String: String]] {
+        var records: [[String: String]] = []
+        var current: [String: String] = [:]
+        var i = text.startIndex
+        var inHeader = true
+
+        while i < text.endIndex {
+            // Suche nächste '<' — Anfang eines Tags
+            guard let openIdx = text[i...].firstIndex(of: "<") else { break }
+            // Tag-Ende ist '>'
+            guard let closeIdx = text[openIdx...].firstIndex(of: ">") else { break }
+            let tagBody = text[text.index(after: openIdx)..<closeIdx]
+            let parts = tagBody.split(separator: ":", omittingEmptySubsequences: false)
+            let tag = String(parts[0]).uppercased()
+
+            if tag == "EOH" {
+                inHeader = false
+                i = text.index(after: closeIdx)
+                continue
+            }
+            if tag == "EOR" {
+                if !current.isEmpty { records.append(current) }
+                current = [:]
+                i = text.index(after: closeIdx)
+                continue
+            }
+            // Mit Längen-Spezifizierer: <TAG:N> oder <TAG:N:TYPE>
+            guard parts.count >= 2, let len = Int(parts[1]) else {
+                i = text.index(after: closeIdx)
+                continue
+            }
+            let valueStart = text.index(after: closeIdx)
+            // Wert nach Bytes lesen — UTF-8
+            let valueEnd = endIndex(after: valueStart, byteLength: len, in: text)
+                          ?? text.endIndex
+            let value = String(text[valueStart..<valueEnd])
+            if !inHeader {
+                current[tag] = value
+            }
+            i = valueEnd
+        }
+        // Letzter Record falls ohne abschließendes <EOR>
+        if !current.isEmpty { records.append(current) }
+        return records
+    }
+
+    /// Springt `byteLength` UTF-8-Bytes ab `start` vorwärts und gibt
+    /// den entsprechenden String-Index zurück.
+    private static func endIndex(after start: String.Index,
+                                 byteLength: Int,
+                                 in text: String) -> String.Index? {
+        guard byteLength >= 0 else { return start }
+        var idx = start
+        var remaining = byteLength
+        while remaining > 0, idx < text.endIndex {
+            let c = text[idx]
+            let cBytes = String(c).utf8.count
+            remaining -= cBytes
+            idx = text.index(after: idx)
+        }
+        return idx
+    }
+
+    // MARK: - QSO aus Feld-Dict
+
+    static func qso(from fields: [String: String], logID: UUID) -> QSO? {
+        guard let call = fields["CALL"], !call.isEmpty,
+              let dateStr = fields["QSO_DATE"],
+              let timeStr = fields["TIME_ON"],
+              let dt = parseDate(date: dateStr, time: timeStr)
+        else { return nil }
+
+        let freqStr = fields["FREQ"] ?? "0"
+        let f = Double(freqStr.replacingOccurrences(of: ",", with: ".")) ?? 0
+        var band = fields["BAND"] ?? ""
+        if band.isEmpty, f > 0, let b = HamBand.from(frequencyMHz: f) {
+            band = b.rawValue
+        }
+        let mode = fields["MODE"] ?? ""
+        let rstSent = fields["RST_SENT"] ?? "59"
+        let rstRcvd = fields["RST_RCVD"] ?? "59"
+
+        var q = QSO(logID: logID,
+                    call: call,
+                    datetime: dt,
+                    frequencyMHz: f,
+                    band: band,
+                    mode: mode,
+                    rstSent: rstSent,
+                    rstReceived: rstRcvd)
+        q.name           = fields["NAME"]
+        q.qth            = fields["QTH"]
+        q.locator        = fields["GRIDSQUARE"]
+        q.country        = fields["COUNTRY"]
+        q.continent      = fields["CONT"]
+        q.cqZone         = fields["CQZ"].flatMap(Int.init)
+        q.ituZone        = fields["ITUZ"].flatMap(Int.init)
+        q.comment        = fields["COMMENT"]
+        q.operatorCall   = fields["OPERATOR"]
+        q.stationCall    = fields["STATION_CALLSIGN"]
+        q.powerW         = fields["TX_PWR"].flatMap(Double.init)
+        q.antenna        = fields["ANTENNA"]
+        q.contest        = fields["CONTEST_ID"]
+        q.contestExchange = fields["SRX_STRING"] ?? fields["SRX"]
+        q.distanceKm     = fields["DISTANCE"].flatMap(Double.init)
+        q.bearingDeg     = fields["ANT_AZ"].flatMap(Double.init)
+
+        // POTA/SOTA — Spezial-Felder bevorzugen, sonst aus SIG-Tag
+        q.myPotaRef = fields["MY_POTA_REF"]
+                   ?? (fields["MY_SIG"] == "POTA" ? fields["MY_SIG_INFO"] : nil)
+        q.theirPotaRef = fields["POTA_REF"]
+                     ?? (fields["SIG"] == "POTA" ? fields["SIG_INFO"] : nil)
+        q.mySotaRef = fields["MY_SOTA_REF"]
+                   ?? (fields["MY_SIG"] == "SOTA" ? fields["MY_SIG_INFO"] : nil)
+        q.theirSotaRef = fields["SOTA_REF"]
+                     ?? (fields["SIG"] == "SOTA" ? fields["SIG_INFO"] : nil)
+
+        q.lotwSent      = parseBool(fields["LOTW_QSL_SENT"])
+        q.lotwConfirmed = parseBool(fields["LOTW_QSL_RCVD"])
+        q.eqslSent      = parseBool(fields["EQSL_QSL_SENT"])
+        q.eqslConfirmed = parseBool(fields["EQSL_QSL_RCVD"])
+        q.qslSentDate     = fields["QSLSDATE"].flatMap { parseDate(date: $0, time: "0000") }
+        q.qslSentVia      = fields["QSL_SENT_VIA"]
+        q.qslReceivedDate = fields["QSLRDATE"].flatMap { parseDate(date: $0, time: "0000") }
+        q.qslReceivedVia  = fields["QSL_RCVD_VIA"]
+        return q
+    }
+
+    private static func parseBool(_ s: String?) -> Bool {
+        guard let s else { return false }
+        let u = s.uppercased()
+        return u == "Y" || u == "YES" || u == "1" || u == "TRUE"
+    }
+
+    // MARK: - Date/Time
+
+    private static func dateField(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyyMMdd"
+        return f.string(from: d)
+    }
+    private static func timeField(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "HHmmss"
+        return f.string(from: d)
+    }
+    private static func parseDate(date: String, time: String) -> Date? {
+        let f = DateFormatter()
+        f.timeZone = TimeZone(identifier: "UTC")
+        let normTime = time.padding(toLength: 6, withPad: "0", startingAt: 0)
+        f.dateFormat = "yyyyMMddHHmmss"
+        return f.date(from: date + normTime)
+    }
+    private static func adifTimestamp(_ d: Date) -> String {
+        dateField(d) + " " + timeField(d)
+    }
+    private static func currentISOTimestamp() -> String {
+        let f = ISO8601DateFormatter()
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f.string(from: Date())
+    }
+}

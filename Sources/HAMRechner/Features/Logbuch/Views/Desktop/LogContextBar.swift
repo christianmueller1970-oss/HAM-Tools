@@ -1,7 +1,9 @@
 import SwiftUI
+import AppKit
+import UniformTypeIdentifiers
 
 // Tab-Context-Bar für den »Log«-Tab. Filter über Call, Band, Mode, Country
-// + Status-Zeile mit Anzahl/Pfad.
+// + Status-Zeile mit Anzahl/Pfad + ADIF Import/Export.
 struct LogContextBar: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
@@ -13,6 +15,17 @@ struct LogContextBar: View {
 
     let totalCount: Int
     let filteredCount: Int
+
+    @State private var pendingImport: PendingImport?
+    @State private var lastExportURL: URL?
+    @State private var showExportDoneAlert = false
+
+    struct PendingImport: Identifiable {
+        let id = UUID()
+        let url: URL
+        let qsos: [QSO]
+        let targetLog: Log
+    }
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -68,8 +81,83 @@ struct LogContextBar: View {
                     .buttonStyle(.borderless)
                     .foregroundStyle(theme.accentBlue)
                 }
+                Divider().frame(height: 16).background(theme.separator)
+                actionButton("Import…", icon: "square.and.arrow.down", action: openADIFImport)
+                actionButton("Export ADIF", icon: "square.and.arrow.up", action: exportADIF)
             }
         }
+        .sheet(item: $pendingImport) { p in
+            ADIFImportSheet(sourceURL: p.url,
+                            parsedQSOs: p.qsos,
+                            targetLog: p.targetLog,
+                            onCompleted: { _ in })
+                .environmentObject(themeManager)
+                .environmentObject(manager)
+        }
+        .alert("Export erfolgreich", isPresented: $showExportDoneAlert, presenting: lastExportURL) { url in
+            Button("Im Finder zeigen") {
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            }
+            Button("OK", role: .cancel) {}
+        } message: { url in
+            Text("Log nach \(url.lastPathComponent) exportiert.")
+        }
+    }
+
+    private func actionButton(_ label: String,
+                              icon: String,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 3) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                Text(label)
+                    .font(.caption)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(theme.bgCard2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(theme.separator, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+        .disabled(manager.currentLogID == nil)
+    }
+
+    // MARK: - Export
+
+    private func exportADIF() {
+        guard let url = manager.exportActiveLogAsADIF() else { return }
+        lastExportURL = url
+        showExportDoneAlert = true
+    }
+
+    // MARK: - Import
+
+    private func openADIFImport() {
+        guard let activeID = manager.currentLogID,
+              let activeLog = manager.logs.first(where: { $0.id == activeID })
+        else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        if let adif = UTType(filenameExtension: "adi") {
+            panel.allowedContentTypes = [adif, .text]
+        }
+        panel.prompt = "Importieren"
+        panel.message = "ADIF-Datei (.adi) zum Import auswählen"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let qsos = manager.parseADIF(at: url, targetLogID: activeID)
+        guard !qsos.isEmpty else {
+            // Falls Parse fehlschlug, hier könnte ein Alert kommen
+            return
+        }
+        pendingImport = PendingImport(url: url, qsos: qsos, targetLog: activeLog)
     }
 
     private func filterField(_ placeholder: String,
