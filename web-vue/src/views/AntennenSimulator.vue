@@ -91,12 +91,149 @@ function quadTemplate(fMHz = 28.5, h = 8) {
   }
 }
 
+// ─── Zusätzliche Templates (entsprechend den 14 Antennen-Rechnern) ───────────
+
+function efhwTemplate(fMHz = 7.1) {
+  const draht = (150 / fMHz) * 0.96
+  const lambda = 300 / fMHz
+  const h = Math.max(8, lambda / 2)
+  return {
+    name: `EFHW ${draht.toFixed(2)}m @ ${fMHz} MHz`,
+    freq: fMHz, ground: 'average', height: h,
+    wires: [
+      { tag: 1, segments: 21, x1: 0, y1: 0, z1: h, x2: draht, y2: 0, z2: h, radius_mm: 1.0 },
+      { tag: 2, segments: 5,  x1: 0, y1: 0, z1: h, x2: -lambda * 0.05, y2: 0, z2: h, radius_mm: 1.0 },
+    ],
+    excitation: { wire_tag: 1, segment: 1 },
+  }
+}
+
+function windomTemplate(fMHz = 7.1) {
+  const gesamt = (150 / fMHz) * 0.95
+  const lang = gesamt * 0.64
+  const kurz = gesamt * 0.36
+  const h = Math.max(8, (300 / fMHz) / 2)
+  return {
+    name: `Windom (OCFD) ${gesamt.toFixed(2)}m @ ${fMHz} MHz`,
+    freq: fMHz, ground: 'average', height: h,
+    wires: [
+      { tag: 1, segments: 9,  x1: -kurz, y1: 0, z1: h, x2: 0,    y2: 0, z2: h, radius_mm: 1.0 },
+      { tag: 2, segments: 17, x1: 0,     y1: 0, z1: h, x2: lang, y2: 0, z2: h, radius_mm: 1.0 },
+    ],
+    excitation: { wire_tag: 2, segment: 1 },
+  }
+}
+
+function groundplaneTemplate(fMHz = 14.175) {
+  const strahler = (75 / fMHz) * 0.95
+  const radial = strahler * 1.02
+  const lambda = 300 / fMHz
+  const h = Math.max(lambda * 0.1, 3)
+  const winkel = 45 * Math.PI / 180
+  const radialDz = -Math.sin(winkel) * radial
+  const radialDr =  Math.cos(winkel) * radial
+  const wires = [
+    { tag: 1, segments: 11, x1: 0, y1: 0, z1: h, x2: 0, y2: 0, z2: h + strahler, radius_mm: 2.0 },
+  ]
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * 2 * Math.PI
+    wires.push({
+      tag: 2 + i, segments: 9,
+      x1: 0, y1: 0, z1: h,
+      x2: Math.cos(a) * radialDr, y2: Math.sin(a) * radialDr, z2: h + radialDz,
+      radius_mm: 1.0,
+    })
+  }
+  return {
+    name: `Groundplane ${strahler.toFixed(2)}m @ ${fMHz} MHz (4 Radials)`,
+    freq: fMHz, ground: 'average', height: h, wires,
+    excitation: { wire_tag: 1, segment: 1 },
+  }
+}
+
+function moxonTemplate(fMHz = 14.175) {
+  const lam = (300 / fMHz) * 0.95
+  const A = lam * 0.4750, B = lam * 0.0500, C = lam * 0.0156, D = lam * 0.0624, E = lam * 0.4750
+  const depth = B + C + D
+  const xD = depth / 2, xR = -depth / 2
+  const xDTail = xD - B, xRTail = xR + D
+  const halfA = A / 2, halfE = E / 2
+  const h = Math.max(8, (300 / fMHz) / 2)
+  return {
+    name: `Moxon @ ${fMHz} MHz`,
+    freq: fMHz, ground: 'average', height: h,
+    wires: [
+      { tag: 1, segments: 11, x1: xD, y1: -halfA, z1: h, x2: xD, y2: 0,     z2: h, radius_mm: 2.0 },
+      { tag: 2, segments: 11, x1: xD, y1: 0,     z1: h, x2: xD, y2: halfA, z2: h, radius_mm: 2.0 },
+      { tag: 3, segments: 5,  x1: xD, y1: -halfA, z1: h, x2: xDTail, y2: -halfA, z2: h, radius_mm: 2.0 },
+      { tag: 4, segments: 5,  x1: xD, y1:  halfA, z1: h, x2: xDTail, y2:  halfA, z2: h, radius_mm: 2.0 },
+      { tag: 5, segments: 21, x1: xR, y1: -halfE, z1: h, x2: xR, y2: halfE, z2: h, radius_mm: 2.0 },
+      { tag: 6, segments: 5,  x1: xR, y1: -halfE, z1: h, x2: xRTail, y2: -halfE, z2: h, radius_mm: 2.0 },
+      { tag: 7, segments: 5,  x1: xR, y1:  halfE, z1: h, x2: xRTail, y2:  halfE, z2: h, radius_mm: 2.0 },
+    ],
+    excitation: { wire_tag: 2, segment: 1 },
+  }
+}
+
+function deltaLoopTemplate(fMHz = 7.1) {
+  // Gleichseitig, 110Ω-Variante
+  const total = (306.3 / fMHz)
+  const side = total / 3
+  const half = side / 2
+  const triH = side * Math.sqrt(3) / 2
+  const lambda = 300 / fMHz
+  const h = Math.max(8, lambda * 0.25)
+  return {
+    name: `Delta-Loop ${total.toFixed(2)}m @ ${fMHz} MHz`,
+    freq: fMHz, ground: 'average', height: h,
+    wires: [
+      { tag: 1, segments: 7,  x1: 0, y1: -half, z1: h,         x2: 0, y2: 0,    z2: h,         radius_mm: 1.5 },
+      { tag: 2, segments: 7,  x1: 0, y1: 0,     z1: h,         x2: 0, y2: half, z2: h,         radius_mm: 1.5 },
+      { tag: 3, segments: 13, x1: 0, y1: half,  z1: h,         x2: 0, y2: 0,    z2: h + triH,  radius_mm: 1.5 },
+      { tag: 4, segments: 13, x1: 0, y1: 0,     z1: h + triH,  x2: 0, y2: -half, z2: h,        radius_mm: 1.5 },
+    ],
+    excitation: { wire_tag: 2, segment: 1 },
+  }
+}
+
+function yagi5Template(fMHz = 28.5) {
+  const lambda = 300 / fMHz
+  const h = Math.max(8, lambda / 2)
+  // 5-Element Yagi mit Standard-Faktoren
+  const factors = [
+    { name: 'Refl', len: 0.500, S: 0 },
+    { name: 'Drv',  len: 0.469, S: 0.15 },
+    { name: 'D1',   len: 0.442, S: 0.33 },
+    { name: 'D2',   len: 0.438, S: 0.55 },
+    { name: 'D3',   len: 0.434, S: 0.80 },
+  ]
+  const wires = factors.map((el, idx) => {
+    const halfLen = lambda * el.len * 0.95 / 2
+    const x = lambda * el.S
+    return {
+      tag: idx + 1, segments: 21,
+      x1: x, y1: -halfLen, z1: h, x2: x, y2: halfLen, z2: h, radius_mm: 5.0,
+    }
+  })
+  return {
+    name: `5-Element Yagi @ ${fMHz} MHz`,
+    freq: fMHz, ground: 'average', height: h, wires,
+    excitation: { wire_tag: 2, segment: 11 },
+  }
+}
+
 const TEMPLATES = {
-  dipol:    () => dipolTemplate(),
-  invV:     () => invertedVTemplate(),
-  yagi2:    () => yagi2Template(),
-  yagi3:    () => yagi3Template(),
-  quad:     () => quadTemplate(),
+  dipol:        () => dipolTemplate(),
+  invV:         () => invertedVTemplate(),
+  yagi2:        () => yagi2Template(),
+  yagi3:        () => yagi3Template(),
+  yagi5:        () => yagi5Template(),
+  quad:         () => quadTemplate(),
+  efhw:         () => efhwTemplate(),
+  windom:       () => windomTemplate(),
+  groundplane:  () => groundplaneTemplate(),
+  moxon:        () => moxonTemplate(),
+  deltaloop:    () => deltaLoopTemplate(),
 }
 
 // ─── Reactive State ───────────────────────────────────────────────────────────
@@ -412,15 +549,30 @@ const PLOT_C = PLOT_SIZE / 2
 
   <div class="card">
     <h2>Templates</h2>
-    <div class="seg" style="flex-wrap: wrap; gap:6px">
+    <div style="font-size:11px; opacity:0.7; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px">Dipol-Familie</div>
+    <div class="seg" style="flex-wrap: wrap; gap:6px; margin-bottom:10px">
       <button class="sb" @click="loadTemplate('dipol')">Dipol</button>
       <button class="sb" @click="loadTemplate('invV')">Inverted-V</button>
+      <button class="sb" @click="loadTemplate('efhw')">EFHW</button>
+      <button class="sb" @click="loadTemplate('windom')">Windom (OCFD)</button>
+    </div>
+    <div style="font-size:11px; opacity:0.7; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px">Yagi / Beam</div>
+    <div class="seg" style="flex-wrap: wrap; gap:6px; margin-bottom:10px">
       <button class="sb" @click="loadTemplate('yagi2')">2-El Yagi</button>
       <button class="sb" @click="loadTemplate('yagi3')">3-El Yagi</button>
-      <button class="sb" @click="loadTemplate('quad')">Quad-Loop</button>
+      <button class="sb" @click="loadTemplate('yagi5')">5-El Yagi</button>
+      <button class="sb" @click="loadTemplate('moxon')">Moxon</button>
     </div>
-    <p style="font-size:11px; opacity:0.65; margin-top:8px">
-      Templates setzen Drahtmodell, Speisepunkt, Boden + Frequenz auf sinnvolle Defaults. Du kannst danach alles editieren.
+    <div style="font-size:11px; opacity:0.7; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px">Loop / Vertikal</div>
+    <div class="seg" style="flex-wrap: wrap; gap:6px">
+      <button class="sb" @click="loadTemplate('quad')">Quad-Loop</button>
+      <button class="sb" @click="loadTemplate('deltaloop')">Delta-Loop</button>
+      <button class="sb" @click="loadTemplate('groundplane')">Groundplane</button>
+    </div>
+    <p style="font-size:11px; opacity:0.65; margin-top:10px; line-height:1.5">
+      Templates setzen Drahtmodell, Speisepunkt, Boden + Frequenz auf sinnvolle Defaults — du kannst danach alles editieren.
+      Für komplexere Antennen (Hexbeam, Spiderbeam, HB9CV, J-Pole, Magnetic Loop) öffnest du am besten den entsprechenden
+      Rechner und nutzt dort den <strong>📡 Im Sim öffnen</strong>-Button.
     </p>
   </div>
 
