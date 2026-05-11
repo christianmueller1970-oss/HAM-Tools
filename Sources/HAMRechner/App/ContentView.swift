@@ -4,6 +4,7 @@ enum Calculator: String, CaseIterable, Identifiable {
     // Live-Tools
     case dxCluster = "DX-Cluster"
     case bandplan  = "IARU R1 Bandplan"
+    case logbuch   = "Logbuch"
 
     // Antennen – Drahtantennen
     case dipol            = "Dipol"
@@ -51,6 +52,7 @@ enum Calculator: String, CaseIterable, Identifiable {
         switch self {
         case .dxCluster:           return "dot.radiowaves.left.and.right.circle"
         case .bandplan:            return "chart.bar.xaxis"
+        case .logbuch:             return "book.closed"
         case .dipol:               return "antenna.radiowaves.left.and.right"
         case .groundplane:         return "arrow.up.to.line"
         case .jpole:               return "j.square"
@@ -84,7 +86,7 @@ enum Calculator: String, CaseIterable, Identifiable {
 
     var category: String {
         switch self {
-        case .dxCluster, .bandplan:
+        case .dxCluster, .bandplan, .logbuch:
             return "Live-Tools"
         case .dipol, .groundplane, .jpole, .sperrtopf, .windom,
              .efhwRechner, .efhwVerkuerzung, .loopRechner:
@@ -206,6 +208,7 @@ struct CalculatorRouter: View {
         // Live-Tools
         case .dxCluster:             DXClusterView()
         case .bandplan:              BandplanView()
+        case .logbuch:               LogbuchView()
         // Drahtantennen
         case .dipol:             DipolView()
         case .groundplane:       GroundplaneView()

@@ -1,0 +1,105 @@
+import Foundation
+
+struct QSO: Identifiable, Codable, Hashable {
+    let id: UUID
+    var logID: UUID                 // Foreign Key
+
+    // Pflicht-Felder
+    var call: String
+    var datetime: Date
+    var frequencyMHz: Double
+    var band: String                // HamBand.rawValue
+    var mode: String
+    var rstSent: String
+    var rstReceived: String
+
+    // Standard-Optionalfelder
+    var name: String?
+    var qth: String?
+    var locator: String?
+    var country: String?
+    var continent: String?
+    var cqZone: Int?
+    var ituZone: Int?
+    var comment: String?
+    var operatorCall: String?
+    var stationCall: String?
+    var powerW: Double?
+    var antenna: String?
+
+    // Contest (Phase 4)
+    var contest: String?
+    var contestExchange: String?
+
+    // POTA/SOTA (Phase 4c/4d)
+    var myPotaRef: String?
+    var myPotaRefs: String?
+    var theirPotaRef: String?
+    var mySotaRef: String?
+    var theirSotaRef: String?
+    var theirSotaPoints: Int?
+
+    // QSL (Phase 6)
+    var qslSentDate: Date?
+    var qslSentVia: String?
+    var qslReceivedDate: Date?
+    var qslReceivedVia: String?
+    var lotwSent: Bool = false
+    var lotwConfirmed: Bool = false
+    var eqslSent: Bool = false
+    var eqslConfirmed: Bool = false
+    var clublogSent: Bool = false
+
+    // Solar (Phase 7)
+    var sfi: Int?
+    var kIndex: Double?
+    var aIndex: Double?
+
+    // Geo (Phase 3)
+    var distanceKm: Double?
+    var bearingDeg: Double?
+
+    // Meta
+    let createdAt: Date
+    var modifiedAt: Date
+
+    init(id: UUID = UUID(),
+         logID: UUID,
+         call: String,
+         datetime: Date = Date(),
+         frequencyMHz: Double,
+         band: String,
+         mode: String,
+         rstSent: String,
+         rstReceived: String,
+         name: String? = nil,
+         qth: String? = nil,
+         locator: String? = nil,
+         comment: String? = nil,
+         operatorCall: String? = nil,
+         stationCall: String? = nil,
+         powerW: Double? = nil,
+         antenna: String? = nil,
+         createdAt: Date = Date(),
+         modifiedAt: Date = Date()) {
+        self.id = id
+        self.logID = logID
+        self.call = call.uppercased()
+        self.datetime = datetime
+        self.frequencyMHz = frequencyMHz
+        self.band = band
+        self.mode = mode
+        self.rstSent = rstSent
+        self.rstReceived = rstReceived
+        self.name = name
+        self.qth = qth
+        self.locator = locator
+        self.comment = comment
+        self.operatorCall = operatorCall
+        self.stationCall = stationCall
+        self.powerW = powerW
+        self.antenna = antenna
+        self.createdAt = createdAt
+        self.modifiedAt = modifiedAt
+    }
+}
