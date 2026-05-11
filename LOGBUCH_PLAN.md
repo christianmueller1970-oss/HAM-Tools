@@ -5,6 +5,43 @@
 Web-Portierung später dort wo möglich (CAT-Anbindung geht im Browser nicht,
 QSO-Erfassung schon).
 
+## Priorisierung (nach Q&A 2026-05-11)
+
+**HB9HJI-Setup:**
+- **Migration:** kein bestehendes Log — Start von Null. ADIF-Import bleibt
+  wichtig, aber NICHT blockierend für Phase 1 → Phase 2.
+- **Contests:** große Internationale (CQ WW, CQ WPX, IARU HF) +
+  WAE EU DX (mit QTC-Feature) + Outdoor (SOTA/POTA/WWFF/Field Day).
+  → Contest-Modus muss QTC unterstützen + Activator-Mode für SOTA/POTA.
+- **CAT:** Icom CI-V + klassische Yaesu/Kenwood/Elecraft. FlexRadio raus.
+  → Hamlib-Subprocess als alleinige Strategie (deckt alles ab).
+- **Sync:** lokal first. iCloud-Toggle erst später als Settings-Option.
+
+**Daraus abgeleiteter Phasen-Plan:**
+
+| # | Phase | Dauer | Begründung |
+|---|---|---|---|
+| 1 | QSO-Form + lokale DB + Tabellen-Ansicht | 2–3 Sessions | MVP |
+| 2 | ADIF Import/Export + Cabrillo Skelett | 1–2 | Datenaustausch |
+| 3 | QRZ.com-Lookup + Geo (Distance/Bearing/Locator) | 1 | sichtbarer Nutzen |
+| 4 | **Contest-Mode (CQ WW + CQ WPX + IARU HF)** | 2–3 | erste 3 Templates |
+| 4b | **WAE mit QTC** | 1 | spezieller Modus |
+| 4c | **SOTA/POTA-Activator** + DX-Cluster-Integration | 1–2 | Outdoor |
+| 5 | CAT via Hamlib-Subprocess (Icom + Yaesu/Kenwood) | 2 | Auto-Fill TRX |
+| 6 | LoTW + eQSL + Club Log Upload | 2–3 | Konfirmationen |
+| 7 | Award-Tracking (DXCC, WAS, IOTA, SOTA, POTA) | 2 | Visualisierung |
+| 8 | QSO-Karte + Stats-Dashboard | 1–2 | Sahnehäubchen |
+| 9 | iCloud-Sync (CloudKit, optional) | 1–2 | als Settings-Toggle |
+| 10 | QSL-Management + Druck | optional |  |
+| 11 | Voice/CW-Keyer | optional | nur wenn gewünscht |
+
+**Grob 18–25 Sessions** für ein produktionsreifes Logbuch das alle wichtigen
+HB9HJI-Workflows abdeckt. Cabrillo + QTC + SOTA-Activator sind die
+"besonderen" Punkte gegenüber generischen Loggern.
+
+---
+
+
 **Inspirationen / Referenz-Tools:**
 - [MacLoggerDX](https://www.dogparksoftware.com/MacLoggerDX.html) — der Klassiker
   auf macOS, Multi-Radio, Live-Spot-Map, eingebaute Audio, sehr feature-reich
@@ -240,18 +277,23 @@ im Native-Client.
 
 ---
 
-## Offene Fragen
+## Geklärte Fragen (2026-05-11)
 
-- [ ] **iCloud-Sync** über CloudKit von Anfang an mitdenken, oder erst lokal?
-  (Empfehlung: lokal first, CloudKit als Settings-Toggle ab Phase 2)
-- [ ] **Migration aus bestehendem Logger?** Du hast schon ein Log irgendwo
-  (welcher Logger gerade)? Dann ADIF-Import ist Priorität.
-- [ ] **Welche Contests** machst du regelmäßig? Damit weiß ich welche
-  Templates zuerst gebaut werden müssen.
-- [ ] **CAT-Anbindung welche TRX**? (Icom IC-7300/IC-705/IC-9700, Yaesu FT-991,
-  Kenwood TS-590, Elecraft K3/KX3, FlexRadio?)
-- [ ] **Audio-Features wichtig?** Voice-Keyer + CW-Sender sind ein eigenes
-  großes Thema mit AudioUnit-Plumbing. Falls nicht prio: weglassen.
+- [x] **iCloud-Sync:** lokal first, CloudKit als Settings-Toggle (Phase 9).
+- [x] **Migration:** kein bestehendes Log — von Null. ADIF-Import in Phase 2.
+- [x] **Contests:** CQ WW + CQ WPX + IARU HF (Standard-Multis), WAE mit QTC,
+  SOTA/POTA/WWFF + Field Day als Activator.
+- [x] **CAT:** Icom CI-V + Yaesu/Kenwood/Elecraft via Hamlib-Subprocess.
+  FlexRadio entfällt vorerst.
+- [ ] **Audio-Features?** noch offen — Voice-Keyer + CW-Sender. Vorschlag:
+  weglassen für MVP, später als Phase 11.
+
+## Noch offene Detail-Fragen
+
+- [ ] Konkrete Icom-Modelle? (für CI-V-Adressen-Voreinstellungen)
+- [ ] Antennen-Setup das geloggt werden soll? (Hexbeam, EFHW, vertikal?)
+- [ ] Operator: nur HB9HJI oder auch Club-Call / Multi-OP-Sessions?
+- [ ] Sprache UI: Deutsch only oder D/E-Toggle?
 
 ---
 
