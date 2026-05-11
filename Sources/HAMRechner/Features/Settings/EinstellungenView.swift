@@ -204,7 +204,7 @@ private struct NodeEditSheet: View {
                 Section {
                     HStack {
                         Text("Name").frame(width: 60, alignment: .leading)
-                        TextField("z.B. DXSpider Schweiz", text: $node.name)
+                        TextField("z.B. DXSpider Funkwelt", text: $node.name)
                             .textFieldStyle(.roundedBorder)
                     }
                     HStack {
@@ -299,12 +299,14 @@ private struct DarstellungTab: View {
 private struct AlertsTab: View {
     @EnvironmentObject var watchList: WatchListStore
     @State private var newEntry = ""
+    @State private var newDXCC = MOST_WANTED_DXCC.first ?? ""
+    @AppStorage("alertCooldownMin") private var alertCooldownMin = 15
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
 
-                GroupBox("Watch-Liste") {
+                GroupBox("Watch-Liste (Rufzeichen / Präfix)") {
                     VStack(alignment: .leading, spacing: 8) {
                         if watchList.entries.isEmpty {
                             Text("Noch keine Einträge")
@@ -347,11 +349,70 @@ private struct AlertsTab: View {
                     .padding(4)
                 }
 
+                GroupBox("DXCC-Watch (seltene Entitäten)") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if watchList.dxccEntries.isEmpty {
+                            Text("Noch keine DXCC-Einträge")
+                                .foregroundStyle(.secondary)
+                                .font(.callout)
+                                .padding(.vertical, 4)
+                        } else {
+                            ForEach(watchList.dxccEntries, id: \.self) { country in
+                                HStack {
+                                    Text(country).font(.body)
+                                    Spacer()
+                                    Button {
+                                        if let idx = watchList.dxccEntries.firstIndex(of: country) {
+                                            watchList.removeDXCC(at: IndexSet(integer: idx))
+                                        }
+                                    } label: {
+                                        Image(systemName: "trash").foregroundStyle(.red)
+                                    }
+                                    .buttonStyle(.borderless)
+                                }
+                                .padding(.vertical, 2)
+                                Divider()
+                            }
+                        }
+
+                        HStack(spacing: 8) {
+                            Picker("", selection: $newDXCC) {
+                                ForEach(MOST_WANTED_DXCC, id: \.self) { Text($0).tag($0) }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            Button("Hinzufügen") { addDXCC() }
+                                .disabled(newDXCC.isEmpty || watchList.dxccEntries.contains(newDXCC))
+                        }
+
+                        Text("Alert wenn ein Spot aus diesem Land erscheint (z.B. seltene Insel-DXCCs).")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(4)
+                }
+
                 GroupBox("Benachrichtigungen") {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 10) {
                         Toggle("macOS-Benachrichtigungen aktivieren",
                                isOn: $watchList.notificationsEnabled)
                         Text("Beim Erscheinen eines überwachten Spots wird eine System-Benachrichtigung gesendet.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Divider().padding(.vertical, 2)
+
+                        HStack {
+                            Text("Cooldown:").frame(width: 90, alignment: .leading)
+                            Slider(value: Binding(
+                                get: { Double(alertCooldownMin) },
+                                set: { alertCooldownMin = Int($0) }
+                            ), in: 1...60, step: 1)
+                            Text("\(alertCooldownMin) Min")
+                                .font(.system(.body, design: .monospaced))
+                                .frame(width: 60, alignment: .trailing)
+                        }
+                        Text("Derselbe Call/DXCC wird frühestens nach Ablauf des Cooldowns erneut alarmiert (verhindert Spam bei Pile-Ups).")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -368,5 +429,9 @@ private struct AlertsTab: View {
         guard !trimmed.isEmpty else { return }
         watchList.add(trimmed.uppercased())
         newEntry = ""
+    }
+
+    private func addDXCC() {
+        watchList.addDXCC(newDXCC)
     }
 }

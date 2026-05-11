@@ -22,13 +22,23 @@ const baender = reactive([
 
 function bandData(b) {
   const lambda = 300 / b.fMHz
+  const arm = lambda * 0.260
   return {
     ...b,
     lambda,
     treiber: lambda * 0.440,
     reflektor: lambda * 0.495,
-    arm: lambda * 0.260,
+    arm,
+    spreizer: arm + 0.20,   // physische Länge inkl. 20 cm Reserve für Tip Spacer
   }
+}
+
+function spreizerEmpfehlung(maxArmM) {
+  const phys = maxArmM + 0.20
+  if (phys <= 5.5) return '5,4 m konische Glasfaserstäbe (Spiderbeam-Lieferant)'
+  if (phys <= 6.5) return '6 m Glasfaserstäbe (Verstärkung am Knick empfohlen)'
+  if (phys <= 8.0) return '7,8 m konische Stäbe (z.B. 40m-Hexbeam-Set)'
+  return 'Maßanfertigung erforderlich'
 }
 
 const aktiveBaender = computed(() => baender.filter(b => b.aktiv).map(bandData))
@@ -124,7 +134,7 @@ const sideGeom = computed(() => {
       <h2>Maße pro Band</h2>
       <table class="tbl hex-tbl">
         <thead>
-          <tr><th>Band</th><th>Frequenz</th><th>Treiber</th><th>Reflektor</th><th>Arm</th></tr>
+          <tr><th>Band</th><th>Frequenz</th><th>Treiber</th><th>Reflektor</th><th>Arm el.</th><th>Spreizer</th></tr>
         </thead>
         <tbody>
           <tr v-for="b in aktiveBaender" :key="b.id">
@@ -133,9 +143,13 @@ const sideGeom = computed(() => {
             <td class="mono">{{ fmt(b.treiber) }} m</td>
             <td class="mono">{{ fmt(b.reflektor) }} m</td>
             <td class="mono">{{ fmt(b.arm) }} m</td>
+            <td class="mono fw7">{{ fmt(b.spreizer) }} m</td>
           </tr>
         </tbody>
       </table>
+      <p style="font-size:11px;opacity:0.65;margin:8px 0 0">
+        Spreizer = Arm + 20 cm Reserve (Tip Spacer & Knotensicherung). Pro Hexbeam werden 6 Spreizer benötigt — alle in Länge des längsten aktiven Arms.
+      </p>
     </div>
 
     <div class="card">
@@ -220,16 +234,104 @@ const sideGeom = computed(() => {
     </div>
 
     <div class="card">
+      <h2>Einspeisung — Center Post mit Band-Anschlüssen</h2>
+      <div class="skz-bg">
+        <svg viewBox="0 0 600 380" preserveAspectRatio="xMidYMid meet">
+          <!-- Geometrie-Konstanten -->
+          <!-- cx=300, postTop=30, postBot=290, postWidth=22 -->
+
+          <!-- Center Post (Aluminium-Vierkant) -->
+          <rect x="289" y="30" width="22" height="260" fill="#9ca3af" fill-opacity="0.35" stroke="#6b7280" stroke-width="1.5" rx="2"/>
+          <text x="300" y="20" text-anchor="middle" font-size="9" font-weight="bold" fill="var(--ts)">Center Post</text>
+          <text x="300" y="32" text-anchor="middle" font-size="8" fill="var(--ts)" opacity="0.7">Aluminium-Vierkant</text>
+
+          <!-- Pro Band: Anschluss + Treiber-V-Schenkel (sortiert: niedrigste Frequenz oben) -->
+          <g v-for="(b, i) in [...aktiveBaender].sort((a, bb) => a.fMHz - bb.fMHz)" :key="b.id">
+            <!-- Berechnete Y-Position basierend auf Index -->
+            <!-- yBand = 30 + 260/(n+1) * (i+1) -->
+            <!-- armSpread = 90 + i*18, armUp = 18 + i*4 -->
+
+            <!-- Linker Treiber-Schenkel -->
+            <line :x1="300 - (90 + i * 18)"
+                  :y1="30 + 260 / (aktiveBaender.length + 1) * (i + 1) - (18 + i * 4)"
+                  :x2="300 - 11 - 6"
+                  :y2="30 + 260 / (aktiveBaender.length + 1) * (i + 1)"
+                  :stroke="bandColors[b.id]" stroke-width="2"/>
+            <!-- Rechter Treiber-Schenkel -->
+            <line :x1="300 + (90 + i * 18)"
+                  :y1="30 + 260 / (aktiveBaender.length + 1) * (i + 1) - (18 + i * 4)"
+                  :x2="300 + 11 + 6"
+                  :y2="30 + 260 / (aktiveBaender.length + 1) * (i + 1)"
+                  :stroke="bandColors[b.id]" stroke-width="2"/>
+            <!-- Schraubposten links -->
+            <circle :cx="300 - 11 - 6" :cy="30 + 260 / (aktiveBaender.length + 1) * (i + 1)"
+                    r="4" fill="#9ca3af" stroke="var(--text)" stroke-opacity="0.6" stroke-width="1"/>
+            <!-- Schraubposten rechts -->
+            <circle :cx="300 + 11 + 6" :cy="30 + 260 / (aktiveBaender.length + 1) * (i + 1)"
+                    r="4" fill="#9ca3af" stroke="var(--text)" stroke-opacity="0.6" stroke-width="1"/>
+            <!-- Band-Label rechts -->
+            <text :x="300 + 11 + 18" :y="30 + 260 / (aktiveBaender.length + 1) * (i + 1) + 4"
+                  font-size="11" font-weight="bold" :fill="bandColors[b.id]">{{ b.name }}</text>
+          </g>
+
+          <!-- Hinweis "Schraubposten 180°" -->
+          <text x="200" y="60" text-anchor="end" font-size="8" fill="var(--ts)">Schraubposten</text>
+          <text x="200" y="69" text-anchor="end" font-size="7" fill="var(--ts)" opacity="0.7">(180° gegenüberliegend)</text>
+
+          <!-- Koax-Standoffs am Post (links) -->
+          <g stroke="#9ca3af" stroke-opacity="0.7" stroke-width="1">
+            <line x1="289" y1="87" x2="271" y2="87"/>
+            <line x1="289" y1="173" x2="271" y2="173"/>
+            <line x1="289" y1="251" x2="271" y2="251"/>
+          </g>
+          <circle cx="271" cy="87" r="3" fill="#9ca3af"/>
+          <circle cx="271" cy="173" r="3" fill="#9ca3af"/>
+          <circle cx="271" cy="251" r="3" fill="#9ca3af"/>
+          <text x="266" y="159" text-anchor="end" font-size="8" fill="var(--ts)">Koax-Standoffs</text>
+
+          <!-- Koax läuft seitlich am Post hoch -->
+          <line x1="271" y1="38" x2="271" y2="290" stroke="var(--text)" stroke-width="4"/>
+          <line x1="271" y1="38" x2="271" y2="290" stroke="#9ca3af" stroke-opacity="0.7" stroke-width="2"/>
+
+          <!-- Koax kreuzt unter Post zur Choke mittig -->
+          <line x1="271" y1="290" x2="300" y2="290" stroke="#9ca3af" stroke-opacity="0.7" stroke-width="2"/>
+
+          <!-- Mantelwellensperre (Choke) -->
+          <rect x="268" y="294" width="64" height="22" fill="#f97316" fill-opacity="0.18" stroke="#f97316" stroke-width="1.8" rx="4"/>
+          <text x="300" y="309" text-anchor="middle" font-size="9" font-weight="bold" fill="#f97316">1:1 Choke</text>
+
+          <!-- Koax nach unten -->
+          <line x1="300" y1="316" x2="300" y2="366" stroke="var(--text)" stroke-width="4"/>
+          <line x1="300" y1="316" x2="300" y2="366" stroke="#9ca3af" stroke-opacity="0.7" stroke-width="2"/>
+          <text x="308" y="361" font-size="10" font-weight="600" fill="var(--text)">50 Ω Koax → Shack</text>
+        </svg>
+      </div>
+      <p style="font-size:13px;opacity:0.85;margin:10px 0 0;line-height:1.5">
+        <strong>Center Post mit Band-Anschlüssen:</strong> Vertikaler Aluminium-Vierkant-Post
+        mit pro Band einem horizontalen Anschluss aus zwei Schraubposten (180° gegenüberliegend).
+        Die beiden Treiber-Schenkel jedes Bands werden direkt an diese Schrauben angeschraubt —
+        kein zentraler Knoten am Hub. Das <strong>Koax läuft seitlich am Post hoch</strong>
+        (mit Standoffs zur Vermeidung kapazitiver Kopplung zum Mast) und ist intern an alle
+        Band-Anschlüsse parallel geführt. <strong>Mantelwellensperre (1:1 Choke)</strong> sitzt
+        unten am Post-Fuß. Im Resonanzfall ist nur das aktive Band niederohmig (~50 Ω), andere
+        Bänder sind off-resonance hochohmig und stören kaum.
+      </p>
+    </div>
+
+    <div class="card">
       <h2>Zusammenfassung</h2>
       <div class="rr"><span class="lbl">Anzahl Bänder</span><span class="val">{{ aktiveBaender.length }}</span></div>
       <div class="rr"><span class="lbl">Niedrigstes Band</span><span class="val">{{ referenzBand ? `${referenzBand.name} (${fmt(referenzBand.fMHz)} MHz)` : '–' }}</span></div>
-      <div class="rr hi"><span class="lbl">Längster Arm</span><span class="val">{{ fmt(maxArm) }} m</span></div>
-      <div class="rr hi"><span class="lbl">Gesamtdurchmesser</span><span class="val">{{ fmt(maxArm * 2) }} m</span></div>
+      <div class="rr hi"><span class="lbl">Längster Arm (el.)</span><span class="val">{{ fmt(maxArm) }} m</span></div>
+      <div class="rr hi"><span class="lbl">Spreizer-Länge phys.</span><span class="val">{{ fmt(maxArm + 0.20) }} m × 6 Stück</span></div>
+      <div class="rr"><span class="lbl">Material-Empfehlung</span><span class="val">{{ spreizerEmpfehlung(maxArm) }}</span></div>
+      <div class="rr"><span class="lbl">Gesamtdurchmesser</span><span class="val">{{ fmt((maxArm + 0.20) * 2) }} m</span></div>
       <template v-if="referenzBand">
         <div class="rr"><span class="lbl">Treiber {{ referenzBand.name }}</span><span class="val">{{ fmt(referenzBand.treiber) }} m</span></div>
         <div class="rr"><span class="lbl">Reflektor {{ referenzBand.name }}</span><span class="val">{{ fmt(referenzBand.reflektor) }} m</span></div>
       </template>
       <div class="rr"><span class="lbl">Speisepunkt-Impedanz</span><span class="val">≈ 50 Ω (direktgekoppelt)</span></div>
+      <div class="rr"><span class="lbl">Mantelwellensperre</span><span class="val">1:1 Choke-Balun direkt am Speisepunkt</span></div>
       <div class="rr"><span class="lbl">Gewinn</span><span class="val">≈ 5–6 dBd (HF-Bänder)</span></div>
     </div>
   </template>

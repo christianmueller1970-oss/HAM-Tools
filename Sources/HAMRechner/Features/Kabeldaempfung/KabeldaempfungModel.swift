@@ -91,7 +91,15 @@ let allKabel: [Koaxkabel] = [
     // H-Typen
     .init(id: "h100",       gruppe: "H-Typen",        name: "H-100",          beschreibung: "Preiswertes Allroundkabel, 6 mm",                  impedanz: 50, dbPro100m: [3.2, 5.5, 10.2, 13.0, 19.2, 23.2, 38.5, 45.5]),
     .init(id: "h155",       gruppe: "H-Typen",        name: "H-155",          beschreibung: "Flexibel, Low Loss, 5 mm, sehr verbreitet",        impedanz: 50, dbPro100m: [2.9, 4.9, 9.2, 11.6, 17.1, 20.7, 34.3, 40.6]),
-    .init(id: "hypflex10",  gruppe: "H-Typen",        name: "Hyperflex 10",   beschreibung: "Sehr flexibel, 10 mm, gute Schirmung",             impedanz: 50, dbPro100m: [1.5, 2.6, 4.8, 6.1, 9.0, 10.9, 18.1, 21.4]),
+    // Messi & Paoloni
+    .init(id: "mp_hf5",     gruppe: "Messi & Paoloni", name: "Hyperflex 5",   beschreibung: "Sehr flexibel, 5 mm, gute Schirmung",              impedanz: 50, dbPro100m: [2.6, 4.4, 8.2, 10.4, 15.3, 18.5, 30.8, 36.5]),
+    .init(id: "hypflex10",  gruppe: "Messi & Paoloni", name: "Hyperflex 10",  beschreibung: "Flexibel, 10 mm, beliebter Stationsfeeder",        impedanz: 50, dbPro100m: [1.5, 2.6, 4.8, 6.1, 9.0, 10.9, 18.1, 21.4]),
+    .init(id: "mp_hf13",    gruppe: "Messi & Paoloni", name: "Hyperflex 13",  beschreibung: "Low-Loss, 13 mm, professioneller Feeder",          impedanz: 50, dbPro100m: [1.0, 1.7, 3.2, 4.1, 6.0, 7.2, 12.1, 14.3]),
+    .init(id: "mp_uf7",     gruppe: "Messi & Paoloni", name: "Ultraflex 7",   beschreibung: "Ultraflexibel, 7 mm, kleine Biegeradien",          impedanz: 50, dbPro100m: [2.1, 3.7, 6.8, 8.6, 12.7, 15.4, 25.7, 30.4]),
+    .init(id: "mp_uf10",    gruppe: "Messi & Paoloni", name: "Ultraflex 10",  beschreibung: "Ultraflexibel, 10 mm, Antennenmast-Verkabelung",   impedanz: 50, dbPro100m: [1.4, 2.5, 4.6, 5.8, 8.6, 10.4, 17.4, 20.6]),
+    .init(id: "mp_uf13",    gruppe: "Messi & Paoloni", name: "Ultraflex 13",  beschreibung: "Ultraflexibel, 13 mm, Profi-Feeder, sehr Low-Loss",impedanz: 50, dbPro100m: [1.1, 1.9, 3.5, 4.4, 6.5, 7.9, 13.2, 15.6]),
+    .init(id: "mp_ab5",     gruppe: "Messi & Paoloni", name: "Airborne 5",    beschreibung: "Ultraleicht, 5 mm, ideal für Portable/SOTA",       impedanz: 50, dbPro100m: [2.8, 4.8, 8.9, 11.3, 16.7, 20.2, 33.7, 39.9]),
+    .init(id: "mp_ab10",    gruppe: "Messi & Paoloni", name: "Airborne 10",   beschreibung: "Leicht, 10 mm, transportabel mit guter Performance",impedanz: 50, dbPro100m: [1.6, 2.7, 5.0, 6.4, 9.4, 11.4, 19.0, 22.5]),
 ]
 
 let kabelGruppen: [String] = {

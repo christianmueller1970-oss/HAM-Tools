@@ -29,6 +29,7 @@ struct DXClusterView: View {
                     theme:       theme,
                     callsign:    vm.myCallsign,
                     connected:   vm.clusterStatus == .connected,
+                    spots:       vm.spots,
                     onSend:      { freq, call, comment in vm.sendSpot(freq: freq, call: call, comment: comment) }
                 )
                 .frame(minWidth: 220, idealWidth: 280, maxWidth: 360, maxHeight: .infinity)
@@ -43,7 +44,7 @@ struct DXClusterView: View {
             updateClock()
             vm.setup(watchStore: watchList)
             if let node = clusterStore.activeNode {
-                vm.connect(host: node.host, port: node.port)
+                vm.connect(host: node.host, port: node.port, name: node.name)
             } else {
                 vm.connect()
             }
@@ -233,31 +234,70 @@ struct DXClusterView: View {
     }
 
     private func filterPicker(_ label: String, options: [String], selection: Binding<String>) -> some View {
-        HStack(spacing: 2) {
-            Text(label).font(.caption).foregroundStyle(theme.textSecondary)
-            Picker("", selection: selection) {
-                ForEach(options, id: \.self) { Text($0).tag($0) }
+        Menu {
+            ForEach(options, id: \.self) { opt in
+                Button {
+                    selection.wrappedValue = opt
+                } label: {
+                    if opt == selection.wrappedValue {
+                        Label(opt, systemImage: "checkmark")
+                    } else {
+                        Text(opt)
+                    }
+                }
             }
-            .pickerStyle(.menu)
-            .frame(width: 90)
+        } label: {
+            HStack(spacing: 4) {
+                Text("\(label):")
+                    .font(.caption.bold())
+                    .foregroundStyle(theme.textSecondary)
+                Text(selection.wrappedValue)
+                    .font(.caption.bold())
+                    .foregroundStyle(selection.wrappedValue == "Alle" ? theme.textPrimary : theme.accentBlue)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8))
+                    .foregroundStyle(theme.textDim)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(theme.bgSubPanel)
+            .cornerRadius(5)
         }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .fixedSize()
     }
 
     private var radiusPicker: some View {
-        HStack(spacing: 2) {
-            Image(systemName: "location.circle")
-                .font(.caption)
-                .foregroundStyle(vm.spotterRadiusKm > 0 ? theme.accentBlue : theme.textSecondary)
-            Picker("", selection: $vm.spotterRadiusKm) {
-                Text("Alle").tag(0)
-                Text("500 km").tag(500)
-                Text("1000 km").tag(1000)
-                Text("2500 km").tag(2500)
-                Text("5000 km").tag(5000)
+        Menu {
+            Button("Alle")     { vm.spotterRadiusKm = 0 }
+            Button("500 km")   { vm.spotterRadiusKm = 500 }
+            Button("1000 km")  { vm.spotterRadiusKm = 1000 }
+            Button("2500 km")  { vm.spotterRadiusKm = 2500 }
+            Button("5000 km")  { vm.spotterRadiusKm = 5000 }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "location.circle")
+                    .font(.caption)
+                    .foregroundStyle(vm.spotterRadiusKm > 0 ? theme.accentBlue : theme.textSecondary)
+                Text("Radius:")
+                    .font(.caption.bold())
+                    .foregroundStyle(theme.textSecondary)
+                Text(vm.spotterRadiusKm == 0 ? "Alle" : "\(vm.spotterRadiusKm) km")
+                    .font(.caption.bold())
+                    .foregroundStyle(vm.spotterRadiusKm > 0 ? theme.accentBlue : theme.textPrimary)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8))
+                    .foregroundStyle(theme.textDim)
             }
-            .pickerStyle(.menu)
-            .frame(width: 82)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(theme.bgSubPanel)
+            .cornerRadius(5)
         }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .fixedSize()
     }
 
     private func srcCheck(_ label: String, color: Color, binding: Binding<Bool>) -> some View {

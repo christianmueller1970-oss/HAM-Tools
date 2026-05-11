@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 APP_NAME="HAMRechner"          # Binary-Name (aus Swift-Build, nicht ändern)
 DISPLAY_NAME="HAM-Tools"       # Sichtbarer Name (Finder, Dock, About-Box)
 VOL_NAME="HAM-Tools"           # DMG-Volume-Name
-VERSION="${1:-1.4.0}"
+VERSION="${1:-1.5.0}"
 DMG_NAME="${VOL_NAME}-${VERSION}.dmg"
 
 echo "==> Release-Build (swift build -c release)..."

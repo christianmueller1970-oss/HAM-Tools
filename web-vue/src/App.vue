@@ -6,12 +6,15 @@ import {
   ArrowRightToLine, Spline, CircleDashed, RectangleHorizontal,
   Radio, Hexagon, Star, StarHalf, CircleDotDashed,
   Repeat, Ruler, Loader, SlidersHorizontal, Cable, CableCar,
-  AudioWaveform, LineChart, Send, MapPin, Menu, Home,
+  AudioWaveform, LineChart, Send, MapPin, Menu, Home, BarChart3, Target, Activity,
 } from 'lucide-vue-next'
 
 const theme = ref(localStorage.getItem('ht_theme') || 'classic')
 const sidebarOpen = ref(false)
 const route = useRoute()
+// Embedded-Modus: in WKWebView/iframe — keine eigene Sidebar zeigen
+const isEmbedded = new URLSearchParams(window.location.search).has('embedded')
+if (isEmbedded) document.body.classList.add('embedded')
 
 function setTheme(t) {
   theme.value = t
@@ -53,6 +56,7 @@ const navGroups = [
   ]},
   { cat: 'Spulen & Trafos', items: [
     { label: 'Balun / Unun',             to: '/balun',         icon: Repeat },
+    { label: 'Mantelwellensperre',       to: '/mantelwellensperre', icon: CircleDotDashed },
     { label: 'Strahler-Verlängerung',    to: '/strahlerverl',  icon: Ruler },
     { label: 'Spulen-Wickler',           to: '/spulenwickler', icon: Loader },
   ]},
@@ -66,12 +70,15 @@ const navGroups = [
     { label: 'SWR-Simulator',            to: '/swr',           icon: LineChart },
     { label: 'Linkbudget / Reichweite',  to: '/linkbudget',    icon: Send },
     { label: 'QTH-Locator',              to: '/qthlocator',    icon: MapPin },
+    { label: 'IARU R1 Bandplan',         to: '/bandplan',      icon: BarChart3 },
+    { label: 'Smith-Chart',              to: '/smithchart',    icon: Target },
+    { label: 'Antennen-Simulator (PoC)', to: '/antennensim',   icon: Activity },
   ]},
 ]
 </script>
 
 <template>
-  <div class="mobile-header">
+  <div v-if="!isEmbedded" class="mobile-header">
     <button class="hamburger" @click="toggleSidebar" aria-label="Menü öffnen">
       <Menu :size="22" :stroke-width="2" />
     </button>
@@ -80,8 +87,8 @@ const navGroups = [
       <p>HB9HJI · Funkwelt</p>
     </div>
   </div>
-  <div class="backdrop" :class="{ open: sidebarOpen }" @click="closeSidebar"></div>
-  <div id="sidebar" :class="{ open: sidebarOpen }">
+  <div v-if="!isEmbedded" class="backdrop" :class="{ open: sidebarOpen }" @click="closeSidebar"></div>
+  <div v-if="!isEmbedded" id="sidebar" :class="{ open: sidebarOpen }">
     <div class="sb-head">
       <h1>HAM-Tools</h1>
       <p>HB9HJI · Funkwelt</p>

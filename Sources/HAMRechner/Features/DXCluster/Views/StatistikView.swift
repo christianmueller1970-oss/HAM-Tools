@@ -53,19 +53,31 @@ struct StatistikView: View {
             } else {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())],
                           spacing: 12) {
-                    chartCard("Spots pro Band") {
+                    chartCard("Spots pro Band", height: 320) {
                         Chart(bandStats, id: \.band) { item in
                             BarMark(x: .value("Spots", item.count),
                                     y: .value("Band",  item.band))
                                 .foregroundStyle(BAND_COLORS[item.band] ?? theme.accentBlue)
                                 .annotation(position: .trailing) {
                                     Text("\(item.count)")
-                                        .font(.system(size: 9))
-                                        .foregroundStyle(theme.textDim)
+                                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                                        .foregroundStyle(theme.textSecondary)
+                                        .padding(.leading, 4)
                                 }
                         }
-                        .chartYAxis { AxisMarks { AxisValueLabel() } }
+                        .chartYAxis {
+                            AxisMarks(preset: .extended, position: .leading) { value in
+                                AxisValueLabel {
+                                    if let s = value.as(String.self) {
+                                        Text(s)
+                                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                            .foregroundStyle(theme.textPrimary)
+                                    }
+                                }
+                            }
+                        }
                         .chartXAxis(.hidden)
+                        .chartYScale(domain: bandStats.map(\.band).reversed())
                     }
 
                     chartCard("Spots pro Mode") {
@@ -84,14 +96,31 @@ struct StatistikView: View {
                         .chartYAxis { AxisMarks { AxisGridLine() } }
                     }
 
-                    chartCard("Top-15 DX-Rufzeichen") {
+                    chartCard("Top-15 DX-Rufzeichen", height: 380) {
                         Chart(topDX, id: \.call) { item in
                             BarMark(x: .value("Spots", item.count),
                                     y: .value("Call",  item.call))
                                 .foregroundStyle(theme.accentGreen)
+                                .annotation(position: .trailing) {
+                                    Text("\(item.count)")
+                                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                                        .foregroundStyle(theme.textSecondary)
+                                        .padding(.leading, 4)
+                                }
                         }
-                        .chartYAxis { AxisMarks { AxisValueLabel() } }
+                        .chartYAxis {
+                            AxisMarks(preset: .extended, position: .leading) { value in
+                                AxisValueLabel {
+                                    if let s = value.as(String.self) {
+                                        Text(s)
+                                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                            .foregroundStyle(theme.textPrimary)
+                                    }
+                                }
+                            }
+                        }
                         .chartXAxis(.hidden)
+                        .chartYScale(domain: topDX.map(\.call).reversed())
                     }
 
                     chartCard("Verlauf letzte 24h (UTC)") {
@@ -132,13 +161,14 @@ struct StatistikView: View {
     }
 
     private func chartCard<C: View>(_ title: String,
+                                    height: CGFloat = 200,
                                     @ViewBuilder chart: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.caption.bold())
                 .foregroundStyle(theme.textSecondary)
             chart()
-                .frame(height: 200)
+                .frame(height: height)
         }
         .padding(10)
         .background(theme.bgCard)

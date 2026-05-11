@@ -29,7 +29,7 @@ Vollständige DX-Cluster-Workstation mit TCP-Verbindung zu DXSpider-Knoten und R
 | 3-Theme-System | HAM Style, Dark, Ham Classic — wechselbar im laufenden Betrieb |
 
 **Filter:** Band, Mode, Kontinent, Quelle (DX/SOTA/POTA/WWFF), Freitext, Spotter-Radius  
-**Cluster-Knoten:** DXSpider Schweiz, HB9W, DB0ERF, DX.OE5TXF, ON0ANT, VE7CC (konfigurierbar)
+**Cluster-Knoten:** DXSpider Funkwelt, HB9W, DB0ERF, DX.OE5TXF, ON0ANT, VE7CC (konfigurierbar)
 
 ---
 

@@ -27,6 +27,12 @@ final class ClusterClient {
     private var stopFlag      = false
     private var keepaliveWork: DispatchWorkItem?
 
+    /// Letzter Daten-Empfang vom Cluster — für Inactivity-Watchdog.
+    /// Wenn länger als `inactivityTimeout` keine Daten kommen, gilt die Verbindung
+    /// als "still tot" (TCP offen, Server reagiert aber nicht mehr) → reconnect.
+    private var lastDataAt: Date = Date()
+    private let inactivityTimeout: TimeInterval = 5 * 60   // 5 Minuten
+
     init(host: String, port: UInt16, callsign: String, name: String = "") {
         self.host     = host
         self.port     = port
@@ -47,6 +53,7 @@ final class ClusterClient {
         keepaliveWork = nil
         connection?.cancel()
         connection = nil
+        appendLog("════════ Trennung von \(name) ════════")
         setStatus(.disconnected)
     }
 
@@ -62,6 +69,8 @@ final class ClusterClient {
     private func _connect() {
         buffer = ""; loggedIn = false; callsignSent = false
         keepaliveWork?.cancel(); keepaliveWork = nil
+        appendLog("")
+        appendLog("════════ \(name) (\(host):\(port)) ════════")
         setStatus(.connecting)
 
         let conn = NWConnection(
@@ -96,6 +105,7 @@ final class ClusterClient {
             [weak self] data, _, isDone, error in
             guard let self else { return }
             if let data, !data.isEmpty {
+                self.lastDataAt = Date()
                 // Normalize CR/CRLF → LF at byte level before string conversion.
                 // Swift String replacingOccurrences is unreliable when mixed
                 // with Latin-1 data; byte-level is guaranteed.
@@ -170,7 +180,7 @@ final class ClusterClient {
                     continue
                 }
             }
-            if loggedIn, let spot = SpotParser.parse(line, source: host) {
+            if loggedIn, let spot = SpotParser.parse(line, source: name) {
                 DispatchQueue.main.async { self.onSpot?(spot) }
             }
         }
@@ -208,11 +218,23 @@ final class ClusterClient {
         keepaliveWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.loggedIn, !self.stopFlag else { return }
+
+            // Inactivity-Watchdog: wenn lange keine Daten mehr kamen,
+            // gilt die Verbindung als tot → Reconnect erzwingen.
+            let idle = Date().timeIntervalSince(self.lastDataAt)
+            if idle > self.inactivityTimeout {
+                self.appendLog("[\(ts())] Keine Daten seit \(Int(idle))s — Verbindung als tot markiert")
+                self.setStatus(.error)
+                self.connection?.cancel()
+                self.scheduleReconnect()
+                return
+            }
+
             self.connection?.send(content: "\r\n".data(using: .utf8), completion: .idempotent)
             self.scheduleKeepalive()
         }
         keepaliveWork = work
-        queue.asyncAfter(deadline: .now() + 120, execute: work)
+        queue.asyncAfter(deadline: .now() + 60, execute: work)   // Check alle 60s statt 120s
     }
 
     private func scheduleReconnect() {
@@ -229,7 +251,15 @@ final class ClusterClient {
         DispatchQueue.main.async { self.onStatus?(s) }
     }
     private func appendLog(_ msg: String) {
-        DispatchQueue.main.async { self.onMessage?(msg) }
+        let tagged = msg.isEmpty ? msg : "\(msg)  [\(shortTag)]"
+        DispatchQueue.main.async { self.onMessage?(tagged) }
+    }
+
+    /// Kompakter Cluster-Tag fürs Log-Suffix: erstes Wort des Namens, max. 6 Zeichen.
+    /// "DXSpider Funkwelt" → "DXSpid"  ·  "HB9W DX-Cluster" → "HB9W"  ·  "VE7CC Vancouver" → "VE7CC"
+    private var shortTag: String {
+        let first = name.split(whereSeparator: { $0 == " " }).first.map(String.init) ?? name
+        return String(first.prefix(6))
     }
 
     private static func stripIAC(_ data: Data) -> [UInt8] {

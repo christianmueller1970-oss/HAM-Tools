@@ -3,6 +3,7 @@ import SwiftUI
 enum Calculator: String, CaseIterable, Identifiable {
     // Live-Tools
     case dxCluster = "DX-Cluster"
+    case bandplan  = "IARU R1 Bandplan"
 
     // Antennen – Drahtantennen
     case dipol            = "Dipol"
@@ -27,6 +28,7 @@ enum Calculator: String, CaseIterable, Identifiable {
 
     // Spulen & Transformatoren
     case balunRechner     = "Balun / Unun"
+    case mantelwellensperre = "Mantelwellensperre"
     case verlaengerung    = "Strahler-Verlängerung"
     case spulenWickler    = "Spulen-Wickler"
 
@@ -40,12 +42,15 @@ enum Calculator: String, CaseIterable, Identifiable {
     case swrSimulator     = "SWR-Simulator"
     case linkbudget       = "Linkbudget / Reichweite"
     case qthLocator       = "QTH-Locator"
+    case smithChart       = "Smith-Chart"
+    case antennenSim      = "Antennen-Simulator"
 
     var id: String { rawValue }
 
     var icon: String {
         switch self {
         case .dxCluster:           return "dot.radiowaves.left.and.right.circle"
+        case .bandplan:            return "chart.bar.xaxis"
         case .dipol:               return "antenna.radiowaves.left.and.right"
         case .groundplane:         return "arrow.up.to.line"
         case .jpole:               return "j.square"
@@ -62,6 +67,7 @@ enum Calculator: String, CaseIterable, Identifiable {
         case .spiderbeamMultiBand: return "star"
         case .magloop:             return "circle.dotted"
         case .balunRechner:        return "arrow.2.squarepath"
+        case .mantelwellensperre:  return "circle.hexagongrid"
         case .verlaengerung:       return "ruler"
         case .spulenWickler:       return "spiral"
         case .anpassnetzwerk:      return "slider.horizontal.3"
@@ -71,12 +77,14 @@ enum Calculator: String, CaseIterable, Identifiable {
         case .swrSimulator:        return "chart.xyaxis.line"
         case .linkbudget:          return "dot.radiowaves.forward"
         case .qthLocator:          return "mappin.and.ellipse"
+        case .smithChart:          return "circle.circle"
+        case .antennenSim:         return "antenna.radiowaves.left.and.right"
         }
     }
 
     var category: String {
         switch self {
-        case .dxCluster:
+        case .dxCluster, .bandplan:
             return "Live-Tools"
         case .dipol, .groundplane, .jpole, .sperrtopf, .windom,
              .efhwRechner, .efhwVerkuerzung, .loopRechner:
@@ -86,11 +94,11 @@ enum Calculator: String, CaseIterable, Identifiable {
             return "Richtstrahler"
         case .magloop:
             return "Spezialantennen"
-        case .balunRechner, .verlaengerung, .spulenWickler:
+        case .balunRechner, .mantelwellensperre, .verlaengerung, .spulenWickler:
             return "Spulen & Transformatoren"
         case .anpassnetzwerk, .koaxStub, .kabeldaempfung:
             return "Anpassung & Leitungen"
-        case .pegelUmrechner, .swrSimulator, .linkbudget, .qthLocator:
+        case .pegelUmrechner, .swrSimulator, .linkbudget, .qthLocator, .smithChart, .antennenSim:
             return "Signale & Tools"
         }
     }
@@ -189,6 +197,7 @@ struct CalculatorRouter: View {
         switch calculator {
         // Live-Tools
         case .dxCluster:             DXClusterView()
+        case .bandplan:              BandplanView()
         // Drahtantennen
         case .dipol:             DipolView()
         case .groundplane:       GroundplaneView()
@@ -209,6 +218,7 @@ struct CalculatorRouter: View {
         case .magloop:           MagloopView()
         // Spulen & Transformatoren
         case .balunRechner:      BalunRechnerView()
+        case .mantelwellensperre: MantelwellensperreView()
         case .verlaengerung:     VerlaengerungView()
         case .spulenWickler:     SpulenWicklerView()
         // Anpassung & Leitungen
@@ -220,6 +230,8 @@ struct CalculatorRouter: View {
         case .swrSimulator:      SWRSimulatorView()
         case .linkbudget:        LinkbudgetView()
         case .qthLocator:        QTHLocatorView()
+        case .smithChart:        SmithChartView()
+        case .antennenSim:       AntennenSimulatorView()
         }
     }
 }

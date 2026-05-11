@@ -112,7 +112,7 @@ struct WeltkarteView: View {
                 Text("Alle").tag(9999)
             }
             .pickerStyle(.menu)
-            .frame(width: 80)
+            .frame(width: 100)
 
             Spacer()
 

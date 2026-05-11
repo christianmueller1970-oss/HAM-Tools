@@ -30,13 +30,14 @@ final class DXClusterViewModel: ObservableObject {
     @AppStorage("qthLocator")  private var qthLocator     = "JN47PN"
     @AppStorage("clusterHost") private var clusterHost    = "dxspider.funkwelt.net"
     @AppStorage("clusterPort") private var clusterPort    = 7300
+    @AppStorage("alertCooldownMin") private var alertCooldownMin = 15
 
     var myCallsign: String { storedCallsign }
 
     // MARK: - Watch list
     var watchStore: WatchListStore?
     @Published var alertCount = 0
-    private var notifiedThisSession = Set<String>()
+    private var lastNotifiedAt: [String: Date] = [:]
 
     // MARK: - Persistence
     private var didSetup     = false
@@ -116,12 +117,13 @@ final class DXClusterViewModel: ObservableObject {
 
     // MARK: - Lifecycle
 
-    func connect(host: String? = nil, port: Int? = nil) {
+    func connect(host: String? = nil, port: Int? = nil, name: String? = nil) {
         let h    = host ?? clusterHost
         let p    = UInt16(port ?? clusterPort)
         let call = storedCallsign
+        let n    = name ?? h
 
-        client = ClusterClient(host: h, port: p, callsign: call, name: h)
+        client = ClusterClient(host: h, port: p, callsign: call, name: n)
         client?.onSpot    = { [weak self] spot in self?.addSpot(spot) }
         client?.onStatus  = { [weak self] status in self?.clusterStatus = status }
         client?.onMessage = { [weak self] msg in self?.appendLog(msg) }
@@ -178,7 +180,7 @@ final class DXClusterViewModel: ObservableObject {
         disconnect()
         Task {
             try? await Task.sleep(for: .milliseconds(400))
-            connect(host: node.host, port: node.port)
+            connect(host: node.host, port: node.port, name: node.name)
         }
     }
 
@@ -192,7 +194,7 @@ final class DXClusterViewModel: ObservableObject {
         spots = []
         unsavedCount = 0
         SpotPersistence.save([])
-        notifiedThisSession.removeAll()
+        lastNotifiedAt.removeAll()
         alertCount = 0
         appendLog("[INFO] Spot-Liste geleert")
     }
@@ -209,12 +211,22 @@ final class DXClusterViewModel: ObservableObject {
         if spots.count > SpotPersistence.maxSpots { spots.removeLast() }
         unsavedCount += 1
         if unsavedCount >= 25 { savePending() }
-        if let ws = watchStore, ws.matches(spot.dxCall) {
-            alertCount += 1
-            if notifiedThisSession.insert(spot.dxCall + spot.displayFreq).inserted {
-                ws.sendNotification(for: spot)
-            }
+
+        guard let ws = watchStore, let reason = ws.matches(spot: spot) else { return }
+        alertCount += 1
+
+        // Cooldown-Key: Call+Reason (Call-Watch und DXCC-Watch separat zählen)
+        let key: String
+        switch reason {
+        case .call:           key = "call:\(spot.dxCall.uppercased())"
+        case .dxcc(let c):    key = "dxcc:\(c)|\(spot.dxCall.uppercased())"
         }
+        let cooldown = Double(max(1, alertCooldownMin)) * 60
+        if let last = lastNotifiedAt[key], Date().timeIntervalSince(last) < cooldown {
+            return  // noch im Cooldown — kein erneutes Notification
+        }
+        lastNotifiedAt[key] = Date()
+        ws.sendNotification(for: spot, reason: reason)
     }
 
     private func appendLog(_ msg: String) {

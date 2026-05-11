@@ -9,10 +9,12 @@ struct HexbeamBand: Identifiable {
     let istWARC: Bool
     var aktiv: Bool
 
-    var lambda: Double      { 300.0 / fMHz }
-    var treiber_m: Double   { lambda * 0.440 }
-    var reflektor_m: Double { lambda * 0.495 }
-    var arm_m: Double       { lambda * 0.260 }
+    var lambda: Double       { 300.0 / fMHz }
+    var treiber_m: Double    { lambda * 0.440 }
+    var reflektor_m: Double  { lambda * 0.495 }
+    var arm_m: Double        { lambda * 0.260 }
+    /// Physische Spreizer-Länge inkl. ~20 cm Reserve für Tip Spacer + Knotensicherung
+    var spreizer_m: Double   { arm_m + 0.20 }
 }
 
 // MARK: - View
@@ -47,6 +49,7 @@ struct HexbeamView: View {
                     masseBereich
                     draufsichtBereich
                     seitenansichtBereich
+                    einspeisungBereich
                     zusammenfassungBereich
                 }
                 hinweisBereich
@@ -85,11 +88,12 @@ struct HexbeamView: View {
         SectionCard(title: "Maße pro Band") {
             VStack(spacing: 0) {
                 HStack {
-                    Text("Band")      .font(.caption).bold().foregroundStyle(.secondary).frame(width: 44, alignment: .leading)
+                    Text("Band")     .font(.caption).bold().foregroundStyle(.secondary).frame(width: 44, alignment: .leading)
                     Text("Frequenz") .font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
                     Text("Treiber")  .font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
                     Text("Reflektor").font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
-                    Text("Arm")      .font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                    Text("Arm el.")  .font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                    Text("Spreizer") .font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
                 }
                 .padding(.vertical, 6)
                 Divider()
@@ -98,14 +102,19 @@ struct HexbeamView: View {
                         Text(band.name).font(.callout).bold()
                             .foregroundStyle(bandColors[band.id] ?? .primary)
                             .frame(width: 44, alignment: .leading)
-                        Text(String(format: "%.3f MHz",  band.fMHz))       .font(.callout).frame(maxWidth: .infinity)
-                        Text(String(format: "%.3f m",    band.treiber_m))  .font(.callout).frame(maxWidth: .infinity)
-                        Text(String(format: "%.3f m",    band.reflektor_m)).font(.callout).frame(maxWidth: .infinity)
-                        Text(String(format: "%.3f m",    band.arm_m))      .font(.callout).frame(maxWidth: .infinity)
+                        Text(String(format: "%.3f MHz", band.fMHz))        .font(.callout).frame(maxWidth: .infinity)
+                        Text(String(format: "%.3f m",   band.treiber_m))   .font(.callout).frame(maxWidth: .infinity)
+                        Text(String(format: "%.3f m",   band.reflektor_m)) .font(.callout).frame(maxWidth: .infinity)
+                        Text(String(format: "%.3f m",   band.arm_m))       .font(.callout).frame(maxWidth: .infinity)
+                        Text(String(format: "%.3f m",   band.spreizer_m))  .font(.callout).bold().frame(maxWidth: .infinity)
                     }
                     .padding(.vertical, 4)
                     Divider()
                 }
+                Text("Spreizer = Arm + 20 cm Reserve (Tip Spacer & Knotensicherung). Pro Hexbeam werden 6 Spreizer benötigt — alle in Länge des längsten aktiven Arms.")
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 6)
             }
         }
     }
@@ -398,22 +407,191 @@ struct HexbeamView: View {
         }
     }
 
+    // MARK: Einspeisung (Detail-Skizze + Multiband-Verschaltung)
+
+    private var einspeisungBereich: some View {
+        SectionCard(title: "Einspeisung — Center Post mit Band-Anschlüssen") {
+            VStack(alignment: .leading, spacing: 12) {
+                Canvas { ctx, size in
+                    let W = size.width, H = size.height
+                    let cx = W / 2
+
+                    // Sortiert: längstes Band oben (niedrigste Frequenz), höchstes unten
+                    let sorted = aktiveBaender.sorted { $0.fMHz < $1.fMHz }
+                    let n = max(sorted.count, 1)
+
+                    // Center Post Geometrie
+                    let postWidth: CGFloat = 22
+                    let postTop: CGFloat = 30
+                    let postBot: CGFloat = H - 90        // Platz für Choke + Koax-Label
+                    let postHeight = postBot - postTop
+                    let bandSpacing = postHeight / CGFloat(n + 1)
+
+                    // ── Center Post (Aluminium-Vierkant) ──
+                    let postRect = CGRect(x: cx - postWidth/2, y: postTop, width: postWidth, height: postHeight)
+                    ctx.fill(Path(roundedRect: postRect, cornerRadius: 2),
+                             with: .color(.gray.opacity(0.35)))
+                    ctx.stroke(Path(roundedRect: postRect, cornerRadius: 2),
+                               with: .color(.gray.opacity(0.7)), lineWidth: 1.5)
+
+                    // ── Pro Band: horizontaler Anschluss + Treiber-V-Schenkel ──
+                    for (idx, band) in sorted.enumerated() {
+                        let color = bandColors[band.id] ?? .blue
+                        let yBand = postTop + bandSpacing * CGFloat(idx + 1)
+
+                        // Schraubposten links/rechts (180° gegenüberliegend)
+                        let leftBolt  = CGPoint(x: cx - postWidth/2 - 6, y: yBand)
+                        let rightBolt = CGPoint(x: cx + postWidth/2 + 6, y: yBand)
+
+                        // V-Schenkel kommen schräg von oben außen
+                        let armSpread: CGFloat = 90 + CGFloat(idx) * 18
+                        let armUp: CGFloat     = 18 + CGFloat(idx) * 4
+                        let leftEnd  = CGPoint(x: cx - armSpread, y: yBand - armUp)
+                        let rightEnd = CGPoint(x: cx + armSpread, y: yBand - armUp)
+
+                        // Treiber-Drähte
+                        ctx.stroke(Path { p in
+                            p.move(to: leftEnd)
+                            p.addLine(to: leftBolt)
+                        }, with: .color(color), lineWidth: 2)
+                        ctx.stroke(Path { p in
+                            p.move(to: rightEnd)
+                            p.addLine(to: rightBolt)
+                        }, with: .color(color), lineWidth: 2)
+
+                        // Schraubposten als kleine Kreise
+                        ctx.fill(Path(ellipseIn: CGRect(x: leftBolt.x - 4, y: leftBolt.y - 4, width: 8, height: 8)),
+                                 with: .color(.gray))
+                        ctx.stroke(Path(ellipseIn: CGRect(x: leftBolt.x - 4, y: leftBolt.y - 4, width: 8, height: 8)),
+                                   with: .color(.primary.opacity(0.6)), lineWidth: 1)
+                        ctx.fill(Path(ellipseIn: CGRect(x: rightBolt.x - 4, y: rightBolt.y - 4, width: 8, height: 8)),
+                                 with: .color(.gray))
+                        ctx.stroke(Path(ellipseIn: CGRect(x: rightBolt.x - 4, y: rightBolt.y - 4, width: 8, height: 8)),
+                                   with: .color(.primary.opacity(0.6)), lineWidth: 1)
+
+                        // Band-Label rechts vom Post (im freien Bereich)
+                        ctx.draw(
+                            Text(band.name).font(.system(size: 11, weight: .bold)).foregroundStyle(color),
+                            at: CGPoint(x: rightBolt.x + 12, y: yBand), anchor: .leading)
+                    }
+
+                    // ── Koax-Standoffs am Post (kleine Striche links neben dem Post) ──
+                    let coaxX = cx - postWidth/2 - 18
+                    let standoffY1 = postTop + postHeight * 0.22
+                    let standoffY2 = postTop + postHeight * 0.55
+                    let standoffY3 = postTop + postHeight * 0.85
+                    for sy in [standoffY1, standoffY2, standoffY3] {
+                        ctx.stroke(Path { p in
+                            p.move(to: CGPoint(x: cx - postWidth/2, y: sy))
+                            p.addLine(to: CGPoint(x: coaxX, y: sy))
+                        }, with: .color(.gray.opacity(0.7)), lineWidth: 1)
+                        ctx.fill(Path(ellipseIn: CGRect(x: coaxX - 3, y: sy - 3, width: 6, height: 6)),
+                                 with: .color(.gray))
+                    }
+                    ctx.draw(Text("Koax-Standoffs").font(.system(size: 8)).foregroundStyle(.secondary),
+                             at: CGPoint(x: coaxX - 5, y: standoffY2 - 14), anchor: .trailing)
+
+                    // ── Koax läuft am Post hoch (links neben Post) ──
+                    ctx.stroke(Path { p in
+                        p.move(to: CGPoint(x: coaxX, y: postTop + 8))
+                        p.addLine(to: CGPoint(x: coaxX, y: postBot))
+                    }, with: .color(.primary), lineWidth: 4)
+                    ctx.stroke(Path { p in
+                        p.move(to: CGPoint(x: coaxX, y: postTop + 8))
+                        p.addLine(to: CGPoint(x: coaxX, y: postBot))
+                    }, with: .color(.gray.opacity(0.7)), lineWidth: 2)
+
+                    // Koax kreuzt unter Post zur Choke-Box mittig
+                    ctx.stroke(Path { p in
+                        p.move(to: CGPoint(x: coaxX, y: postBot))
+                        p.addLine(to: CGPoint(x: cx, y: postBot))
+                    }, with: .color(.gray.opacity(0.7)), lineWidth: 2)
+
+                    // ── Mantelwellensperre (Choke) unten am Post ──
+                    let chokeY = postBot + 4
+                    let chokeRect = CGRect(x: cx - 32, y: chokeY, width: 64, height: 22)
+                    ctx.fill(Path(roundedRect: chokeRect, cornerRadius: 4),
+                             with: .color(.orange.opacity(0.18)))
+                    ctx.stroke(Path(roundedRect: chokeRect, cornerRadius: 4),
+                               with: .color(.orange), lineWidth: 1.8)
+                    ctx.draw(Text("1:1 Choke").font(.system(size: 9, weight: .bold)).foregroundStyle(.orange),
+                             at: CGPoint(x: cx, y: chokeY + 11), anchor: .center)
+
+                    // ── Koax nach unten zum Shack ──
+                    let coaxBot = H - 14
+                    ctx.stroke(Path { p in
+                        p.move(to: CGPoint(x: cx, y: chokeY + 22))
+                        p.addLine(to: CGPoint(x: cx, y: coaxBot))
+                    }, with: .color(.primary), lineWidth: 4)
+                    ctx.stroke(Path { p in
+                        p.move(to: CGPoint(x: cx, y: chokeY + 22))
+                        p.addLine(to: CGPoint(x: cx, y: coaxBot))
+                    }, with: .color(.gray.opacity(0.7)), lineWidth: 2)
+                    ctx.draw(Text("50 Ω Koax → Shack").font(.system(size: 10, weight: .semibold)).foregroundStyle(.primary),
+                             at: CGPoint(x: cx + 8, y: coaxBot - 5), anchor: .leading)
+
+                    // ── Center Post Beschriftung ──
+                    ctx.draw(Text("Center Post").font(.system(size: 9, weight: .bold)).foregroundStyle(.secondary),
+                             at: CGPoint(x: cx, y: postTop - 12), anchor: .center)
+                    ctx.draw(Text("Aluminium-Vierkant").font(.system(size: 8)).foregroundStyle(.secondary),
+                             at: CGPoint(x: cx, y: postTop - 2), anchor: .center)
+
+                    // ── Hinweis "Bolzen 180°" ──
+                    if let firstBand = sorted.first {
+                        let yFirst = postTop + bandSpacing
+                        ctx.draw(Text("Schraubposten")
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(.secondary),
+                                 at: CGPoint(x: cx - postWidth/2 - 80, y: yFirst), anchor: .leading)
+                        ctx.draw(Text("(180° gegenüberliegend)")
+                                    .font(.system(size: 7))
+                                    .foregroundStyle(.secondary),
+                                 at: CGPoint(x: cx - postWidth/2 - 80, y: yFirst + 9), anchor: .leading)
+                        _ = firstBand
+                    }
+                }
+                .frame(height: 360)
+
+                Text("**Center Post mit Band-Anschlüssen:** Vertikaler Aluminium-Vierkant-Post mit pro Band einem horizontalen Anschluss aus zwei Schraubposten (180° gegenüberliegend). Die beiden Treiber-Schenkel jedes Bands werden direkt an diese Schrauben angeschraubt — kein zentraler Knoten am Hub. Das **Koax läuft seitlich am Post hoch** (mit Standoffs zur Vermeidung kapazitiver Kopplung zum Mast) und ist intern an alle Band-Anschlüsse parallel geführt. **Mantelwellensperre (1:1 Choke)** sitzt unten am Post-Fuß. Im Resonanzfall ist nur das aktive Band niederohmig (~50 Ω), andere Bänder sind off-resonance hochohmig und stören kaum.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
     // MARK: Zusammenfassung
 
     private var zusammenfassungBereich: some View {
         SectionCard(title: "Zusammenfassung") {
             VStack(spacing: 4) {
-                ResultRow(label: "Anzahl Bänder",       value: "\(aktiveBaender.count)")
+                ResultRow(label: "Anzahl Bänder",        value: "\(aktiveBaender.count)")
                 ResultRow(label: "Niedrigstes Band",     value: referenzBand.map { "\($0.name) (\(String(format: "%.3f MHz", $0.fMHz)))" } ?? "–")
-                ResultRow(label: "Längster Arm",         value: String(format: "%.3f m", maxArm),      highlight: true)
-                ResultRow(label: "Gesamtdurchmesser",    value: String(format: "%.3f m", maxArm * 2),  highlight: true)
+                ResultRow(label: "Längster Arm (el.)",   value: String(format: "%.3f m", maxArm),       highlight: true)
+                ResultRow(label: "Spreizer-Länge phys.", value: String(format: "%.2f m × 6 Stück", maxArm + 0.20), highlight: true)
+                ResultRow(label: "Material-Empfehlung",  value: spreizerEmpfehlung)
+                ResultRow(label: "Gesamtdurchmesser",    value: String(format: "%.2f m", (maxArm + 0.20) * 2))
                 if let ref = referenzBand {
                     ResultRow(label: "Treiber \(ref.name)",   value: String(format: "%.3f m", ref.treiber_m))
                     ResultRow(label: "Reflektor \(ref.name)", value: String(format: "%.3f m", ref.reflektor_m))
                 }
                 ResultRow(label: "Speisepunkt-Impedanz", value: "≈ 50 Ω (direktgekoppelt)")
+                ResultRow(label: "Mantelwellensperre",   value: "1:1 Choke-Balun direkt am Speisepunkt")
                 ResultRow(label: "Gewinn",               value: "≈ 5–6 dBd (HF-Bänder)")
             }
+        }
+    }
+
+    private var spreizerEmpfehlung: String {
+        let physM = maxArm + 0.20
+        if physM <= 5.5 {
+            return "5,4 m konische Glasfaserstäbe (Spiderbeam-Lieferant)"
+        } else if physM <= 6.5 {
+            return "6 m Glasfaserstäbe (Verstärkung am Knick empfohlen)"
+        } else if physM <= 8.0 {
+            return "7,8 m konische Stäbe (z.B. 40m-Hexbeam-Set)"
+        } else {
+            return "Maßanfertigung erforderlich"
         }
     }
 

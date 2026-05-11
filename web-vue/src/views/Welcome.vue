@@ -1,7 +1,7 @@
 <script setup>
 import {
   RadioTower, Hexagon, CircleDotDashed, Repeat,
-  SlidersHorizontal, LineChart,
+  SlidersHorizontal, LineChart, Activity,
 } from 'lucide-vue-next'
 
 const kategorien = [
@@ -15,14 +15,17 @@ const kategorien = [
     desc: 'Magnetic Loop mit Drehko-Berechnung und Wirkungsgrad',
     count: '1 Rechner' },
   { icon: Repeat,              title: 'Spulen & Trafos',        to: '/balun',
-    desc: 'Balun / Unun, Strahler-Verlängerung, Spulen-Wickler',
-    count: '3 Rechner' },
+    desc: 'Balun / Unun, Mantelwellensperre, Strahler-Verlängerung, Spulen-Wickler',
+    count: '4 Rechner' },
   { icon: SlidersHorizontal,  title: 'Anpassung & Leitungen',  to: '/anpassnetz',
     desc: 'L-Netz, Koax-Stub, Kabeldämpfung mit Kennlinien',
     count: '3 Rechner' },
   { icon: LineChart,           title: 'Signale & Tools',        to: '/swr',
-    desc: 'Pegel-Umrechner, SWR-Simulator, Linkbudget, QTH-Locator',
-    count: '4 Rechner' },
+    desc: 'Pegel-Umrechner, SWR-Simulator, Linkbudget, QTH-Locator, Smith-Chart',
+    count: '5 Rechner' },
+  { icon: Activity,            title: 'Live-Tools & Referenzen', to: '/bandplan',
+    desc: 'IARU R1 Bandplan, Smith-Chart, Antennen-Simulator (NEC2 via WASM)',
+    count: '3 Tools · NEU' },
 ]
 </script>
 
@@ -42,7 +45,7 @@ const kategorien = [
         <span class="sep">·</span>
         <span>Funkwelt</span>
         <span class="sep">·</span>
-        <span>25 Rechner</span>
+        <span>30 Rechner & Tools</span>
       </div>
     </section>
 
@@ -77,15 +80,19 @@ const kategorien = [
         </p>
       </div>
       <div class="card">
-        <h2>funkwelt.net</h2>
+        <h2>Aktuelle Highlights</h2>
+        <p>
+          Neu im Tool-Set: <strong>IARU R1 Bandplan</strong> mit grafischer
+          Detailansicht aller Bänder, <strong>Smith-Chart</strong> mit
+          L-Network-Anpassung samt Pfad-Visualisierung, und ein erster
+          <strong>Antennen-Simulator</strong> auf Basis der nec2c-Engine
+          als WebAssembly &mdash; Antennen-Modell aus Drahtsegmenten
+          definieren, SWR-Sweep berechnen, Strahlungsdiagramm anzeigen.
+        </p>
         <p>
           <strong>funkwelt.net</strong> ist die persönliche Amateurfunk-Domain
           von HB9HJI. Hier laufen Tools, Notizen und Experimente rund um den
           Funkbetrieb.
-        </p>
-        <p class="small c-dim">
-          <em>Text-Platzhalter &mdash; bei Bedarf in
-          <code>web-vue/src/views/Welcome.vue</code> editieren.</em>
         </p>
       </div>
     </section>
@@ -93,8 +100,8 @@ const kategorien = [
     <section>
       <div class="features">
         <div class="feature">
-          <div class="feature-num">25</div>
-          <div class="feature-lbl">Rechner mit Skizzen</div>
+          <div class="feature-num">30</div>
+          <div class="feature-lbl">Rechner & Tools</div>
         </div>
         <div class="feature">
           <div class="feature-num">3</div>
@@ -106,7 +113,7 @@ const kategorien = [
         </div>
         <div class="feature">
           <div class="feature-num">100%</div>
-          <div class="feature-lbl">offline-fähig nach erstem Laden</div>
+          <div class="feature-lbl">im Browser, kein Backend</div>
         </div>
       </div>
     </section>

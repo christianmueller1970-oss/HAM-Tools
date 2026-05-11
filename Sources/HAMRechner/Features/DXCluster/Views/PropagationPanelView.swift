@@ -8,6 +8,7 @@ struct PropagationPanelView: View {
     let theme:       AppTheme
     var callsign:    String = ""
     var connected:   Bool   = false
+    var spots:       [DXSpot] = []
     var onSend:      (Double, String, String) -> Void = { _, _, _ in }
 
     @State private var heatmapMinutes = 60
@@ -29,12 +30,18 @@ struct PropagationPanelView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            sendSpotSection
-            Divider()
-            propagationSection
-            Divider()
-            bandActivitySection
+        ScrollView {
+            VStack(spacing: 0) {
+                sendSpotSection
+                Divider()
+                propagationSection
+                Divider()
+                solarDetailsSection
+                Divider()
+                ownSpotsSection
+                Divider()
+                bandActivitySection
+            }
         }
         .background(theme.bgPanel)
     }
@@ -56,7 +63,8 @@ struct PropagationPanelView: View {
                     value:    Double(propagation.sfi ?? 0),
                     maxValue: 300,
                     label:    "Solar Activity",
-                    sublabel: "SFI: \(propagation.sfi.map(String.init) ?? "?")"
+                    sublabel: "SFI: \(propagation.sfi.map(String.init) ?? "?")",
+                    invertColors: true
                 )
                 SemiCircleGauge(
                     value:    propagation.kp ?? 0,
@@ -66,6 +74,135 @@ struct PropagationPanelView: View {
                 )
             }
             .frame(maxWidth: .infinity)
+        }
+        .padding(12)
+    }
+
+    // MARK: Solar-Details (Sonnenflecken, X-Ray, Wind, Aurora)
+
+    private var solarDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "sun.max.fill")
+                    .foregroundStyle(gold)
+                Text("Solar-Daten")
+                    .font(.headline)
+                    .foregroundStyle(gold)
+                Spacer()
+                if let upd = propagation.updated {
+                    Text(upd.prefix(16))
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(theme.textDim)
+                }
+            }
+
+            VStack(spacing: 4) {
+                detailRow("Sonnenflecken (SSN)", value: propagation.ssn.map(String.init) ?? "—",
+                          color: ssnColor(propagation.ssn))
+                detailRow("X-Ray Flux",          value: propagation.xray ?? "—",
+                          color: xrayColor(propagation.xray))
+                detailRow("Solar Wind",          value: propagation.solarWind.map { "\($0) km/s" } ?? "—",
+                          color: solarWindColor(propagation.solarWind))
+                detailRow("Helium 304 Å",        value: propagation.helium.map { String(format: "%.1f", $0) } ?? "—")
+                detailRow("Aurora ab",            value: propagation.auroraLat.map { "\($0)° N" } ?? "—")
+                detailRow("Geomag. Feld",         value: propagation.geomagField?.capitalized ?? "—",
+                          color: geomagColor(propagation.geomagField))
+            }
+        }
+        .padding(12)
+    }
+
+    private func detailRow(_ label: String, value: String, color: Color? = nil) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundStyle(theme.textSecondary)
+            Spacer()
+            Text(value)
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(color ?? theme.textPrimary)
+        }
+    }
+
+    private func ssnColor(_ v: Int?) -> Color {
+        guard let v else { return theme.textPrimary }
+        if v >= 100 { return theme.accentGreen }
+        if v >= 50  { return theme.accentYellow }
+        return theme.textPrimary
+    }
+    private func xrayColor(_ s: String?) -> Color {
+        guard let s = s?.first else { return theme.textPrimary }
+        switch s {
+        case "X": return theme.accentRed
+        case "M": return theme.accentOrange
+        case "C": return theme.accentYellow
+        default:  return theme.accentGreen
+        }
+    }
+    private func solarWindColor(_ v: Int?) -> Color {
+        guard let v else { return theme.textPrimary }
+        if v >= 600 { return theme.accentRed }
+        if v >= 450 { return theme.accentOrange }
+        return theme.textPrimary
+    }
+    private func geomagColor(_ s: String?) -> Color {
+        switch s?.uppercased() {
+        case "QUIET":     return theme.accentGreen
+        case "UNSETTLED": return theme.accentYellow
+        case "ACTIVE":    return theme.accentOrange
+        case "STORM":     return theme.accentRed
+        default:          return theme.textPrimary
+        }
+    }
+
+    // MARK: Letzte 5 eigene Spots (wo ICH gespottet wurde)
+
+    private var ownSpotsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "person.crop.circle.badge.checkmark")
+                    .foregroundStyle(gold)
+                Text("Eigene Spots (\(callsign.uppercased()))")
+                    .font(.headline)
+                    .foregroundStyle(gold)
+                Spacer()
+            }
+
+            let myCall = callsign.uppercased().trimmingCharacters(in: .whitespaces)
+            let mine = spots
+                .filter { !myCall.isEmpty && $0.dxCall.uppercased() == myCall }
+                .sorted { $0.timestamp > $1.timestamp }
+                .prefix(5)
+
+            if mine.isEmpty {
+                Text(myCall.isEmpty
+                     ? "Rufzeichen in Einstellungen setzen"
+                     : "Noch nicht gespottet worden")
+                    .font(.system(size: 11))
+                    .foregroundStyle(theme.textDim)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 6)
+            } else {
+                VStack(spacing: 4) {
+                    ForEach(Array(mine), id: \.id) { spot in
+                        HStack(spacing: 6) {
+                            Text(spot.displayTime)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(theme.textSecondary)
+                                .frame(width: 50, alignment: .leading)
+                            Text(spot.displayFreq)
+                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(theme.accentBlue)
+                                .frame(width: 60, alignment: .trailing)
+                            Text(spot.spotter)
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundStyle(theme.textPrimary)
+                                .lineLimit(1)
+                            Spacer()
+                        }
+                    }
+                }
+            }
         }
         .padding(12)
     }
@@ -181,7 +318,7 @@ struct PropagationPanelView: View {
                     Text("60 min").tag(60)
                 }
                 .pickerStyle(.menu)
-                .frame(width: 80)
+                .frame(width: 100)
             }
 
             // Continent headers
@@ -220,7 +357,7 @@ struct SemiCircleGauge: View {
     let maxValue: Double
     let label:    String
     let sublabel: String
-    var invertColors: Bool = false  // kept for API compat
+    var invertColors: Bool = false  // true → high value = green (good), low = red
 
     private var ratio: Double { max(0, min(1, value / maxValue)) }
     private let gold = Color(red: 1.0, green: 0.82, blue: 0.2)
@@ -290,20 +427,22 @@ struct SemiCircleGauge: View {
         .frame(maxWidth: .infinity)
     }
 
-    // Green (left/low) → Yellow → Orange → Red (right/high)
+    // Default: Green (left/low) → Yellow → Orange → Red (right/high)
+    // invertColors=true: Red (left/low) → Orange → Yellow → Green (right/high)
     private func arcGradientColor(t: Double) -> Color {
-        switch t {
+        let u = invertColors ? (1.0 - t) : t
+        switch u {
         case ..<0.25:
-            let f = t / 0.25
+            let f = u / 0.25
             return Color(red: f * 0.85, green: 0.75, blue: 0.0)
         case ..<0.50:
-            let f = (t - 0.25) / 0.25
+            let f = (u - 0.25) / 0.25
             return Color(red: 0.85 + f * 0.15, green: 0.75 - f * 0.15, blue: 0.0)
         case ..<0.75:
-            let f = (t - 0.50) / 0.25
+            let f = (u - 0.50) / 0.25
             return Color(red: 1.0, green: 0.60 - f * 0.25, blue: 0.0)
         default:
-            let f = (t - 0.75) / 0.25
+            let f = (u - 0.75) / 0.25
             return Color(red: 1.0 - f * 0.25, green: 0.35 - f * 0.35, blue: 0.0)
         }
     }

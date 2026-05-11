@@ -1,10 +1,11 @@
 import Foundation
 
 /// Liest und schreibt DXSpots als JSON-Datei in ~/Library/Application Support/HAMRechner/spots.json.
-/// Spots älter als 24 Stunden werden beim Laden automatisch verworfen.
+/// Spots älter als 60 Minuten werden beim Laden automatisch verworfen — beim Start sind so
+/// nur "frische" Cluster-Daten sichtbar, alte Sessions werden nicht reanimiert.
 enum SpotPersistence {
     private static let fileName:  String         = "spots.json"
-    private static let retention: TimeInterval   = 24 * 3600
+    private static let retention: TimeInterval   = 60 * 60   // 60 Minuten
     static  let maxSpots:         Int            = 500
 
     // MARK: - Public API

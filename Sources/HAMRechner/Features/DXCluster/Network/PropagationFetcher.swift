@@ -1,9 +1,16 @@
 import Foundation
 
 struct PropagationData {
-    var sfi:    Int?    = nil
-    var kp:     Double? = nil
-    var aIndex: Int?    = nil
+    var sfi:        Int?    = nil
+    var kp:         Double? = nil
+    var aIndex:     Int?    = nil
+    var ssn:        Int?    = nil       // Sunspot Number
+    var xray:       String? = nil       // X-Ray Class (z.B. "B2.5", "C1.4")
+    var solarWind:  Int?    = nil       // Solar Wind Speed in km/s
+    var helium:     Double? = nil       // He I 304 Å (Solar EUV)
+    var auroraLat:  Int?    = nil       // Aurora-Grenze in °N
+    var geomagField:String? = nil       // QUIET / UNSETTLED / ACTIVE / STORM
+    var updated:    String? = nil       // Aktualisierungs-Zeit (UTC-String)
 
     var sfiBand: String {
         guard let v = sfi else { return "?" }
@@ -52,23 +59,31 @@ actor PropagationFetcher {
             }
         }
 
-        // --- hamqsl.com fallback (covers both SFI and Kp/A) ---
-        if result.sfi == nil || result.kp == nil {
-            if let (data, _) = try? await URLSession.shared.data(from: Self.hamqslURL),
-               let xml = String(data: data, encoding: .utf8) {
-                if result.sfi == nil,
-                   let v = xmlValue(xml, tag: "solarflux").flatMap(Int.init) {
-                    result.sfi = v
-                }
-                if result.kp == nil,
-                   let v = xmlValue(xml, tag: "kindex").flatMap(Double.init) {
-                    result.kp = v
-                }
-                if result.aIndex == nil,
-                   let v = xmlValue(xml, tag: "aindex").flatMap(Int.init) {
-                    result.aIndex = v
-                }
+        // --- hamqsl.com (immer aufrufen für SSN/X-Ray/SolarWind/Aurora,
+        //                und als Fallback für SFI/Kp/A wenn NOAA scheitert)
+        if let (data, _) = try? await URLSession.shared.data(from: Self.hamqslURL),
+           let xml = String(data: data, encoding: .utf8) {
+            // Fallback für Werte die NOAA nicht geliefert hat
+            if result.sfi == nil,
+               let v = xmlValue(xml, tag: "solarflux").flatMap(Int.init) {
+                result.sfi = v
             }
+            if result.kp == nil,
+               let v = xmlValue(xml, tag: "kindex").flatMap(Double.init) {
+                result.kp = v
+            }
+            if result.aIndex == nil,
+               let v = xmlValue(xml, tag: "aindex").flatMap(Int.init) {
+                result.aIndex = v
+            }
+            // Zusätzliche Solar-Daten
+            result.ssn         = xmlValue(xml, tag: "sunspots").flatMap(Int.init)
+            result.xray        = xmlValue(xml, tag: "xray")
+            result.solarWind   = xmlValue(xml, tag: "solarwind").flatMap { Int(Double($0) ?? 0) }
+            result.helium      = xmlValue(xml, tag: "heliumline").flatMap(Double.init)
+            result.auroraLat   = xmlValue(xml, tag: "latdegree").flatMap { Int(Double($0) ?? 0) }
+            result.geomagField = xmlValue(xml, tag: "geomagfield")
+            result.updated     = xmlValue(xml, tag: "updated")
         }
 
         return result

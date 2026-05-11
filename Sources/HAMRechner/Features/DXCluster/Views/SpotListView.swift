@@ -81,13 +81,33 @@ struct SpotListView: View {
             }
             .width(min: 100, ideal: 160)
 
-            TableColumn("Spotter", value: \.spotter) { s in
-                cell(s.spotter, s)
+            TableColumn("Spotter / Quelle", value: \.spotter) { s in
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(s.spotter)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(watchList?.matches(s.dxCall) == true
+                                         ? Color(red: 1, green: 0.8, blue: 0)
+                                         : bandColor(for: s.band))
+                    Text(s.source)
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(sourceColor(s.sourceType))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
             }
-            .width(min: 70, ideal: 95)
+            .width(min: 90, ideal: 130)
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .font(.system(size: 12))
+    }
+
+    private func sourceColor(_ type: String) -> Color {
+        switch type {
+        case "SOTAwatch3": return theme.colorSOTA
+        case "POTA":       return theme.colorPOTA
+        case "WWFF":       return theme.colorWWFF
+        default:           return theme.accentBlue   // DX-Cluster
+        }
     }
 
     @ViewBuilder

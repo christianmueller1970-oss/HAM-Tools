@@ -18,6 +18,7 @@ const routes = [
   { path: '/spidermulti',   component: () => import('./views/SpiderbeamMulti.vue') },
   { path: '/magloop',       component: () => import('./views/MagneticLoop.vue') },
   { path: '/balun',         component: () => import('./views/BalunUnun.vue') },
+  { path: '/mantelwellensperre', component: () => import('./views/Mantelwellensperre.vue') },
   { path: '/strahlerverl',  component: () => import('./views/StrahlerVerl.vue') },
   { path: '/spulenwickler', component: () => import('./views/SpulenWickler.vue') },
   { path: '/anpassnetz',    component: () => import('./views/Anpassnetzwerk.vue') },
@@ -27,6 +28,9 @@ const routes = [
   { path: '/swr',           component: () => import('./views/SWRSimulator.vue') },
   { path: '/linkbudget',    component: () => import('./views/LinkBudget.vue') },
   { path: '/qthlocator',    component: () => import('./views/QTHLocator.vue') },
+  { path: '/bandplan',      component: () => import('./views/Bandplan.vue') },
+  { path: '/smithchart',    component: () => import('./views/SmithChart.vue') },
+  { path: '/antennensim',   component: () => import('./views/AntennenSimulator.vue') },
 ]
 
 export const router = createRouter({

@@ -39,10 +39,10 @@ let DXCC_DATA: [String: DXCCEntry] = [
     "EW": ("Belarus","EU",53.0,28.0),
     "UR": ("Ukraine","EU",50.0,30.0),       "UT":("Ukraine","EU",50.0,30.0),
     "UX": ("Ukraine","EU",50.0,30.0),
-    "UA": ("Russia EU","EU",55.8,37.6),     "RA":("Russia EU","EU",55.8,37.6),
-    "RK": ("Russia EU","EU",55.8,37.6),     "RN":("Russia EU","EU",55.8,37.6),
-    "RU": ("Russia EU","EU",55.8,37.6),     "RW":("Russia EU","EU",55.8,37.6),
-    "RZ": ("Russia EU","EU",55.8,37.6),
+    "UA": ("European Russia","EU",55.8,37.6),     "RA":("European Russia","EU",55.8,37.6),
+    "RK": ("European Russia","EU",55.8,37.6),     "RN":("European Russia","EU",55.8,37.6),
+    "RU": ("European Russia","EU",55.8,37.6),     "RW":("European Russia","EU",55.8,37.6),
+    "RZ": ("European Russia","EU",55.8,37.6),
     "EA": ("Spain","EU",40.0,-4.0),         "EB":("Spain","EU",40.0,-4.0),
     "EC": ("Spain","EU",40.0,-4.0),
     "CT": ("Portugal","EU",39.5,-8.0),      "CS":("Portugal","EU",39.5,-8.0),
@@ -114,6 +114,82 @@ let DXCC_DATA: [String: DXCCEntry] = [
     "TZ": ("Mali","AF",17.0,-4.0),          "5T": ("Mauritania","AF",20.0,-10.0),
     "TU": ("Ivory Coast","AF",7.5,-5.5),    "3V": ("Tunisia","AF",34.0,9.0),
     "SU": ("Egypt","AF",27.0,30.0),
+
+    // ---- Most-Wanted DXCC (seltene Entitäten) ----
+    // Hinweis: Wo Sub-Entitäten denselben Hauptpräfix teilen, gewinnt longest-match
+    // (z.B. "VK0H" Heard vor "VK" Australien, "FT5W" Crozet vor allen anderen FT5*).
+    "P5":   ("North Korea","AS",40.0,127.0),
+    "3Y0":  ("Bouvet Is.","AF",-54.4,3.4),           // teilen mit Peter I (3Y0/P), Bouvet ist häufiger
+    "BS7":  ("Scarborough Reef","AS",15.1,117.7),
+    "BV9P": ("Pratas Is.","AS",20.7,116.7),
+    "9M0":  ("Spratly Is.","AS",9.0,113.0),
+    // Französische Antarktis & Subantarktis
+    "FT5G": ("Glorioso Is.","AF",-11.6,47.3),
+    "FT5J": ("Juan de Nova","AF",-17.0,42.7),
+    "FT5T": ("Tromelin","AF",-15.9,54.5),
+    "FT5W": ("Crozet Is.","AF",-46.4,51.8),
+    "FT5X": ("Kerguelen","AF",-49.3,69.5),
+    "FT5Z": ("Amsterdam & St.Paul","AF",-37.8,77.5),
+    // Chile-Außenposten
+    "CE0X": ("San Felix","SA",-26.3,-80.1),
+    "CE0Y": ("Easter Is.","SA",-27.1,-109.4),
+    "CE0Z": ("Juan Fernandez","SA",-33.6,-78.9),
+    // Australien-Sub
+    "VK0H": ("Heard Is.","AF",-53.1,73.5),
+    "VK0M": ("Macquarie Is.","OC",-54.5,158.9),
+    "VK9C": ("Cocos (Keeling)","OC",-12.2,96.8),
+    "VK9L": ("Lord Howe","OC",-31.5,159.1),
+    "VK9M": ("Mellish Reef","OC",-17.4,155.9),
+    "VK9N": ("Norfolk Is.","OC",-29.0,167.9),
+    "VK9X": ("Christmas Is.","OC",-10.5,105.6),
+    // US-Pazifik (KH-Familie, KH6=Hawaii, KH0=Mariana, KH2=Guam bereits oben)
+    "KH1":  ("Baker/Howland","OC",0.2,-176.5),
+    "KH3":  ("Johnston Atoll","OC",16.7,-169.5),
+    "KH4":  ("Midway","OC",28.2,-177.4),
+    "KH5":  ("Palmyra/Jarvis","OC",5.9,-162.1),
+    "KH7K": ("Kure Atoll","OC",28.4,-178.3),
+    "KH8":  ("American Samoa","OC",-14.3,-170.7),
+    "KH8S": ("Swains Is.","OC",-11.1,-171.1),
+    "KH9":  ("Wake Is.","OC",19.3,166.6),
+    // Brasilien-Außenposten
+    "PY0F": ("Fernando Noronha","SA",-3.9,-32.4),
+    "PY0S": ("St. Peter & Paul","SA",0.9,-29.4),
+    "PY0T": ("Trindade","SA",-20.5,-29.3),
+    // Pacific
+    "VP6":  ("Pitcairn Is.","OC",-25.1,-130.1),
+    "ZL7":  ("Chatham Is.","OC",-43.9,-176.5),
+    "ZL8":  ("Kermadec Is.","OC",-29.3,-177.9),
+    "ZL9":  ("NZ Subantarctic","OC",-50.7,166.1),
+    // Süd-Atlantik
+    "VP8":  ("Falkland Is.","SA",-51.7,-59.0),       // teilen mit South Georgia/Sandwich/Orkney (selten)
+    "ZD7":  ("St. Helena","AF",-15.9,-5.7),
+    "ZD8":  ("Ascension","AF",-7.9,-14.4),
+    "ZD9":  ("Tristan da Cunha","AF",-37.1,-12.3),
+    "ZS8":  ("Prince Edward","AF",-46.9,37.7),
+    // Japan-Sub
+    "JD1":  ("Ogasawara","AS",27.1,142.2),           // teilen mit Minami Torishima (selten)
+    // Französisch-Polynesien Sub
+    "TX5":  ("Austral Is.","OC",-23.4,-149.5),
+    "TX7":  ("Marquesas Is.","OC",-8.9,-140.0),
+    // Kanada-Außenposten
+    "CY0":  ("Sable Is.","NA",43.9,-59.9),
+    "CY9":  ("St. Paul Is.","NA",47.2,-60.2),
+    // Pazifik-Inselstaaten (häufiger gespottet)
+    "FK":   ("New Caledonia","OC",-21.5,165.5),
+    "FW":   ("Wallis & Futuna","OC",-13.3,-176.2),
+    "T2":   ("Tuvalu","OC",-8.0,179.0),
+    "T8":   ("Palau","OC",7.5,134.6),
+    "V7":   ("Marshall Is.","OC",7.1,171.4),
+    "5W":   ("Samoa","OC",-13.8,-172.1),
+    "ZK3":  ("Tokelau","OC",-9.0,-171.9),
+    // Karibik klein
+    "VP2E": ("Anguilla","NA",18.2,-63.0),
+    "VP2M": ("Montserrat","NA",16.7,-62.2),
+    "VP2V": ("Brit. Virgin Is.","NA",18.4,-64.6),
+    "VP5":  ("Turks & Caicos","NA",21.7,-71.5),
+    // Indischer Ozean
+    "3B7":  ("Agalega/St.Brandon","AF",-10.4,56.6),
+    "3B9":  ("Rodrigues Is.","AF",-19.7,63.4),
 ]
 
 // MARK: - Prefix lookup (longest-match)

@@ -1,0 +1,454 @@
+{
+  "_meta": {
+    "source": "Quelle: funkwelt-bandguide (Funkwelt.net) — IARU R1 Band Plans + BAKOM/NaFV (Schweiz)",
+    "updated": "2026-05-10"
+  },
+  "categories": {
+    "cw":     { "label": "CW",          "color": "#378ADD" },
+    "ssb":    { "label": "SSB",         "color": "#639922" },
+    "digi":   { "label": "Digi/FT8",    "color": "#BA7517" },
+    "fm":     { "label": "FM/Relais",   "color": "#7F77DD" },
+    "am":     { "label": "AM/ATV",      "color": "#D4537E" },
+    "beacon": { "label": "Baken",       "color": "#888780" },
+    "sat":    { "label": "Satellit",    "color": "#534AB7" },
+    "emcom":  { "label": "Notfunk",     "color": "#DC2626" },
+    "mixed":  { "label": "Alle Sendearten", "color": "#1D9E75" },
+    "dx":     { "label": "DX bevorzugt","color": "#0E7490" }
+  },
+  "bands": [
+    { "id": "2200m", "name": "2200m", "freq": "135,7 – 137,8 kHz",
+      "fMin": 0.1357, "fMax": 0.1378, "type": "lf", "leistung": "1 W EIRP",
+      "zuweisung": "Sekundär", "contest": false, "digi": true,
+      "modes": ["CW","WSPR"],
+      "typUse": "Experimentell, WSPR, Grabber",
+      "info": "Niederfrequenz-Band mit Bodenwellen-Ausbreitung. WSPR und Grabber dominieren. Sehr wenige aktive Stationen. In CH als Sekundärzuweisung gemäss NaFV.",
+      "iaru": "IARU R1 HF Band Plan",
+      "segments": [{ "label": "CW/WSPR", "pct": 100, "color": "#378ADD" }],
+      "subsegments": [
+        { "von": 135.7, "bis": 137.8, "bw": 200, "mode": "CW, WSPR", "cat": "cw", "info": "Gesamtes Band – max. 1 W EIRP, Schmalband-Betrieb" }
+      ]
+    },
+    { "id": "630m", "name": "630m", "freq": "472 – 479 kHz",
+      "fMin": 0.472, "fMax": 0.479, "type": "lf", "leistung": "1 W EIRP",
+      "zuweisung": "Sekundär", "contest": false, "digi": true,
+      "modes": ["CW","WSPR"],
+      "typUse": "WSPR, CW-DX, Transatlantik nachts",
+      "info": "MF-Band mit ausgezeichneter Nacht-Ausbreitung. Transatlantische Verbindungen möglich. In CH Sonderbewilligung BAKOM erforderlich.",
+      "iaru": "IARU R1 HF Band Plan",
+      "segments": [{ "label": "CW/Digi", "pct": 100, "color": "#378ADD" }],
+      "subsegments": [
+        { "von": 472.0, "bis": 479.0, "bw": 200, "mode": "CW, WSPR", "cat": "cw", "info": "Gesamtes Band – max. 1 W EIRP, CH: Sonderbewilligung BAKOM" }
+      ]
+    },
+    { "id": "160m", "name": "160m", "freq": "1810 – 1850 kHz",
+      "fMin": 1.810, "fMax": 1.850, "type": "hf", "leistung": "1000 W PEP",
+      "zuweisung": "Primär (geteilt)", "contest": true, "digi": false,
+      "modes": ["CW","SSB"],
+      "typUse": "Top-Band DX, Nacht-Nahbereich, STEW Perry",
+      "info": "Das «Top-Band». Bodengebundene Welle tagsüber bis ~500 km, nachts interkontinentale DX-Verbindungen. Oft Rundfunk-Interferenz.",
+      "iaru": "IARU R1 HF Band Plan 2009",
+      "segments": [
+        { "label": "CW",  "pct": 22, "color": "#378ADD" },
+        { "label": "SSB", "pct": 78, "color": "#639922" }
+      ],
+      "subsegments": [
+        { "von": 1810, "bis": 1838, "bw": 200,  "mode": "CW",                "cat": "cw",   "info": "CW – interkontinentale QSOs bevorzugt" },
+        { "von": 1838, "bis": 1840, "bw": 500,  "mode": "Schmalband-Digital","cat": "digi", "info": "Digimodes, automatische Stationen" },
+        { "von": 1840, "bis": 1850, "bw": 2700, "mode": "alle Sendearten",   "cat": "ssb",  "info": "SSB – bevorzugter Contestbereich; 1845 kHz Aktivitätszentrum SSB QRP" }
+      ]
+    },
+    { "id": "80m", "name": "80m", "freq": "3500 – 3800 kHz",
+      "fMin": 3.5, "fMax": 3.8, "type": "hf", "leistung": "1000 W PEP",
+      "zuweisung": "Primär", "contest": true, "digi": true,
+      "modes": ["CW","SSB","FT8","PSK31"],
+      "typUse": "Regional/Europa, DX nachts, CQ WW, FT8 auf 3573 kHz",
+      "info": "Sehr aktives Band. Tagsüber Regionalverbindungen Europa, nachts kontinentale und transkontinentale DX. In IARU R1 auch als «75m» (3700–3800) bezeichnet.",
+      "iaru": "IARU R1 HF Band Plan 2009",
+      "segments": [
+        { "label": "CW",       "pct": 20, "color": "#378ADD" },
+        { "label": "Digi/FT8", "pct": 10, "color": "#BA7517" },
+        { "label": "SSB",      "pct": 70, "color": "#639922" }
+      ],
+      "subsegments": [
+        { "von": 3500, "bis": 3510, "bw": 200,  "mode": "CW", "cat": "dx",    "info": "Interkontinentale QSOs bevorzugt" },
+        { "von": 3510, "bis": 3560, "bw": 200,  "mode": "CW", "cat": "cw",    "info": "Bevorzugter CW-Contestbereich; 3530 kHz IOTA, 3555 kHz QRS-Aktivitätszentrum" },
+        { "von": 3560, "bis": 3580, "bw": 200,  "mode": "CW", "cat": "cw",    "info": "3560 kHz – QRP-Aktivitätszentrum" },
+        { "von": 3580, "bis": 3590, "bw": 500,  "mode": "Schmalband-Digital", "cat": "digi", "info": "Digimodes" },
+        { "von": 3590, "bis": 3600, "bw": 500,  "mode": "Schmalband-Digital", "cat": "digi", "info": "Digimodes, automatische digitale Stationen" },
+        { "von": 3600, "bis": 3620, "bw": 2700, "mode": "alle Sendearten",    "cat": "mixed","info": "Digimodes, automatische digitale Stationen" },
+        { "von": 3600, "bis": 3650, "bw": 2700, "mode": "alle Sendearten (1)","cat": "ssb", "info": "Bevorzugter SSB-Contestbereich (LSB); 3630 kHz Aktivitätszentrum Digitale Sprache" },
+        { "von": 3650, "bis": 3700, "bw": 2700, "mode": "alle Sendearten",    "cat": "ssb", "info": "3690 kHz – Aktivitätszentrum SSB QRP" },
+        { "von": 3700, "bis": 3800, "bw": 2700, "mode": "alle Sendearten",    "cat": "ssb", "info": "Bevorzugter SSB-Contestbereich; 3735 kHz Bildübertragung, 3755 kHz IOTA, 3760 kHz R1 Notfunk" },
+        { "von": 3775, "bis": 3800, "bw": 2700, "mode": "alle Sendearten",    "cat": "dx",  "info": "Interkontinentale QSOs bevorzugt" }
+      ]
+    },
+    { "id": "60m", "name": "60m", "freq": "5351,5 – 5366,5 kHz",
+      "fMin": 5.3515, "fMax": 5.3665, "type": "hf", "leistung": "15 W EIRP",
+      "zuweisung": "Sekundär", "contest": false, "digi": true,
+      "modes": ["USB","CW","Digi"],
+      "typUse": "Emergency Comm, EMCOMM, DX, WSPR",
+      "info": "Seit WRC-15 (2015) international zugewiesen. Nur 5 Kanäle. Ausschliesslich USB, max. 2,8 kHz Bandbreite. In CH verfügbar gemäss BAKOM.",
+      "iaru": "IARU R1 HF Band Plan (WRC-15)",
+      "segments": [{ "label": "USB/CW/Digi", "pct": 100, "color": "#1D9E75" }],
+      "subsegments": [
+        { "von": 5351.5, "bis": 5354.0, "bw": 200,  "mode": "CW, Schmalband-Digital", "cat": "cw",   "info": "15 W EIRP auf dem gesamten 60m Band" },
+        { "von": 5354.0, "bis": 5366.0, "bw": 2800, "mode": "alle Sendearten (USB)",  "cat": "ssb",  "info": "USB empfohlen für Phonie. Kanäle: 5357, 5360, 5363, 5366 kHz (Mittenfrequenzen)" },
+        { "von": 5366.0, "bis": 5366.5, "bw": 2700, "mode": "alle Sendearten",        "cat": "digi", "info": "Digimodes, automatische Stationen" }
+      ]
+    },
+    { "id": "40m", "name": "40m", "freq": "7000 – 7200 kHz",
+      "fMin": 7.0, "fMax": 7.2, "type": "hf", "leistung": "1000 W PEP",
+      "zuweisung": "Primär", "contest": true, "digi": true,
+      "modes": ["CW","FT8","SSB","PSK31"],
+      "typUse": "DX, Contest (CQ WW, WAE), FT8 auf 7074 kHz",
+      "info": "Eines der beliebtesten Bänder. Tag und Nacht aktiv. Exzellente Ausbreitung Europa bis Welt. Bis 2009 nur 7000–7100 für Amateurfunk.",
+      "iaru": "IARU R1 HF Band Plan 2009",
+      "segments": [
+        { "label": "CW",       "pct": 20, "color": "#378ADD" },
+        { "label": "Digi/FT8", "pct": 10, "color": "#BA7517" },
+        { "label": "SSB",      "pct": 70, "color": "#639922" }
+      ],
+      "subsegments": [
+        { "von": 7000, "bis": 7040, "bw": 200,  "mode": "CW", "cat": "cw",   "info": "Bevorzugter CW-Contestbereich; 7030 kHz QRP-Aktivitätszentrum" },
+        { "von": 7040, "bis": 7047, "bw": 500,  "mode": "Schmalband-Digital", "cat": "digi", "info": "Digimodes, automatische digitale Stationen" },
+        { "von": 7047, "bis": 7053, "bw": 500,  "mode": "Schmalband-Digital / CW", "cat": "digi", "info": "Region 2 & 3: Telegraphy; 7050 kHz Aktivitätszentrum Digitale Sprache" },
+        { "von": 7053, "bis": 7060, "bw": 500,  "mode": "Schmalband-Digital", "cat": "digi", "info": "Digimodes, automatische Stationen" },
+        { "von": 7060, "bis": 7100, "bw": 2700, "mode": "alle Sendearten (1)", "cat": "ssb", "info": "Bevorzugter SSB-Contestbereich; 7070 kHz Digi-Sprache; 7074 kHz FT8; 7090 kHz QRP SSB" },
+        { "von": 7100, "bis": 7130, "bw": 2700, "mode": "alle Sendearten",    "cat": "ssb", "info": "7110 kHz IOTA-Aktivitätszentrum" },
+        { "von": 7130, "bis": 7175, "bw": 2700, "mode": "alle Sendearten",    "cat": "ssb", "info": "Bevorzugter SSB-Contestbereich; 7165 kHz IOTA; 7130 kHz RTTY" },
+        { "von": 7175, "bis": 7200, "bw": 2700, "mode": "alle Sendearten",    "cat": "dx",  "info": "Interkontinentale QSOs bevorzugt; 7195 kHz Aktivitätszentrum AM" }
+      ]
+    },
+    { "id": "30m", "name": "30m", "freq": "10100 – 10150 kHz",
+      "fMin": 10.1, "fMax": 10.15, "type": "hf", "leistung": "1000 W PEP",
+      "zuweisung": "Sekundär", "contest": false, "digi": true,
+      "modes": ["CW","WSPR","PSK31"],
+      "typUse": "CW-DX, WSPR (10138,7 kHz), PSK31, ruhiger Betrieb",
+      "info": "WARC-Band: kein SSB, kein Contest! Das ruhigste DX-Band. Ausgezeichnete Ausbreitung zu jeder Tageszeit.",
+      "iaru": "IARU R1 HF Band Plan (WARC-79)",
+      "segments": [
+        { "label": "CW",        "pct": 80, "color": "#378ADD" },
+        { "label": "Digi/WSPR", "pct": 20, "color": "#BA7517" }
+      ],
+      "subsegments": [
+        { "von": 10100, "bis": 10140, "bw": 200, "mode": "CW", "cat": "cw",   "info": "CW – 10116 kHz QRP-Aktivitätszentrum" },
+        { "von": 10140, "bis": 10150, "bw": 500, "mode": "Schmalband-Digital", "cat": "digi", "info": "10138,7 kHz WSPR; 10142 kHz PSK31; automatische Stationen" }
+      ]
+    },
+    { "id": "20m", "name": "20m", "freq": "14000 – 14350 kHz",
+      "fMin": 14.0, "fMax": 14.35, "type": "hf", "leistung": "1000 W PEP",
+      "zuweisung": "Primär", "contest": true, "digi": true,
+      "modes": ["CW","FT8","SSB","PSK31"],
+      "typUse": "Welt-DX, CQ WW, WAE, FT8 auf 14074 kHz",
+      "info": "Das DX-Band schlechthin. Zu jeder Tageszeit und bei fast jedem Sonnenzyklus aktiv. Grösster Contest-Traffic weltweit.",
+      "iaru": "IARU R1 HF Band Plan 2009",
+      "segments": [
+        { "label": "CW",       "pct": 14, "color": "#378ADD" },
+        { "label": "Digi/FT8", "pct": 12, "color": "#BA7517" },
+        { "label": "Beacon",   "pct": 4,  "color": "#888780" },
+        { "label": "SSB",      "pct": 70, "color": "#639922" }
+      ],
+      "subsegments": [
+        { "von": 14000, "bis": 14060, "bw": 200, "mode": "CW", "cat": "cw",   "info": "Bevorzugter CW-Contestbereich; 14055 kHz QRS-Aktivitätszentrum" },
+        { "von": 14060, "bis": 14070, "bw": 200, "mode": "CW", "cat": "cw",   "info": "14060 kHz QRP-Aktivitätszentrum" },
+        { "von": 14070, "bis": 14089, "bw": 500, "mode": "Schmalband-Digital", "cat": "digi", "info": "14074 kHz FT8; 14070 kHz PSK31; automatische Stationen" },
+        { "von": 14089, "bis": 14099, "bw": 500, "mode": "Schmalband-Digital", "cat": "digi", "info": "Digimodes, automatische Stationen" },
+        { "von": 14099, "bis": 14101, "bw": 0,   "mode": "Baken (IBP)", "cat": "beacon", "info": "14100 kHz – NCDXF/IARU Bakennetz (IBP), kein Sendebetrieb!" },
+        { "von": 14101, "bis": 14112, "bw": 2700, "mode": "alle Sendearten", "cat": "mixed", "info": "Alle Sendearten inkl. Digimodes" },
+        { "von": 14112, "bis": 14125, "bw": 2700, "mode": "alle Sendearten", "cat": "ssb",   "info": "Alle Sendearten" },
+        { "von": 14125, "bis": 14300, "bw": 2700, "mode": "alle Sendearten", "cat": "ssb",   "info": "Bevorzugter SSB-Contestbereich; 14130 kHz Digi-Sprache; 14195±5 kHz IOTA; 14230 kHz Bildübertragung; 14285 kHz SSB QRP" },
+        { "von": 14300, "bis": 14350, "bw": 2700, "mode": "alle Sendearten", "cat": "dx",    "info": "Interkontinentale QSOs bevorzugt; 14300 kHz Maritim Mobile; 14313 kHz Notfunk" }
+      ]
+    },
+    { "id": "17m", "name": "17m", "freq": "18068 – 18168 kHz",
+      "fMin": 18.068, "fMax": 18.168, "type": "hf", "leistung": "1000 W PEP",
+      "zuweisung": "Primär", "contest": false, "digi": true,
+      "modes": ["CW","SSB","FT8","WSPR"],
+      "typUse": "DX, entspannter Betrieb, FT8 auf 18100 kHz",
+      "info": "WARC-Band: kein Contest! Ähnliche Ausbreitung wie 20m, aber deutlich ruhiger und ideal für DX-Expeditionen.",
+      "iaru": "IARU R1 HF Band Plan (WARC-79)",
+      "segments": [
+        { "label": "CW",   "pct": 27, "color": "#378ADD" },
+        { "label": "Digi", "pct": 15, "color": "#BA7517" },
+        { "label": "SSB",  "pct": 58, "color": "#639922" }
+      ],
+      "subsegments": [
+        { "von": 18068, "bis": 18095, "bw": 200, "mode": "CW", "cat": "cw", "info": "18086 kHz QRP-Aktivitätszentrum" },
+        { "von": 18095, "bis": 18105, "bw": 500, "mode": "Schmalband-Digital", "cat": "digi", "info": "18100 kHz FT8; 18095 kHz PSK31; automatische Stationen" },
+        { "von": 18105, "bis": 18109, "bw": 500, "mode": "Schmalband-Digital", "cat": "digi", "info": "Digimodes, automatische Stationen" },
+        { "von": 18109, "bis": 18111, "bw": 0,   "mode": "Baken (IBP)", "cat": "beacon", "info": "18110 kHz – NCDXF/IARU Bakennetz, kein Sendebetrieb!" },
+        { "von": 18111, "bis": 18168, "bw": 2700, "mode": "alle Sendearten", "cat": "ssb", "info": "SSB-Betrieb; 18130 kHz SSB QRP; 18160 kHz Maritim Mobile" }
+      ]
+    },
+    { "id": "15m", "name": "15m", "freq": "21000 – 21450 kHz",
+      "fMin": 21.0, "fMax": 21.45, "type": "hf", "leistung": "1000 W PEP",
+      "zuweisung": "Primär", "contest": true, "digi": true,
+      "modes": ["CW","FT8","SSB"],
+      "typUse": "DX, CQ WW, IOTA, FT8 auf 21074 kHz",
+      "info": "Stark von Sonnenaktivität abhängig (F2-Schicht). Bei Sonnenmaximum exzellentes Welt-DX mit wenig Leistung möglich.",
+      "iaru": "IARU R1 HF Band Plan 2009",
+      "segments": [
+        { "label": "CW",       "pct": 16, "color": "#378ADD" },
+        { "label": "Digi/FT8", "pct": 14, "color": "#BA7517" },
+        { "label": "SSB",      "pct": 70, "color": "#639922" }
+      ],
+      "subsegments": [
+        { "von": 21000, "bis": 21070, "bw": 200, "mode": "CW", "cat": "cw", "info": "Bevorzugter CW-Contestbereich; 21055 kHz QRS; 21060 kHz QRP-Aktivitätszentrum" },
+        { "von": 21070, "bis": 21090, "bw": 500, "mode": "Schmalband-Digital", "cat": "digi", "info": "21074 kHz FT8; 21080 kHz PSK31; automatische Stationen" },
+        { "von": 21090, "bis": 21110, "bw": 500, "mode": "Schmalband-Digital", "cat": "digi", "info": "Digimodes, automatische Stationen" },
+        { "von": 21110, "bis": 21120, "bw": 2700, "mode": "alle Sendearten (kein SSB)", "cat": "mixed", "info": "Alle Sendearten ausser SSB" },
+        { "von": 21120, "bis": 21149, "bw": 500, "mode": "Schmalband-Digital", "cat": "digi", "info": "Digimodes" },
+        { "von": 21149, "bis": 21151, "bw": 0,   "mode": "Baken (IBP)", "cat": "beacon", "info": "21150 kHz – NCDXF/IARU Bakennetz, kein Sendebetrieb!" },
+        { "von": 21151, "bis": 21450, "bw": 2700, "mode": "alle Sendearten", "cat": "ssb", "info": "Bevorzugter SSB-Contestbereich; 21180 kHz Digi-Sprache; 21285 kHz SSB QRP; 21340 kHz IOTA; 21360 kHz Notfunk" }
+      ]
+    },
+    { "id": "12m", "name": "12m", "freq": "24890 – 24990 kHz",
+      "fMin": 24.89, "fMax": 24.99, "type": "hf", "leistung": "1000 W PEP",
+      "zuweisung": "Primär", "contest": false, "digi": true,
+      "modes": ["CW","SSB","FT8"],
+      "typUse": "DX, WARC-Expeditionen, FT8 auf 24915 kHz",
+      "info": "WARC-Band: kein Contest! Besonders gute Bedingungen bei Solar Flux > 120. Ruhiges DX-Band.",
+      "iaru": "IARU R1 HF Band Plan (WARC-79)",
+      "segments": [
+        { "label": "CW",   "pct": 25, "color": "#378ADD" },
+        { "label": "Digi", "pct": 14, "color": "#BA7517" },
+        { "label": "SSB",  "pct": 61, "color": "#639922" }
+      ],
+      "subsegments": [
+        { "von": 24890, "bis": 24915, "bw": 200, "mode": "CW", "cat": "cw", "info": "24906 kHz QRP-Aktivitätszentrum" },
+        { "von": 24915, "bis": 24929, "bw": 500, "mode": "Schmalband-Digital", "cat": "digi", "info": "24915 kHz FT8; automatische Stationen" },
+        { "von": 24929, "bis": 24931, "bw": 0,   "mode": "Baken (IBP)", "cat": "beacon", "info": "24930 kHz – NCDXF/IARU Bakennetz, kein Sendebetrieb!" },
+        { "von": 24931, "bis": 24990, "bw": 2700, "mode": "alle Sendearten", "cat": "ssb", "info": "SSB-Betrieb; 24950 kHz SSB QRP" }
+      ]
+    },
+    { "id": "10m", "name": "10m", "freq": "28000 – 29700 kHz",
+      "fMin": 28.0, "fMax": 29.7, "type": "hf", "leistung": "1000 W PEP",
+      "zuweisung": "Primär", "contest": true, "digi": true,
+      "modes": ["CW","FT8","SSB","AM","FM"],
+      "typUse": "DX, FT8 auf 28074 kHz, FM-Relais 29,5–29,7 MHz",
+      "info": "Breitestes KW-Band (1,7 MHz). Bei Sonnenmaximum Weltrekorde mit wenig Leistung. Enthält auch FM und AM-Segmente.",
+      "iaru": "IARU R1 HF Band Plan 2009",
+      "segments": [
+        { "label": "CW",        "pct": 4,  "color": "#378ADD" },
+        { "label": "Digi/FT8",  "pct": 7,  "color": "#BA7517" },
+        { "label": "Beacon",    "pct": 2,  "color": "#888780" },
+        { "label": "SSB",       "pct": 47, "color": "#639922" },
+        { "label": "AM",        "pct": 6,  "color": "#D4537E" },
+        { "label": "FM",        "pct": 17, "color": "#7F77DD" },
+        { "label": "FM-Relais", "pct": 17, "color": "#534AB7" }
+      ],
+      "subsegments": [
+        { "von": 28000, "bis": 28070, "bw": 200, "mode": "CW", "cat": "cw", "info": "Bevorzugter CW-Contestbereich; 28055 kHz QRS; 28060 kHz QRP-Aktivitätszentrum" },
+        { "von": 28070, "bis": 28090, "bw": 500, "mode": "Schmalband-Digital", "cat": "digi", "info": "28074 kHz FT8; 28070 kHz PSK31" },
+        { "von": 28090, "bis": 28120, "bw": 500, "mode": "Schmalband-Digital", "cat": "digi", "info": "Digimodes, automatische Stationen" },
+        { "von": 28120, "bis": 28150, "bw": 500, "mode": "Schmalband-Digital", "cat": "digi", "info": "28120 kHz PSK31 QRP; automatische Stationen" },
+        { "von": 28150, "bis": 28190, "bw": 500, "mode": "Schmalband-Digital", "cat": "digi", "info": "Digimodes" },
+        { "von": 28190, "bis": 28225, "bw": 0,   "mode": "Baken (IBP)", "cat": "beacon", "info": "NCDXF/IARU Bakennetz, kein Sendebetrieb!" },
+        { "von": 28225, "bis": 28300, "bw": 100, "mode": "Baken", "cat": "beacon", "info": "Andere Baken (max. 100 W ERP)" },
+        { "von": 28300, "bis": 28320, "bw": 2700, "mode": "alle Sendearten", "cat": "mixed", "info": "Alle Sendearten inkl. Digi" },
+        { "von": 28320, "bis": 29000, "bw": 2700, "mode": "alle Sendearten", "cat": "ssb", "info": "Bevorzugter SSB-Contestbereich; 28360 kHz SSB QRP; 28680 kHz Bildübertragung" },
+        { "von": 29000, "bis": 29100, "bw": 6000, "mode": "alle Sendearten", "cat": "ssb", "info": "Alle Sendearten" },
+        { "von": 29100, "bis": 29200, "bw": 6000, "mode": "AM", "cat": "am", "info": "AM-Betrieb bevorzugt" },
+        { "von": 29200, "bis": 29300, "bw": 6000, "mode": "alle Sendearten", "cat": "mixed", "info": "Digimodes, automatische Stationen" },
+        { "von": 29300, "bis": 29510, "bw": 6000, "mode": "Satellit (Downlink)", "cat": "sat", "info": "Empfang Satelliten-Downlink – kein Sendebetrieb!" },
+        { "von": 29510, "bis": 29700, "bw": 12000, "mode": "FM-Simplex & Relais", "cat": "fm", "info": "29500 kHz Rufkanal FM; 29510–29590 Simplex; 29600 FM-Simplex-Rufkanal; 29620–29700 FM-Relais (Eingabe +100 kHz)" }
+      ]
+    },
+    { "id": "6m", "name": "6m", "freq": "50000 – 52000 kHz",
+      "fMin": 50.0, "fMax": 52.0, "type": "vhf", "leistung": "1000 W PEP",
+      "zuweisung": "Primär (variiert)", "contest": true, "digi": true,
+      "modes": ["CW","SSB","FT8","FM","MS"],
+      "typUse": "Magic Band, Es-DX, MS, Aurora, FT8 auf 50313 kHz",
+      "info": "Das «Magic Band» – unvorhersehbare Öffnungen durch sporadische E-Schicht (Es), Meteoscatter (MS) und TEP. In CH volle 2 MHz (50–52 MHz).",
+      "iaru": "IARU R1 VHF/UHF Band Plan 2021",
+      "segments": [
+        { "label": "CW",       "pct": 5,  "color": "#378ADD" },
+        { "label": "Digi/FT8", "pct": 15, "color": "#BA7517" },
+        { "label": "SSB",      "pct": 20, "color": "#639922" },
+        { "label": "FM",       "pct": 60, "color": "#7F77DD" }
+      ],
+      "subsegments": [
+        { "von": 50000, "bis": 50100, "bw": 500,  "mode": "CW, SSB", "cat": "cw", "info": "50050 kHz CW-Aktivitätszentrum; 50090 kHz EME; 50100 kHz Rufkanal SSB/CW" },
+        { "von": 50100, "bis": 50300, "bw": 2700, "mode": "SSB, CW", "cat": "ssb", "info": "50110 kHz Rufkanal DX interkontinental; 50150 kHz Aktivitätszentrum SSB" },
+        { "von": 50300, "bis": 50400, "bw": 2700, "mode": "alle Sendearten", "cat": "mixed", "info": "50313 kHz FT8; 50323 kHz FT4; 50400 kHz Baken-Rufkanal" },
+        { "von": 50400, "bis": 50500, "bw": 500,  "mode": "Baken", "cat": "beacon", "info": "Bakennetz" },
+        { "von": 50500, "bis": 51000, "bw": 12000, "mode": "alle Sendearten", "cat": "mixed", "info": "Alle Sendearten; 50550 kHz Bildübertragung" },
+        { "von": 51000, "bis": 52000, "bw": 12000, "mode": "FM", "cat": "fm", "info": "51510 kHz FM-Rufkanal; Relais RB0–RB15 (51210–51790 kHz, Ablage −600 kHz)" }
+      ]
+    },
+    { "id": "4m", "name": "4m", "freq": "70000 – 70500 kHz",
+      "fMin": 70.0, "fMax": 70.5, "type": "vhf", "leistung": "50 W ERP",
+      "zuweisung": "Sekundär (nicht überall)", "contest": false, "digi": true,
+      "modes": ["CW","SSB","FT8","FM"],
+      "typUse": "Es-DX, regional, FT8 auf 70154 kHz",
+      "info": "In HB9 und vielen EU-Ländern verfügbar, aber nicht überall (nicht USA/Japan). Grosse Es-Öffnungen möglich.",
+      "iaru": "IARU R1 VHF Band Plan",
+      "segments": [
+        { "label": "CW/SSB", "pct": 20, "color": "#1D9E75" },
+        { "label": "Digi",   "pct": 10, "color": "#BA7517" },
+        { "label": "FM",     "pct": 70, "color": "#7F77DD" }
+      ],
+      "subsegments": [
+        { "von": 70000, "bis": 70100, "bw": 500,  "mode": "CW, SSB", "cat": "cw", "info": "70090 kHz CW-Aktivitätszentrum; 70100 kHz Rufkanal SSB" },
+        { "von": 70100, "bis": 70200, "bw": 2700, "mode": "SSB, CW", "cat": "ssb", "info": "Rufkanal SSB/CW: 70200 kHz" },
+        { "von": 70200, "bis": 70250, "bw": 2700, "mode": "alle Sendearten", "cat": "digi", "info": "70154 kHz FT8; 70200 kHz MS/Meteoscatter" },
+        { "von": 70250, "bis": 70500, "bw": 12000, "mode": "FM", "cat": "fm", "info": "70450 kHz FM-Simplex-Rufkanal; Relais RU0–RU15" }
+      ]
+    },
+    { "id": "2m", "name": "2m", "freq": "144000 – 146000 kHz",
+      "fMin": 144.0, "fMax": 146.0, "type": "vhf", "leistung": "1000 W PEP",
+      "zuweisung": "Primär", "contest": true, "digi": true,
+      "modes": ["CW","SSB","FT8","FM","EME","D-Star"],
+      "typUse": "Lokal FM, EME, MS, DX SSB, FT8 auf 144174 kHz",
+      "info": "Wichtigstes VHF-Band. FM-Relais, SSB/CW-DX, EME. Rufkanal SSB: 144300 kHz. FT8: 144174 kHz.",
+      "iaru": "IARU R1 VHF/UHF Band Plan 2021",
+      "segments": [
+        { "label": "CW/SSB",    "pct": 10, "color": "#1D9E75" },
+        { "label": "Digi/FT8",  "pct": 5,  "color": "#BA7517" },
+        { "label": "Sat",       "pct": 5,  "color": "#888780" },
+        { "label": "FM/Relais", "pct": 80, "color": "#7F77DD" }
+      ],
+      "subsegments": [
+        { "von": 144000, "bis": 144025, "bw": 500,  "mode": "CW, EME", "cat": "cw", "info": "144000–144025 kHz EME; 144050 kHz CW-Rufkanal" },
+        { "von": 144025, "bis": 144100, "bw": 500,  "mode": "CW", "cat": "cw", "info": "Meteoscatter CW; 144100 kHz MS CW-Rufkanal" },
+        { "von": 144100, "bis": 144150, "bw": 2700, "mode": "SSB, CW", "cat": "ssb", "info": "144100 kHz Aktivitätszentrum MS SSB; Rufkanal SSB: 144300 kHz" },
+        { "von": 144150, "bis": 144400, "bw": 2700, "mode": "SSB, CW", "cat": "ssb", "info": "144174 kHz FT8; 144195 kHz FT4; Rufkanal SSB: 144300 kHz" },
+        { "von": 144400, "bis": 144490, "bw": 500,  "mode": "Baken", "cat": "beacon", "info": "144400 kHz nationaler Bakenrufkanal" },
+        { "von": 144491, "bis": 144493, "bw": 500,  "mode": "IBP-Baken", "cat": "beacon", "info": "Internationales Bakennetz" },
+        { "von": 144500, "bis": 144845, "bw": 20000, "mode": "alle Sendearten", "cat": "mixed", "info": "144500 kHz Bildübertragung; 144600 kHz SSTV; 144750 kHz ATV-Rufkanal" },
+        { "von": 144845, "bis": 144990, "bw": 12000, "mode": "Satellit", "cat": "sat", "info": "Satelliten-Uplink / experimentell" },
+        { "von": 145000, "bis": 145800, "bw": 12000, "mode": "FM, Relais", "cat": "fm", "info": "RV-Relais (145000–145175); 145200–145575 Simplex; 145500 kHz Rufkanal FM; 145800 kHz Sat" },
+        { "von": 145800, "bis": 146000, "bw": 12000, "mode": "Satellit", "cat": "sat", "info": "OSCAR-Satelliten Downlink; 145825 kHz APRS ISS" }
+      ]
+    },
+    { "id": "70cm", "name": "70cm", "freq": "430000 – 440000 kHz",
+      "fMin": 430.0, "fMax": 440.0, "type": "uhf", "leistung": "1000 W PEP",
+      "zuweisung": "Sekundär", "contest": true, "digi": true,
+      "modes": ["CW","SSB","FM","D-Star","DMR","EME"],
+      "typUse": "FM-Relais, D-Star, DMR, EME, AO-7-Satellit",
+      "info": "Sehr aktives UHF-Band. FM-Simplex-Rufkanal: 433500 kHz (S20). Sekundärzuweisung – ISM-Geräte können stören.",
+      "iaru": "IARU R1 VHF/UHF Band Plan 2021",
+      "segments": [
+        { "label": "CW/SSB",      "pct": 5,  "color": "#1D9E75" },
+        { "label": "Digi/D-Star", "pct": 10, "color": "#BA7517" },
+        { "label": "Sat",         "pct": 5,  "color": "#888780" },
+        { "label": "FM/Relais",   "pct": 80, "color": "#7F77DD" }
+      ],
+      "subsegments": [
+        { "von": 430000, "bis": 431975, "bw": 12000, "mode": "alle Sendearten", "cat": "mixed", "info": "ATV, Breitbanddaten, experimentell" },
+        { "von": 431975, "bis": 432000, "bw": 500,   "mode": "Baken", "cat": "beacon", "info": "Baken" },
+        { "von": 432000, "bis": 432100, "bw": 500,   "mode": "CW, EME", "cat": "cw", "info": "432050 kHz EME; 432100 kHz Rufkanal CW/SSB" },
+        { "von": 432100, "bis": 432400, "bw": 2700,  "mode": "SSB, CW", "cat": "ssb", "info": "432200 kHz Rufkanal SSB; 432350 kHz MS SSB" },
+        { "von": 432400, "bis": 432500, "bw": 500,   "mode": "Baken", "cat": "beacon", "info": "432490–432500 kHz Bakennetz" },
+        { "von": 432500, "bis": 432975, "bw": 12000, "mode": "alle Sendearten", "cat": "mixed", "info": "432500 kHz Bildübertragung; 432600 kHz SSTV; 432700 kHz Daten" },
+        { "von": 432975, "bis": 433375, "bw": 12000, "mode": "FM-Simplex", "cat": "fm", "info": "Simplex-Kanäle S0–S20; 433500 kHz Rufkanal FM (S20)" },
+        { "von": 433375, "bis": 434000, "bw": 12000, "mode": "FM-Simplex / Digi", "cat": "fm", "info": "433500 kHz FM-Rufkanal; 433775 kHz APRS; 433900 kHz D-Star" },
+        { "von": 434000, "bis": 435000, "bw": 12000, "mode": "alle Sendearten", "cat": "mixed", "info": "Breitband, ATV, Daten" },
+        { "von": 435000, "bis": 438000, "bw": 12000, "mode": "Satellit", "cat": "sat", "info": "OSCAR-Satelliten (AO-7, FO-29 etc.) – Uplinkbereich" },
+        { "von": 438000, "bis": 440000, "bw": 12000, "mode": "FM-Relais (R)", "cat": "fm", "info": "R-Relais RU0–RU31; Ablage −7,6 MHz; D-Star Relais" }
+      ]
+    },
+    { "id": "23cm", "name": "23cm", "freq": "1240 – 1300 MHz",
+      "fMin": 1240.0, "fMax": 1300.0, "type": "uhf", "leistung": "1000 W PEP",
+      "zuweisung": "Sekundär", "contest": true, "digi": true,
+      "modes": ["CW","SSB","FM","ATV","EME"],
+      "typUse": "EME, ATV, Wideband-Experimente",
+      "info": "Breites Mikrowellen-Einstiegsband. Rufkanal SSB: 1296200 kHz. ATV: 1255–1270 MHz. Galileo-GPS-Schutz (WRC-23) beachten.",
+      "iaru": "IARU R1 Microwave Band Plan",
+      "segments": [
+        { "label": "CW/SSB",    "pct": 5,  "color": "#1D9E75" },
+        { "label": "Digi",      "pct": 5,  "color": "#BA7517" },
+        { "label": "Sat",       "pct": 8,  "color": "#888780" },
+        { "label": "ATV",       "pct": 20, "color": "#D4537E" },
+        { "label": "FM/Schmal", "pct": 62, "color": "#7F77DD" }
+      ],
+      "subsegments": [
+        { "von": 1240000, "bis": 1243250, "bw": 12000, "mode": "ATV, Breitband", "cat": "am", "info": "ATV (analog)" },
+        { "von": 1243250, "bis": 1260000, "bw": 12000, "mode": "Satellit, ATV", "cat": "sat", "info": "1260–1270 MHz Satellit-Uplink" },
+        { "von": 1260000, "bis": 1270000, "bw": 12000, "mode": "Satellit (Uplink)", "cat": "sat", "info": "OSCAR-Uplink; kein anderer Betrieb empfohlen" },
+        { "von": 1270000, "bis": 1296000, "bw": 12000, "mode": "ATV, Breitband", "cat": "am", "info": "ATV, Breitbanddaten, Relais" },
+        { "von": 1296000, "bis": 1296150, "bw": 500, "mode": "CW, EME", "cat": "cw", "info": "1296050 kHz EME; 1296100 kHz CW-Rufkanal" },
+        { "von": 1296150, "bis": 1296800, "bw": 2700, "mode": "SSB, CW", "cat": "ssb", "info": "1296200 kHz Rufkanal SSB; 1296500 kHz SSTV/FAX; 1296600 kHz Daten" },
+        { "von": 1296800, "bis": 1297000, "bw": 500, "mode": "Baken", "cat": "beacon", "info": "Bakennetz" },
+        { "von": 1297000, "bis": 1300000, "bw": 12000, "mode": "FM, Relais", "cat": "fm", "info": "FM-Simplex und Relais" }
+      ]
+    },
+    { "id": "13cm", "name": "13cm", "freq": "2300 – 2450 MHz",
+      "fMin": 2300.0, "fMax": 2450.0, "type": "uhf", "leistung": "—",
+      "zuweisung": "Sekundär", "contest": true, "digi": false,
+      "modes": ["CW","SSB","ATV","EME"],
+      "typUse": "EME, Mikrowellen-Contest, ATV",
+      "info": "Zwei Segmente: 2300–2302 MHz und 2400–2450 MHz. ISM-Band (WLAN!) – starke Störer. EME auf 2304 MHz.",
+      "iaru": "IARU R1 Microwave Band Plan",
+      "segments": [
+        { "label": "CW/SSB",        "pct": 10, "color": "#1D9E75" },
+        { "label": "ATV/Breitband", "pct": 90, "color": "#D4537E" }
+      ],
+      "subsegments": [
+        { "von": 2300000, "bis": 2302000, "bw": 2700, "mode": "CW, SSB", "cat": "cw", "info": "2300100 kHz Rufkanal CW; 2304100 kHz EME; 2320200 kHz Rufkanal SSB" },
+        { "von": 2400000, "bis": 2450000, "bw": 12000, "mode": "alle Sendearten, ATV", "cat": "am", "info": "2400–2450 MHz ISM-Band – WLAN-Interferenz! 2401–2409 MHz Satellit" }
+      ]
+    },
+    { "id": "9cm", "name": "9cm", "freq": "3400 – 3410 MHz",
+      "fMin": 3400.0, "fMax": 3410.0, "type": "uhf", "leistung": "—",
+      "zuweisung": "Sekundär", "contest": false, "digi": false,
+      "modes": ["CW","SSB","ATV"],
+      "typUse": "Experimentell, Mikrowellen-Pioniere",
+      "info": "Kleines Segment (10 MHz). Rufkanal SSB: 3400100 kHz. Sehr wenige aktive Stationen. Fortgeschrittene Mikrowellentechnik erforderlich.",
+      "iaru": "IARU R1 Microwave Band Plan",
+      "segments": [{ "label": "Schmal/ATV", "pct": 100, "color": "#1D9E75" }],
+      "subsegments": [
+        { "von": 3400000, "bis": 3400500, "bw": 2700, "mode": "CW, SSB", "cat": "cw", "info": "3400100 kHz Rufkanal SSB/CW" },
+        { "von": 3400500, "bis": 3410000, "bw": 12000, "mode": "alle Sendearten", "cat": "mixed", "info": "ATV, Breitband, experimentell" }
+      ]
+    },
+    { "id": "6cm", "name": "6cm", "freq": "5650 – 5850 MHz",
+      "fMin": 5650.0, "fMax": 5850.0, "type": "shf", "leistung": "—",
+      "zuweisung": "Sekundär", "contest": false, "digi": false,
+      "modes": ["CW","SSB","ATV"],
+      "typUse": "Mikrowellen-Experimente, ATV",
+      "info": "Rufkanal SSB: 5760100 kHz. WLAN-Interferenz möglich (5 GHz). Parabolantennen üblich.",
+      "iaru": "IARU R1 Microwave Band Plan",
+      "segments": [
+        { "label": "SSB/CW",        "pct": 5,  "color": "#1D9E75" },
+        { "label": "Sat",           "pct": 10, "color": "#888780" },
+        { "label": "ATV/Breitband", "pct": 85, "color": "#D4537E" }
+      ],
+      "subsegments": [
+        { "von": 5760000, "bis": 5760500, "bw": 2700, "mode": "CW, SSB", "cat": "cw", "info": "5760100 kHz Rufkanal SSB/CW" },
+        { "von": 5760500, "bis": 5790000, "bw": 12000, "mode": "alle Sendearten", "cat": "mixed", "info": "Breitband, ATV" },
+        { "von": 5830000, "bis": 5850000, "bw": 12000, "mode": "Satellit", "cat": "sat", "info": "Satellit-Uplink" }
+      ]
+    },
+    { "id": "3cm", "name": "3cm", "freq": "10000 – 10500 MHz",
+      "fMin": 10000.0, "fMax": 10500.0, "type": "shf", "leistung": "—",
+      "zuweisung": "Sekundär", "contest": true, "digi": false,
+      "modes": ["CW","SSB","ATV","FM"],
+      "typUse": "Mikrowellen-Contest, Rundspruch HB9, EME",
+      "info": "Aktives Mikrowellen-Contest-Band! Rufkanal SSB: 10368100 kHz. In HB9 für Alpenrundsprüche genutzt.",
+      "iaru": "IARU R1 Microwave Band Plan",
+      "segments": [
+        { "label": "SSB/CW",    "pct": 5,  "color": "#1D9E75" },
+        { "label": "FM-Relais", "pct": 20, "color": "#7F77DD" },
+        { "label": "ATV",       "pct": 75, "color": "#D4537E" }
+      ],
+      "subsegments": [
+        { "von": 10368000, "bis": 10368500, "bw": 2700, "mode": "CW, SSB", "cat": "cw", "info": "10368100 kHz Rufkanal SSB/CW; EME" },
+        { "von": 10368500, "bis": 10370000, "bw": 12000, "mode": "alle Sendearten", "cat": "mixed", "info": "Breitband, Daten" },
+        { "von": 10400000, "bis": 10500000, "bw": 12000, "mode": "ATV, FM-Relais", "cat": "fm", "info": "ATV; FM-Relais" }
+      ]
+    },
+    { "id": "1_25cm", "name": "1,25cm", "freq": "24000 – 24050 MHz",
+      "fMin": 24000.0, "fMax": 24050.0, "type": "shf", "leistung": "—",
+      "zuweisung": "Primär", "contest": false, "digi": false,
+      "modes": ["CW","SSB"],
+      "typUse": "Pionier-Betrieb, Mikrowellen-DX",
+      "info": "Eines der wenigen Primärzuweisungen im SHF-Bereich. Rufkanal: 24048100 kHz. Sehr wenige aktive Stationen.",
+      "iaru": "IARU R1 Microwave Band Plan",
+      "segments": [{ "label": "SSB/CW", "pct": 100, "color": "#1D9E75" }],
+      "subsegments": [
+        { "von": 24000000, "bis": 24050000, "bw": 2700, "mode": "CW, SSB", "cat": "cw", "info": "24048100 kHz Rufkanal; Spezial-Hardware erforderlich (Gunn-Diode)" }
+      ]
+    }
+  ]
+}
