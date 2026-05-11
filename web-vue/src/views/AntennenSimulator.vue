@@ -274,6 +274,7 @@ onMounted(() => {
     running.value = false
   }
   status.value = 'Bereit'
+  loadSavedModels()
 
   // ?model=<base64-JSON> → Antennen-Modell aus anderem Rechner importieren
   // (gesetzt vom "Im Sim öffnen"-Button in Hexbeam/Yagi/Dipol-Views)
@@ -342,6 +343,95 @@ function addLoad() {
 function removeLoad(idx) {
   if (!cfg.loads) return
   cfg.loads.splice(idx, 1)
+}
+
+// ─── Save/Load eigener Modelle (LocalStorage) ────────────────────────────────
+const SAVED_KEY = 'antennensim:saved-models:v1'
+const savedModels = ref([])
+
+function loadSavedModels() {
+  try {
+    const raw = localStorage.getItem(SAVED_KEY)
+    if (!raw) return
+    const arr = JSON.parse(raw)
+    if (Array.isArray(arr)) savedModels.value = arr
+  } catch (e) {
+    console.warn('[savedModels] Laden fehlgeschlagen:', e)
+  }
+}
+function persistSavedModels() {
+  try {
+    localStorage.setItem(SAVED_KEY, JSON.stringify(savedModels.value))
+  } catch (e) {
+    console.warn('[savedModels] Speichern fehlgeschlagen:', e)
+  }
+}
+function saveCurrentModel() {
+  const suggested = cfg.name || 'Mein Antennen-Modell'
+  const name = window.prompt('Name für dieses Modell:', suggested)
+  if (!name) return
+  const entry = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    name: name.trim(),
+    savedAt: new Date().toISOString(),
+    cfg: JSON.parse(JSON.stringify({
+      name: cfg.name,
+      freq: cfg.freq,
+      ground: cfg.ground,
+      height: cfg.height,
+      wires: cfg.wires,
+      excitation: cfg.excitation,
+      loads: cfg.loads || [],
+    })),
+  }
+  savedModels.value.unshift(entry)   // neueste zuerst
+  persistSavedModels()
+  status.value = `Modell "${entry.name}" gespeichert`
+}
+function loadSavedModel(entry) {
+  const c = entry.cfg
+  cfg.name = c.name || entry.name
+  cfg.freq = c.freq
+  cfg.ground = c.ground
+  cfg.height = c.height
+  cfg.wires = JSON.parse(JSON.stringify(c.wires))
+  cfg.excitation = JSON.parse(JSON.stringify(c.excitation))
+  cfg.loads = JSON.parse(JSON.stringify(c.loads || []))
+  result.value = null
+  errorMsg.value = null
+  status.value = `Modell "${entry.name}" geladen`
+}
+function deleteSavedModel(idx) {
+  const entry = savedModels.value[idx]
+  if (!entry) return
+  if (!window.confirm(`Modell "${entry.name}" wirklich löschen?`)) return
+  savedModels.value.splice(idx, 1)
+  persistSavedModels()
+}
+function formatSavedDate(iso) {
+  try {
+    const d = new Date(iso)
+    return d.toLocaleDateString('de-DE') + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+  } catch { return '' }
+}
+// NEC2-Deck als .nec-Datei downloaden
+function downloadDeck() {
+  if (!result.value?.deck) {
+    // Wenn noch kein Result da: lokal generieren via Worker-Logik nicht trivial.
+    // Stattdessen User auffordern erst Simulieren.
+    window.alert('Bitte erst "Simulieren" klicken — das NEC2-Deck steht dann zum Download bereit.')
+    return
+  }
+  const blob = new Blob([result.value.deck], { type: 'text/plain' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const safeName = (cfg.name || 'modell').replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 60)
+  a.download = `${safeName}.nec`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 // Wenn der Typ gewechselt wird, irrelevante Werte zurücksetzen
 function onLoadTypeChange(ld) {
@@ -707,6 +797,47 @@ const PLOT_C = PLOT_SIZE / 2
       Templates setzen Drahtmodell, Speisepunkt, Boden + Frequenz auf sinnvolle Defaults — du kannst danach alles editieren.
       Für komplexere Antennen (Hexbeam, Spiderbeam, HB9CV, J-Pole, Magnetic Loop) öffnest du am besten den entsprechenden
       Rechner und nutzt dort den <strong>📡 Im Sim öffnen</strong>-Button.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Eigene Modelle</h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+      <button class="btn" @click="saveCurrentModel">💾 Aktuelles Modell speichern…</button>
+      <button class="btn" @click="downloadDeck" :disabled="!result || !result.deck"
+              :title="result && result.deck ? 'Aktuelles NEC2-Deck als .nec-Datei herunterladen' : 'Erst Simulieren klicken, dann ist das Deck verfügbar'">
+        ⬇ NEC2-Deck als .nec
+      </button>
+    </div>
+    <div v-if="savedModels.length > 0" style="margin-top:12px; overflow-x:auto">
+      <table class="wire-tbl" style="min-width:560px">
+        <thead>
+          <tr>
+            <th style="text-align:left">Name</th>
+            <th>Bänder / Frequenz</th>
+            <th>Drähte</th>
+            <th>Gespeichert</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(m, idx) in savedModels" :key="m.id">
+            <td style="text-align:left; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
+                :title="m.name">{{ m.name }}</td>
+            <td style="text-align:center; font-family:monospace; font-size:11px">{{ m.cfg.freq }} MHz</td>
+            <td style="text-align:center">{{ m.cfg.wires?.length || 0 }}</td>
+            <td style="text-align:center; font-size:11px; opacity:0.7">{{ formatSavedDate(m.savedAt) }}</td>
+            <td style="text-align:center; white-space:nowrap">
+              <button class="btn" style="padding:4px 10px; font-size:12px; margin-right:4px" @click="loadSavedModel(m)">📂 Laden</button>
+              <button class="btn-x" @click="deleteSavedModel(idx)">✕</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p v-else style="font-size:11px; opacity:0.65; margin-top:10px; line-height:1.5">
+      Speichert das aktuelle Drahtmodell (inkl. Bauteile, Speisepunkt, Frequenz, Boden) lokal im Browser. Alle gespeicherten
+      Modelle erscheinen hier in der Liste — du kannst sie jederzeit wieder laden. Storage = nur dieser Browser, kein Server.
     </p>
   </div>
 
