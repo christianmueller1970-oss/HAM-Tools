@@ -353,7 +353,7 @@ struct QSOEntryPanel: View {
 
                 if !callbookSummary.isEmpty {
                     Text(callbookSummary)
-                        .font(.caption.weight(.semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(theme.textPrimary)
                         .lineLimit(2)
                 }
@@ -361,9 +361,9 @@ struct QSOEntryPanel: View {
                     Link(destination: url) {
                         HStack(spacing: 3) {
                             Image(systemName: "arrow.up.right.square")
-                                .font(.caption2)
+                                .font(.caption)
                             Text("QRZ-Profil öffnen")
-                                .font(.caption2)
+                                .font(.caption)
                         }
                         .foregroundStyle(theme.accentBlue)
                     }
@@ -389,19 +389,21 @@ struct QSOEntryPanel: View {
 
     // MARK: - Field Helpers
 
-    private static let labelColumnWidth: CGFloat = 55
+    private static let labelColumnWidth: CGFloat = 70
+    private static let fieldFont: Font = .body
+    private static let fieldFontMono: Font = .system(.body, design: .monospaced)
 
     // Spezial-Row für das Call-Feld: zusätzlich FocusState (TAB-Wechsel
     // triggert Callbook-Lookup) und Lookup-Spinner rechts.
     private var callFieldRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text("Call")
-                .font(.caption)
+                .font(Self.fieldFont)
                 .foregroundStyle(theme.textSecondary)
                 .frame(width: Self.labelColumnWidth, alignment: .trailing)
             TextField("HB9HJI", text: $call)
                 .textFieldStyle(.plain)
-                .font(.system(.caption, design: .monospaced))
+                .font(Self.fieldFontMono)
                 .foregroundStyle(theme.accentBlue)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
@@ -478,14 +480,12 @@ struct QSOEntryPanel: View {
                           onChange: ((String) -> Void)? = nil) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(label)
-                .font(.caption)
+                .font(Self.fieldFont)
                 .foregroundStyle(theme.textSecondary)
                 .frame(width: Self.labelColumnWidth, alignment: .trailing)
             TextField(placeholder, text: value)
                 .textFieldStyle(.plain)
-                .font(monospaced
-                      ? .system(.caption, design: .monospaced)
-                      : .caption)
+                .font(monospaced ? Self.fieldFontMono : Self.fieldFont)
                 .foregroundStyle(accent ? theme.accentBlue : theme.textPrimary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
@@ -509,11 +509,11 @@ struct QSOEntryPanel: View {
                               enabled: Bool = true) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(label)
-                .font(.caption)
+                .font(Self.fieldFont)
                 .foregroundStyle(theme.textSecondary)
                 .frame(width: Self.labelColumnWidth, alignment: .trailing)
             Text(enabled ? formatUTC(value.wrappedValue) : "—")
-                .font(.system(.caption, design: .monospaced))
+                .font(Self.fieldFontMono)
                 .foregroundStyle(enabled ? theme.textPrimary : theme.textDim)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 6)
@@ -526,7 +526,7 @@ struct QSOEntryPanel: View {
     private var modePickerRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text("Mode")
-                .font(.caption)
+                .font(Self.fieldFont)
                 .foregroundStyle(theme.textSecondary)
                 .frame(width: Self.labelColumnWidth, alignment: .trailing)
             Picker("Mode", selection: $mode) {
@@ -535,7 +535,7 @@ struct QSOEntryPanel: View {
                 }
             }
             .labelsHidden()
-            .controlSize(.mini)
+            .controlSize(.small)
             .frame(maxWidth: .infinity, alignment: .leading)
             .onChange(of: mode) { _, newMode in
                 if newMode == "CW" || newMode == "RTTY" || newMode == "PSK31" {
@@ -552,7 +552,7 @@ struct QSOEntryPanel: View {
     private var bandPickerRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text("Band")
-                .font(.caption)
+                .font(Self.fieldFont)
                 .foregroundStyle(theme.textSecondary)
                 .frame(width: Self.labelColumnWidth, alignment: .trailing)
             Picker("Band", selection: $bandRaw) {
@@ -561,7 +561,7 @@ struct QSOEntryPanel: View {
                 }
             }
             .labelsHidden()
-            .controlSize(.mini)
+            .controlSize(.small)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
