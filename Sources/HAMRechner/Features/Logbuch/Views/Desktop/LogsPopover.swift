@@ -12,6 +12,8 @@ struct LogsPopover: View {
     @Binding var showNewLogSheet: Bool
     let onClose: () -> Void
 
+    @State private var deleteCandidate: Log?
+
     private var theme: AppTheme { themeManager.theme }
 
     var body: some View {
@@ -71,6 +73,19 @@ struct LogsPopover: View {
         }
         .frame(width: 380)
         .background(theme.bgCard)
+        .alert(item: $deleteCandidate) { log in
+            let count = manager.qsoCount(for: log)
+            return Alert(
+                title: Text("Logbuch löschen?"),
+                message: Text(count == 0
+                    ? "»\(log.name)« ist leer und wird gelöscht."
+                    : "»\(log.name)« enthält \(count) QSO\(count == 1 ? "" : "s"). Vor dem Löschen wird ein ADIF-Backup nach Backups/ geschrieben.\n\nDie .htlog-Datei wird endgültig entfernt."),
+                primaryButton: .destructive(Text(count == 0 ? "Löschen" : "Backup + Löschen")) {
+                    manager.deleteLog(log)
+                },
+                secondaryButton: .cancel(Text("Abbrechen"))
+            )
+        }
     }
 
     private func row(for log: Log) -> some View {
@@ -140,9 +155,9 @@ struct LogsPopover: View {
             }
             Divider()
             Button(role: .destructive) {
-                manager.deleteLog(log)
+                deleteCandidate = log
             } label: {
-                Label("Log löschen (Datei wird entfernt)", systemImage: "trash")
+                Label("Log löschen …", systemImage: "trash")
             }
         }
     }

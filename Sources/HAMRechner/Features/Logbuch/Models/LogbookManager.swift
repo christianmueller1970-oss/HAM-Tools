@@ -99,6 +99,10 @@ final class LogbookManager: ObservableObject {
 
     func deleteLog(_ log: Log) {
         guard let url = fileURLs[log.id] else { return }
+        // Vor dem Löschen automatisches ADIF-Backup ins Backups/-Verzeichnis.
+        // Wenn das Log leer ist, passiert nichts (kein leeres Backup).
+        backupLogAsADIF(logID: log.id, tag: "pre-delete")
+
         if currentLogID == log.id {
             openDB = nil
             currentLogID = nil
@@ -165,6 +169,45 @@ final class LogbookManager: ObservableObject {
 
     // MARK: - ADIF Export / Import
 
+    // MARK: - Auto-Backup
+
+    /// Schreibt das angegebene Log als ADIF in den Backups-Ordner mit einem
+    /// Kontext-Tag (z.B. »pre-delete«, »pre-import«). Wird vor riskanten
+    /// Aktionen automatisch aufgerufen damit man im Notfall den Stand
+    /// wiederherstellen kann.
+    @discardableResult
+    func backupLogAsADIF(logID: UUID, tag: String) -> URL? {
+        guard let log = logs.first(where: { $0.id == logID }) else { return nil }
+        let qsos: [QSO]
+        if logID == currentLogID {
+            qsos = currentQSOs
+        } else if let url = fileURLs[logID],
+                  let db = try? LogbookDatabase(opening: url) {
+            qsos = db.qsos
+        } else {
+            qsos = []
+        }
+        guard !qsos.isEmpty else { return nil }  // leeres Log braucht kein Backup
+        let text = ADIFCodec.encode(qsos: qsos, logName: log.name)
+        let stamp: String = {
+            let f = DateFormatter()
+            f.dateFormat = "yyyyMMdd-HHmmss"
+            return f.string(from: Date())
+        }()
+        let safeName = log.name.replacingOccurrences(of: "/", with: "_")
+        let fileName = "\(safeName)-\(stamp)-\(tag).adi"
+        let url = dataRoot.backupsDir.appendingPathComponent(fileName)
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            return url
+        } catch {
+            print("Backup fehlgeschlagen: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    // MARK: - ADIF Export
+
     /// Schreibt das aktive Log als ADIF in den Exports-Ordner.
     /// Liefert die geschriebene URL bei Erfolg, sonst nil.
     func exportActiveLogAsADIF() -> URL? {
@@ -198,8 +241,12 @@ final class LogbookManager: ObservableObject {
 
     /// Importiert eine Liste von QSOs ins angegebene Log. Wenn das Log
     /// gerade offen ist, geht das über die DB; sonst wird kurz geöffnet.
-    /// Liefert die Anzahl tatsächlich geschriebener QSOs.
+    /// Liefert die Anzahl tatsächlich geschriebener QSOs. Vor dem
+    /// Import wird automatisch ein ADIF-Backup nach Backups/ geschrieben
+    /// (falls das Ziel-Log nicht leer ist).
     func importQSOs(_ qsos: [QSO], into logID: UUID) -> Int {
+        backupLogAsADIF(logID: logID, tag: "pre-import")
+
         var count = 0
         if logID == currentLogID, let db = openDB {
             for q in qsos {
