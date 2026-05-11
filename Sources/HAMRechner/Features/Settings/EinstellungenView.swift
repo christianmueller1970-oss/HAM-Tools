@@ -33,6 +33,22 @@ private struct CallbookTab: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                GroupBox("Primärer Dienst") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Picker("Primärer Dienst", selection: $settings.primaryService) {
+                            ForEach(CallbookSettings.ServiceID.allCases) { id in
+                                Text(id.rawValue).tag(id)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        Text("Lookups gehen zuerst an den primären Dienst. Wenn dort kein Treffer kommt, wird der zweite als Fallback gefragt.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(4)
+                }
+
                 GroupBox("QRZ.com — Zugangsdaten") {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
@@ -53,12 +69,42 @@ private struct CallbookTab: View {
                                   ? "checkmark.circle.fill" : "exclamationmark.circle")
                                 .foregroundStyle(settings.qrzIsConfigured ? .green : .orange)
                             Text(settings.qrzIsConfigured
-                                 ? "Konfiguriert — bereit für Lookups"
-                                 : "Noch keine Zugangsdaten hinterlegt")
+                                 ? "Konfiguriert"
+                                 : "Nicht konfiguriert")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        Text("QRZ.com benötigt einen kostenlosen Account für Basis-Lookups (Name, QTH, Locator, Country). Erweiterte Daten (E-Mail, Bio, Bild) brauchen ein XML-Subscription-Abo.")
+                        Text("QRZ.com — Basis-Lookups gratis, erweiterte Daten (Bild, Bio) brauchen XML-Subscription.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(4)
+                }
+
+                GroupBox("HamQTH.com — Zugangsdaten") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("Benutzername").frame(width: 110, alignment: .leading)
+                            TextField("HamQTH-Benutzername", text: $settings.hamqthUsername)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(maxWidth: 220)
+                        }
+                        HStack {
+                            Text("Passwort").frame(width: 110, alignment: .leading)
+                            SecureField("", text: $settings.hamqthPassword)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(maxWidth: 220)
+                        }
+                        HStack(spacing: 6) {
+                            Image(systemName: settings.hamqthIsConfigured
+                                  ? "checkmark.circle.fill" : "exclamationmark.circle")
+                                .foregroundStyle(settings.hamqthIsConfigured ? .green : .orange)
+                            Text(settings.hamqthIsConfigured ? "Konfiguriert" : "Nicht konfiguriert")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("HamQTH.com — vollständig kostenlos inkl. Profilbild. Gute Alternative bzw. Fallback wenn QRZ keine Daten liefert.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

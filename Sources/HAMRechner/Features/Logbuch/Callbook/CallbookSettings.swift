@@ -5,41 +5,59 @@ import Combine
 // via Combine-Sink — robuster als didSet (der bei SecureField-Bindings
 // auf macOS gelegentlich nicht zuverlässig feuert).
 final class CallbookSettings: ObservableObject {
-    static let usernameKey   = "callbook.qrz.username"
-    static let passwordKey   = "callbook.qrz.password"
-    static let autoLookupKey = "callbook.autoLookupOnTab"
+    // QRZ
+    static let qrzUsernameKey  = "callbook.qrz.username"
+    static let qrzPasswordKey  = "callbook.qrz.password"
+    // HamQTH
+    static let hamqthUsernameKey = "callbook.hamqth.username"
+    static let hamqthPasswordKey = "callbook.hamqth.password"
+    // Verhalten
+    static let autoLookupKey       = "callbook.autoLookupOnTab"
+    static let primaryServiceKey   = "callbook.primaryService"
 
     @Published var qrzUsername: String
     @Published var qrzPassword: String
+    @Published var hamqthUsername: String
+    @Published var hamqthPassword: String
     @Published var autoLookupOnTab: Bool
+    // Primärer Dienst — der zweite ist Fallback.
+    @Published var primaryService: ServiceID
+
+    enum ServiceID: String, Codable, CaseIterable, Identifiable {
+        case qrz    = "QRZ"
+        case hamqth = "HamQTH"
+        var id: String { rawValue }
+    }
 
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        self.qrzUsername     = UserDefaults.standard.string(forKey: Self.usernameKey)   ?? ""
-        self.qrzPassword     = UserDefaults.standard.string(forKey: Self.passwordKey)   ?? ""
+        self.qrzUsername     = UserDefaults.standard.string(forKey: Self.qrzUsernameKey)    ?? ""
+        self.qrzPassword     = UserDefaults.standard.string(forKey: Self.qrzPasswordKey)    ?? ""
+        self.hamqthUsername  = UserDefaults.standard.string(forKey: Self.hamqthUsernameKey) ?? ""
+        self.hamqthPassword  = UserDefaults.standard.string(forKey: Self.hamqthPasswordKey) ?? ""
         self.autoLookupOnTab = (UserDefaults.standard.object(forKey: Self.autoLookupKey) as? Bool) ?? true
+        let primaryRaw       = UserDefaults.standard.string(forKey: Self.primaryServiceKey) ?? "QRZ"
+        self.primaryService  = ServiceID(rawValue: primaryRaw) ?? .qrz
 
-        // Combine-basierte Persistenz — feuert zuverlässig bei jeder
-        // Änderung (auch bei SecureField, wo didSet manchmal zickt).
-        $qrzUsername
-            .dropFirst()
-            .sink { UserDefaults.standard.set($0, forKey: Self.usernameKey) }
-            .store(in: &cancellables)
-        $qrzPassword
-            .dropFirst()
-            .sink { UserDefaults.standard.set($0, forKey: Self.passwordKey) }
-            .store(in: &cancellables)
-        $autoLookupOnTab
-            .dropFirst()
-            .sink { UserDefaults.standard.set($0, forKey: Self.autoLookupKey) }
-            .store(in: &cancellables)
+        // Combine-basierte Persistenz — feuert zuverlässig bei jeder Änderung
+        $qrzUsername    .dropFirst().sink { UserDefaults.standard.set($0, forKey: Self.qrzUsernameKey)    }.store(in: &cancellables)
+        $qrzPassword    .dropFirst().sink { UserDefaults.standard.set($0, forKey: Self.qrzPasswordKey)    }.store(in: &cancellables)
+        $hamqthUsername .dropFirst().sink { UserDefaults.standard.set($0, forKey: Self.hamqthUsernameKey) }.store(in: &cancellables)
+        $hamqthPassword .dropFirst().sink { UserDefaults.standard.set($0, forKey: Self.hamqthPasswordKey) }.store(in: &cancellables)
+        $autoLookupOnTab.dropFirst().sink { UserDefaults.standard.set($0, forKey: Self.autoLookupKey)     }.store(in: &cancellables)
+        $primaryService .dropFirst().sink { UserDefaults.standard.set($0.rawValue, forKey: Self.primaryServiceKey) }.store(in: &cancellables)
     }
 
-    // Computed — wird bei jedem View-Re-Render aus den @Published-Werten
-    // neu berechnet. Kein Caching → kein Stale-State.
     var qrzIsConfigured: Bool {
         !qrzUsername.trimmingCharacters(in: .whitespaces).isEmpty
             && !qrzPassword.trimmingCharacters(in: .whitespaces).isEmpty
     }
+
+    var hamqthIsConfigured: Bool {
+        !hamqthUsername.trimmingCharacters(in: .whitespaces).isEmpty
+            && !hamqthPassword.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    var anyConfigured: Bool { qrzIsConfigured || hamqthIsConfigured }
 }

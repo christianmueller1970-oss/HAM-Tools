@@ -1,16 +1,18 @@
 import Foundation
 import Combine
 
-// Orchestriert die Callbook-Lookups. Aktuell nur QRZ.com, später lassen
-// sich HamQTH/qrzcq/etc. anhängen indem man ein CallbookService-Impl
-// dazustellt und priorisiert.
+// Orchestriert die Callbook-Lookups. Primär+Fallback-Logik:
+//   1. Try primary service (QRZ oder HamQTH, je nach settings.primaryService)
+//   2. Wenn kein Resultat: try the other service
+//   3. Sonst: nil
 //
-// Persistenter Cache: Root/Cache/callbook-cache.json.
+// Persistenter Cache: Root/Cache/callbook-cache.json (Service-agnostisch).
 @MainActor
 final class CallbookManager: ObservableObject {
     let settings: CallbookSettings
     private let dataRoot: AppDataRoot
-    private let qrz: QRZService
+    private let qrz:    QRZService
+    private let hamqth: HamQTHService
 
     @Published private(set) var inFlightCalls: Set<String> = []
     @Published private(set) var lastError: String?
@@ -21,12 +23,14 @@ final class CallbookManager: ObservableObject {
     private struct CachedEntry: Codable {
         let result: CallbookResult
         let timestamp: Date
+        var source: String? = nil   // welcher Service hat geantwortet
     }
 
     init(settings: CallbookSettings, dataRoot: AppDataRoot) {
         self.settings = settings
         self.dataRoot = dataRoot
-        self.qrz = QRZService(settings: settings)
+        self.qrz    = QRZService(settings: settings)
+        self.hamqth = HamQTHService(settings: settings)
         loadCache()
     }
 
@@ -44,12 +48,8 @@ final class CallbookManager: ObservableObject {
             return cached.result
         }
 
-        // Direkt aus den Settings-Properties lesen — kein cached Flag,
-        // damit kein Stale-State bei frisch eingetippten Credentials.
-        let user = settings.qrzUsername.trimmingCharacters(in: .whitespaces)
-        let pass = settings.qrzPassword.trimmingCharacters(in: .whitespaces)
-        guard !user.isEmpty, !pass.isEmpty else {
-            lastError = "QRZ.com nicht konfiguriert — Einstellungen → Callbook"
+        guard settings.anyConfigured else {
+            lastError = "Kein Callbook konfiguriert — Einstellungen → Callbook"
             return nil
         }
 
@@ -57,13 +57,26 @@ final class CallbookManager: ObservableObject {
         defer { inFlightCalls.remove(key) }
         lastError = nil
 
-        guard let result = await qrz.lookup(call: key) else {
-            lastError = "Kein Treffer für \(key) oder QRZ-Fehler"
-            return nil
+        // Reihenfolge: primary zuerst, der andere als Fallback.
+        // Nicht-konfigurierte Services werden übersprungen.
+        let order: [(name: String, service: CallbookService, configured: Bool)] =
+            settings.primaryService == .qrz
+            ? [("QRZ",    qrz,    settings.qrzIsConfigured),
+               ("HamQTH", hamqth, settings.hamqthIsConfigured)]
+            : [("HamQTH", hamqth, settings.hamqthIsConfigured),
+               ("QRZ",    qrz,    settings.qrzIsConfigured)]
+
+        for entry in order where entry.configured {
+            if let result = await entry.service.lookup(call: key) {
+                cache[key] = CachedEntry(result: result,
+                                         timestamp: Date(),
+                                         source: entry.name)
+                saveCache()
+                return result
+            }
         }
-        cache[key] = CachedEntry(result: result, timestamp: Date())
-        saveCache()
-        return result
+        lastError = "Kein Treffer für \(key)"
+        return nil
     }
 
     func isInFlight(_ call: String) -> Bool {
