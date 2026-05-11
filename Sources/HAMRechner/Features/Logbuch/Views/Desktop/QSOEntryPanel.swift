@@ -53,6 +53,11 @@ struct QSOEntryPanel: View {
     @State private var lastFilledFromCallbook: Date? = nil
     @State private var pendingDupe: DupeWarning? = nil
 
+    // Callbook-Lookup-Resultat: Bild-URL + QRZ-Link für die Header-Anzeige
+    @State private var callbookImageURL: String? = nil
+    @State private var callbookQRZURL: String? = nil
+    @State private var callbookSummary: String = ""
+
     // Focus-State für Call-Feld — Wechsel raus = Auto-Lookup-Trigger
     @FocusState private var callFieldFocused: Bool
     @State private var lastLookedUpCall: String = ""
@@ -212,11 +217,54 @@ struct QSOEntryPanel: View {
     // MARK: - Header mit DX | Contest-Tabs
 
     private var modeTabs: some View {
-        HStack(spacing: 4) {
+        HStack(alignment: .center, spacing: 8) {
             modeTab(.dx, label: "DX")
             modeTab(.contest, label: "Contest", enabled: false)
+
+            // Callbook-Header: Image + Summary + Link zur QRZ-Seite
+            if let urlString = callbookImageURL, let url = URL(string: urlString) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        ProgressView().controlSize(.mini).frame(width: 40, height: 40)
+                    case .success(let img):
+                        img.resizable().scaledToFill()
+                    case .failure:
+                        Image(systemName: "person.crop.square")
+                            .foregroundStyle(theme.textDim)
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+                .frame(width: 40, height: 40)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(theme.separator, lineWidth: 1)
+                )
+            }
+            if !callbookSummary.isEmpty {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(callbookSummary)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(theme.textPrimary)
+                        .lineLimit(1)
+                    if let qrz = callbookQRZURL, let url = URL(string: qrz) {
+                        Link(destination: url) {
+                            HStack(spacing: 3) {
+                                Image(systemName: "arrow.up.right.square")
+                                    .font(.caption2)
+                                Text("QRZ-Profil")
+                                    .font(.caption2)
+                            }
+                            .foregroundStyle(theme.accentBlue)
+                        }
+                    }
+                }
+            }
+
             Spacer()
-            if !canLog {
+            if !canLog && callbookSummary.isEmpty {
                 HStack(spacing: 4) {
                     Image(systemName: "info.circle")
                     Text("Pflichtfelder: Call + Frequenz")
@@ -374,20 +422,22 @@ struct QSOEntryPanel: View {
 
     private func applyCallbookResult(_ r: CallbookResult) {
         // Nur leere Felder befüllen — überschreibt nichts vom User
-        let combinedName = [r.firstName, r.lastName]
-            .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-        if !combinedName.isEmpty, firstName.isEmpty, lastName.isEmpty {
-            firstName = r.firstName ?? ""
-            lastName  = r.lastName  ?? ""
-        }
+        if firstName.isEmpty, let v = r.firstName, !v.isEmpty { firstName = v }
+        if lastName.isEmpty,  let v = r.lastName,  !v.isEmpty { lastName  = v }
         if let v = r.qth,     city.isEmpty    { city    = v }
         if let v = r.country, country.isEmpty { country = v }
         if let v = r.street,  street.isEmpty  { street  = v }
         if let v = r.state,   state.isEmpty   { state   = v }
         if let v = r.locator, locator.isEmpty { locator = v.uppercased() }
         if let v = r.email,   email.isEmpty   { email   = v }
+        // Zonen + DXCC-Entity-Nummer (alle als String im Form)
+        if cq.isEmpty,   let v = r.cqZone   { cq   = String(v) }
+        if itu.isEmpty,  let v = r.ituZone  { itu  = String(v) }
+        if dxcc.isEmpty, let v = r.dxccCode { dxcc = String(v) }
+        // Header-Anzeige
+        callbookImageURL = r.imageURL
+        callbookQRZURL   = r.qrzURL
+        callbookSummary  = r.summary
         lastFilledFromCallbook = Date()
     }
 
@@ -540,6 +590,8 @@ struct QSOEntryPanel: View {
         qso.country = country.isEmpty ? nil : country
         qso.comment = notes.isEmpty ? nil : notes
         qso.powerW = Double(powerW.replacingOccurrences(of: ",", with: "."))
+        qso.cqZone  = Int(cq.trimmingCharacters(in: .whitespaces))
+        qso.ituZone = Int(itu.trimmingCharacters(in: .whitespaces))
         qso.myPotaRef = pota.isEmpty ? nil : pota
         qso.mySotaRef = sota.isEmpty ? nil : sota
         manager.addQSO(qso)
@@ -602,6 +654,9 @@ struct QSOEntryPanel: View {
         lastFilledFromSpot = nil
         lastFilledFromCallbook = nil
         lastLookedUpCall = ""
+        callbookImageURL = nil
+        callbookQRZURL = nil
+        callbookSummary = ""
         // freqMHz/band/mode/rst/power bleiben (Run-Mode)
     }
 }

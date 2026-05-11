@@ -116,9 +116,12 @@ final class QRZService: CallbookService {
         r.locator   = extract(tag: "grid",    from: xml)
         r.cqZone    = extract(tag: "cqzone",  from: xml).flatMap(Int.init)
         r.ituZone   = extract(tag: "ituzone", from: xml).flatMap(Int.init)
+        r.dxccCode  = extract(tag: "ccode",   from: xml).flatMap(Int.init)
         r.email     = extract(tag: "email",   from: xml)
         r.lat       = extract(tag: "lat",     from: xml).flatMap(Double.init)
         r.lon       = extract(tag: "lon",     from: xml).flatMap(Double.init)
+        r.imageURL  = extract(tag: "image",   from: xml)
+        r.qrzURL    = extract(tag: "url",     from: xml)
         // Kontinent aus Country herleiten via lokaler DXCC-Daten,
         // falls QRZ ihn nicht direkt liefert.
         if r.continent == nil, let country = r.country {

@@ -15,9 +15,12 @@ struct CallbookResult: Codable, Equatable {
     var locator: String?     // Maidenhead Grid
     var cqZone: Int?
     var ituZone: Int?
+    var dxccCode: Int?       // QRZ <ccode> — ARRL DXCC Entity Number
     var email: String?
     var lat: Double?
     var lon: Double?
+    var imageURL: String?    // Profil-Bild URL (QRZ <image>)
+    var qrzURL: String?      // QRZ-Profilseite (QRZ <url>)
 
     /// Wendet das Resultat auf ein QSO an. Existierende Felder werden
     /// NICHT überschrieben — Auto-Fill ergänzt nur Leerstellen.
@@ -37,6 +40,15 @@ struct CallbookResult: Codable, Equatable {
     var isEmpty: Bool {
         firstName == nil && lastName == nil && qth == nil && country == nil
             && locator == nil && cqZone == nil && ituZone == nil
+            && imageURL == nil
+    }
+
+    // Kurztext für die UI-Anzeige »HB9HJL · Switzerland«
+    var summary: String {
+        var parts: [String] = []
+        if let fn = firstName, !fn.isEmpty { parts.append(fn) }
+        if let c = country, !c.isEmpty { parts.append(c) }
+        return parts.joined(separator: " · ")
     }
 }
 
