@@ -25,7 +25,11 @@ cat > "$APP/Contents/Info.plist" << 'EOF'
 </plist>
 EOF
 
-pkill -f "HAMRechner.app/Contents/MacOS/HAMRechner" 2>/dev/null || true
+# Match both Debug-Build (HAMRechner.app) und Release-Install (HAM-Tools.app) —
+# beide haben das Binary unter Contents/MacOS/HAMRechner. Sonst läuft die
+# installierte Release-App parallel weiter und meldet sich mit demselben
+# Callsign beim DX-Cluster an → Duplicate-Login-Kicks.
+pkill -f "/MacOS/HAMRechner" 2>/dev/null || true
 sleep 0.3
 
 open "$APP"
