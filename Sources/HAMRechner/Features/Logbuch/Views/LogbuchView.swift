@@ -17,12 +17,14 @@ struct LogbuchView: View {
     @EnvironmentObject var manager: LogbookManager
     @EnvironmentObject var settings: LogbookSettings
     @EnvironmentObject var logBridge: LogEntryBridge
+    @EnvironmentObject var clusterVM: DXClusterViewModel
 
     let onBackToHome: () -> Void
 
     @State private var showNewLogSheet: Bool = false
     @State private var showLogsPopover: Bool = false
     @State private var bottomTab: LogbookBottomTab = .log
+    @State private var heatmapMinutes: Int = 60
 
     // Filter-State für den Log-Tab (lebt hier oben damit die ContextBar
     // ihn zwischen Tab-Bar und Tabelle bedienen kann).
@@ -49,19 +51,40 @@ struct LogbuchView: View {
 
             Divider().background(theme.separator)
 
-            entrySection
-                .padding(.horizontal, 8)
-                .padding(.top, 6)
-                .padding(.bottom, 4)
-                .background(theme.bgApp)
+            HSplitView {
+                // Hauptbereich: Entry-Sektion oben + Tabs/Tabelle unten
+                VStack(spacing: 0) {
+                    entrySection
+                        .padding(.horizontal, 8)
+                        .padding(.top, 6)
+                        .padding(.bottom, 4)
+                        .background(theme.bgApp)
 
-            LogbookTabBar(selected: $bottomTab)
+                    LogbookTabBar(selected: $bottomTab)
+                    tabContextBar
 
-            tabContextBar
+                    bottomContent
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(theme.bgApp)
+                }
+                .frame(minWidth: 600, maxWidth: .infinity, maxHeight: .infinity)
 
-            bottomContent
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(theme.bgApp)
+                // Rechte Seite: Propagation/Solar/Band Activity Panel
+                // (Wiederverwendet aus dem DX-Cluster-Modul, identische Daten.)
+                PropagationPanelView(
+                    propagation: clusterVM.propagation,
+                    bandMatrix:  clusterVM.bandMatrix(minutes: heatmapMinutes),
+                    theme:       theme,
+                    callsign:    clusterVM.myCallsign,
+                    connected:   clusterVM.clusterStatus == .connected,
+                    spots:       clusterVM.spots,
+                    onSend:      { freq, call, comment in
+                        clusterVM.sendSpot(freq: freq, call: call, comment: comment)
+                    }
+                )
+                .frame(minWidth: 240, idealWidth: 300, maxWidth: 360, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(theme.bgApp)
         .navigationTitle("Logbuch")
