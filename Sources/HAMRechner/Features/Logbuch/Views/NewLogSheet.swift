@@ -1,16 +1,24 @@
 import SwiftUI
+import AppKit
 
 struct NewLogSheet: View {
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var settings: LogbookSettings
     @Environment(\.dismiss) private var dismiss
 
-    var onCreate: (Log) -> Void
+    // Callback: Log + Ziel-Ordner (nil = Default verwenden)
+    var onCreate: (Log, URL?) -> Void
 
     @State private var name: String = ""
     @State private var selectedType: LogType = .standard
     @State private var notes: String = ""
+    @State private var customDirectory: URL? = nil
 
     private var theme: AppTheme { themeManager.theme }
+
+    private var effectiveDirectory: URL {
+        customDirectory ?? settings.logbookDirectory
+    }
 
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
@@ -58,13 +66,55 @@ struct NewLogSheet: View {
                     .textFieldStyle(.roundedBorder)
             }
 
+            // Speicherort-Auswahl
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Speicherort")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(theme.textSecondary)
+                    Spacer()
+                    if customDirectory != nil {
+                        Button("Standard verwenden") {
+                            customDirectory = nil
+                        }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                    }
+                }
+                HStack(spacing: 8) {
+                    Image(systemName: customDirectory == nil ? "folder" : "folder.badge.gearshape")
+                        .foregroundStyle(theme.accentBlue)
+                    Text(effectiveDirectory.path)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(theme.textSecondary)
+                        .lineLimit(2)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Button("Wählen …") {
+                        pickFolder()
+                    }
+                }
+                .padding(8)
+                .background(theme.bgCard2)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                if customDirectory == nil {
+                    Text("Standardordner aus den Einstellungen. Klicke »Wählen« um diesem Log einen anderen Ordner zu geben (z.B. iCloud Drive oder externe Platte).")
+                        .font(.caption2)
+                        .foregroundStyle(theme.textDim)
+                } else {
+                    Text("Dieses Log wird im gewählten Ordner gespeichert und bleibt dort, auch wenn der Standardordner später geändert wird.")
+                        .font(.caption2)
+                        .foregroundStyle(theme.accentBlue)
+                }
+            }
+
             VStack(alignment: .leading, spacing: 6) {
                 Text("Notizen (optional)")
                     .font(.subheadline.bold())
                     .foregroundStyle(theme.textSecondary)
                 TextEditor(text: $notes)
                     .font(.body)
-                    .frame(minHeight: 60, maxHeight: 100)
+                    .frame(minHeight: 50, maxHeight: 80)
                     .padding(4)
                     .background(theme.bgCard2)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -82,7 +132,7 @@ struct NewLogSheet: View {
                         type: selectedType,
                         notes: notes.isEmpty ? nil : notes
                     )
-                    onCreate(log)
+                    onCreate(log, customDirectory)
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
@@ -90,8 +140,22 @@ struct NewLogSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 480)
+        .frame(width: 520)
         .background(theme.bgCard)
+    }
+
+    private func pickFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.directoryURL = effectiveDirectory
+        panel.prompt = "Hier speichern"
+        panel.message = "Ordner für dieses Logbuch wählen"
+        if panel.runModal() == .OK, let url = panel.url {
+            customDirectory = url
+        }
     }
 }
 

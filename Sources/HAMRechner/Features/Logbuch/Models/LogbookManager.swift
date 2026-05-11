@@ -1,16 +1,17 @@
 import Foundation
 import Combine
 
-// Verwaltet ALLE Logbücher in einem Verzeichnis. Eine .htlog-Datei =
-// ein Logbuch (SQLite). Beim Auswählen wird das Logbuch geöffnet,
-// QSOs in den Memory-Cache gezogen. CRUD geht durch den Manager.
+// Verwaltet ALLE Logbücher unabhängig von ihrem Speicherort. Jedes
+// Logbuch ist eine .htlog-Datei (SQLite). Speicherorte werden in
+// LogbookSettings.knownLogPaths verwaltet — so können einzelne Logs in
+// iCloud Drive, externen Platten, etc. liegen.
 @MainActor
 final class LogbookManager: ObservableObject {
-    // Liste aller gefundenen Logbücher im aktuellen Verzeichnis.
     @Published private(set) var logs: [Log] = []
-    // Aktuell geöffnetes Logbuch (für die UI-Bindings).
     @Published private(set) var currentLogID: UUID?
     @Published private(set) var currentQSOs: [QSO] = []
+    // Mapping: Log-ID → konkrete Datei (für openLog / deleteLog / Anzeige)
+    @Published private(set) var fileURLs: [UUID: URL] = [:]
 
     private let settings: LogbookSettings
     private var openDB: LogbookDatabase?
@@ -18,23 +19,22 @@ final class LogbookManager: ObservableObject {
 
     init(settings: LogbookSettings) {
         self.settings = settings
-        rescanDirectory()
+        reloadAll()
         ensureLebensLog()
 
-        // Bei Pfad-Wechsel: Verzeichnis neu scannen.
         directoryObserver = settings.$logbookDirectory
             .dropFirst()
             .sink { [weak self] _ in
-                self?.handleDirectoryChange()
+                self?.reloadAll()
             }
     }
 
-    // MARK: - Public API: Logs
+    // MARK: - Public: Logs
 
     func openLog(_ log: Log) {
         if currentLogID == log.id, openDB != nil { return }
+        guard let url = fileURLs[log.id] else { return }
         do {
-            let url = fileURL(for: log)
             let db = try LogbookDatabase(opening: url)
             self.openDB = db
             self.currentLogID = log.id
@@ -50,12 +50,19 @@ final class LogbookManager: ObservableObject {
         currentQSOs = []
     }
 
-    func createLog(_ log: Log) {
+    /// Legt ein neues Logbuch an. Wenn `targetDirectory == nil` wird der
+    /// globale Default-Ordner genutzt.
+    func createLog(_ log: Log, in targetDirectory: URL? = nil) {
+        let dir = targetDirectory ?? settings.logbookDirectory
+        try? FileManager.default.createDirectory(at: dir,
+                                                 withIntermediateDirectories: true)
+        let url = uniqueFileURL(for: log, in: dir)
         do {
-            let url = uniqueFileURL(for: log)
             let db = try LogbookDatabase(creating: url, log: log)
+            settings.addKnownLog(url)
+            fileURLs[db.log.id] = url
+            logs.insert(db.log, at: 0)
             self.openDB = db
-            self.logs.insert(db.log, at: 0)
             self.currentLogID = db.log.id
             self.currentQSOs = []
         } catch {
@@ -64,117 +71,126 @@ final class LogbookManager: ObservableObject {
     }
 
     func deleteLog(_ log: Log) {
-        let url = fileURL(for: log)
+        guard let url = fileURLs[log.id] else { return }
         if currentLogID == log.id {
             openDB = nil
             currentLogID = nil
             currentQSOs = []
         }
         try? FileManager.default.removeItem(at: url)
-        // WAL/Shared-Memory-Sidecars
         try? FileManager.default.removeItem(at: url.appendingPathExtension("wal"))
         try? FileManager.default.removeItem(at: url.appendingPathExtension("shm"))
+        settings.removeKnownLog(url)
+        fileURLs[log.id] = nil
         logs.removeAll { $0.id == log.id }
     }
 
-    // MARK: - Public API: QSOs
+    /// Bestehendes .htlog importieren (nur Pfad merken, Datei bleibt wo sie ist).
+    func importLog(at url: URL) {
+        do {
+            let db = try LogbookDatabase(opening: url)
+            if logs.contains(where: { $0.id == db.log.id }) { return }
+            settings.addKnownLog(url)
+            fileURLs[db.log.id] = url
+            logs.insert(db.log, at: 0)
+        } catch {
+            print("importLog failed: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Public: QSOs
 
     func addQSO(_ qso: QSO) {
         guard let db = openDB else { return }
-        do {
-            try db.addQSO(qso)
-            currentQSOs = db.qsos
-        } catch {
-            print("addQSO failed: \(error.localizedDescription)")
-        }
+        do { try db.addQSO(qso); currentQSOs = db.qsos }
+        catch { print("addQSO failed: \(error.localizedDescription)") }
     }
 
     func updateQSO(_ qso: QSO) {
         guard let db = openDB else { return }
-        do {
-            try db.updateQSO(qso)
-            currentQSOs = db.qsos
-        } catch {
-            print("updateQSO failed: \(error.localizedDescription)")
-        }
+        do { try db.updateQSO(qso); currentQSOs = db.qsos }
+        catch { print("updateQSO failed: \(error.localizedDescription)") }
     }
 
     func deleteQSO(_ qso: QSO) {
         guard let db = openDB else { return }
-        do {
-            try db.deleteQSO(qso)
-            currentQSOs = db.qsos
-        } catch {
-            print("deleteQSO failed: \(error.localizedDescription)")
-        }
+        do { try db.deleteQSO(qso); currentQSOs = db.qsos }
+        catch { print("deleteQSO failed: \(error.localizedDescription)") }
     }
 
     func qsoCount(for log: Log) -> Int {
-        // Nur für aktuell geladenes Log genau, sonst aus DB lesen.
         if log.id == currentLogID { return currentQSOs.count }
-        // Schnelle Variante: Datei kurz öffnen, count auslesen.
-        let url = fileURL(for: log)
+        guard let url = fileURLs[log.id] else { return 0 }
         return (try? LogbookDatabase(opening: url).qsoCount) ?? 0
     }
 
-    // MARK: - Verzeichnis-Scan
-
-    private func handleDirectoryChange() {
-        closeLog()
-        rescanDirectory()
-        // Lebens-Log nicht erzwingen — der User wechselt vielleicht
-        // bewusst in ein Verzeichnis mit eigenen Logs.
+    func fileURL(for log: Log) -> URL? {
+        fileURLs[log.id]
     }
 
-    private func rescanDirectory() {
+    // MARK: - Scan / Reload
+
+    /// Lädt alle Logs aus der `knownLogPaths`-Liste plus auto-discovery
+    /// der .htlog-Dateien im aktuellen Default-Ordner (z.B. wenn der User
+    /// dort eine Datei manuell hinkopiert hat).
+    func reloadAll() {
+        var foundLogs: [Log] = []
+        var newURLMap: [UUID: URL] = [:]
+
+        // 1) Aus dem Default-Ordner alles aufsammeln → in knownLogPaths übernehmen
         let dir = settings.logbookDirectory
-        let ext = LogbookDatabase.fileExtension
-        guard let items = try? FileManager.default
-                .contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else {
-            self.logs = []
-            return
-        }
-        let dbFiles = items.filter { $0.pathExtension == ext }
-        var found: [Log] = []
-        for url in dbFiles {
-            if let db = try? LogbookDatabase(opening: url) {
-                found.append(db.log)
+        if let items = try? FileManager.default
+                .contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
+            for url in items where url.pathExtension == LogbookDatabase.fileExtension {
+                if !settings.knownLogPaths.contains(url) {
+                    settings.addKnownLog(url)
+                }
             }
         }
-        self.logs = found.sorted { $0.createdAt > $1.createdAt }
+
+        // 2) Alle bekannten URLs öffnen (Default + extra Pfade)
+        var validPaths: [URL] = []
+        for url in settings.knownLogPaths {
+            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+            if let db = try? LogbookDatabase(opening: url) {
+                foundLogs.append(db.log)
+                newURLMap[db.log.id] = url
+                validPaths.append(url)
+            }
+        }
+        // Aufräumen: Pfade die nicht mehr existieren oder kaputt sind, raus.
+        if validPaths.count != settings.knownLogPaths.count {
+            settings.knownLogPaths = validPaths
+        }
+
+        self.logs = foundLogs.sorted { $0.createdAt > $1.createdAt }
+        self.fileURLs = newURLMap
     }
 
     private func ensureLebensLog() {
         guard logs.isEmpty else { return }
-        let lebensLog = Log(
+        createLog(Log(
             name: "Lebens-Log",
             type: .standard,
             notes: "Allgemeines Log — automatisch beim ersten Start angelegt."
-        )
-        createLog(lebensLog)
+        ))
     }
 
     // MARK: - Dateinamen
 
-    private func fileURL(for log: Log) -> URL {
-        settings.logbookDirectory
-            .appendingPathComponent("\(slug(log.name)).\(LogbookDatabase.fileExtension)")
-    }
-
-    private func uniqueFileURL(for log: Log) -> URL {
+    private func uniqueFileURL(for log: Log, in directory: URL) -> URL {
         let base = slug(log.name)
-        var url = settings.logbookDirectory
+        var url = directory
             .appendingPathComponent("\(base).\(LogbookDatabase.fileExtension)")
         var n = 2
         while FileManager.default.fileExists(atPath: url.path) {
-            url = settings.logbookDirectory
+            url = directory
                 .appendingPathComponent("\(base) (\(n)).\(LogbookDatabase.fileExtension)")
             n += 1
         }
         return url
     }
 
-    // Macht aus "Field Day 2026 / 24h" einen Datei-Namen.
     private func slug(_ s: String) -> String {
         let allowed: Set<Character> = Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-äöüÄÖÜß()")
         let cleaned = s.map { allowed.contains($0) ? $0 : "_" }

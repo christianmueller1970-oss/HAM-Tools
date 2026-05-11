@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 // Vollbild-Logbuch-Modul. Wenn der User in der Haupt-Sidebar "Logbuch"
 // klickt, übernimmt diese View das ganze Fenster:
@@ -40,10 +41,11 @@ struct LogbuchView: View {
             }
         }
         .sheet(isPresented: $showNewLogSheet) {
-            NewLogSheet { newLog in
-                manager.createLog(newLog)
+            NewLogSheet { newLog, customDir in
+                manager.createLog(newLog, in: customDir)
             }
             .environmentObject(themeManager)
+            .environmentObject(settings)
         }
     }
 
@@ -121,6 +123,8 @@ struct LogbuchView: View {
                     ForEach(manager.logs) { log in
                         LogRow(log: log,
                                qsoCount: manager.qsoCount(for: log),
+                               fileURL: manager.fileURL(for: log),
+                               defaultDir: settings.logbookDirectory,
                                selected: log.id == manager.currentLogID)
                             .contentShape(Rectangle())
                             .onTapGesture {
@@ -131,6 +135,14 @@ struct LogbuchView: View {
                                     ? theme.bgHover : Color.clear
                             )
                             .contextMenu {
+                                if let url = manager.fileURL(for: log) {
+                                    Button {
+                                        NSWorkspace.shared.activateFileViewerSelecting([url])
+                                    } label: {
+                                        Label("Im Finder zeigen", systemImage: "folder")
+                                    }
+                                }
+                                Divider()
                                 Button(role: .destructive) {
                                     manager.deleteLog(log)
                                 } label: {
@@ -147,32 +159,59 @@ struct LogbuchView: View {
     }
 
     private var sidebarFooter: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Speicherort")
-                .font(.caption.bold())
-                .foregroundStyle(theme.textSecondary)
-                .textCase(.uppercase)
-            HStack(spacing: 4) {
-                Image(systemName: "folder")
-                    .font(.caption2)
-                    .foregroundStyle(theme.textDim)
-                Text(settings.logbookDirectory.lastPathComponent)
-                    .font(.caption.monospaced())
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                importExistingLog()
+            } label: {
+                Label("Bestehendes Log importieren …", systemImage: "square.and.arrow.down")
+                    .font(.caption)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(theme.accentBlue)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Standard-Speicherort")
+                    .font(.caption2.bold())
                     .foregroundStyle(theme.textSecondary)
-                    .lineLimit(1)
-                    .truncationMode(.head)
-                Spacer()
-                Button {
-                    NSWorkspace.shared.open(settings.logbookDirectory)
-                } label: {
-                    Image(systemName: "arrow.up.right.square")
+                    .textCase(.uppercase)
+                HStack(spacing: 4) {
+                    Image(systemName: "folder")
+                        .font(.caption2)
+                        .foregroundStyle(theme.textDim)
+                    Text(settings.logbookDirectory.lastPathComponent)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(theme.textSecondary)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+                    Spacer()
+                    Button {
+                        NSWorkspace.shared.open(settings.logbookDirectory)
+                    } label: {
+                        Image(systemName: "arrow.up.right.square")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Ordner im Finder öffnen")
                 }
-                .buttonStyle(.borderless)
-                .help("Ordner im Finder öffnen")
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+    }
+
+    private func importExistingLog() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        if let htlog = UTType(filenameExtension: LogbookDatabase.fileExtension) {
+            panel.allowedContentTypes = [htlog]
+        }
+        panel.prompt = "Importieren"
+        panel.message = "Bestehendes .\(LogbookDatabase.fileExtension)-Logbuch auswählen"
+        if panel.runModal() == .OK, let url = panel.url {
+            manager.importLog(at: url)
+        }
     }
 
     private var emptyDetail: some View {
@@ -203,10 +242,17 @@ struct LogbuchView: View {
 private struct LogRow: View {
     let log: Log
     let qsoCount: Int
+    let fileURL: URL?
+    let defaultDir: URL
     let selected: Bool
 
     @EnvironmentObject var themeManager: ThemeManager
     private var theme: AppTheme { themeManager.theme }
+
+    private var isCustomLocation: Bool {
+        guard let fileURL else { return false }
+        return fileURL.deletingLastPathComponent().standardized != defaultDir.standardized
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -214,9 +260,17 @@ private struct LogRow: View {
                 .foregroundStyle(theme.accentBlue)
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 2) {
-                Text(log.name)
-                    .font(.body)
-                    .foregroundStyle(theme.textPrimary)
+                HStack(spacing: 4) {
+                    Text(log.name)
+                        .font(.body)
+                        .foregroundStyle(theme.textPrimary)
+                    if isCustomLocation {
+                        Image(systemName: "folder.badge.gearshape")
+                            .font(.caption2)
+                            .foregroundStyle(theme.accentOrange)
+                            .help(fileURL?.deletingLastPathComponent().path ?? "")
+                    }
+                }
                 HStack(spacing: 6) {
                     Text(log.type.displayName)
                         .font(.caption)
