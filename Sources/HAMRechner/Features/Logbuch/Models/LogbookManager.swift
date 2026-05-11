@@ -25,11 +25,14 @@ final class LogbookManager: ObservableObject {
     private var openDB: LogbookDatabase?
     private var directoryObserver: AnyCancellable?
 
+    private let lastOpenLogKey = "logbook.lastOpenLogID"
+
     init(settings: LogbookSettings, dataRoot: AppDataRoot) {
         self.settings = settings
         self.dataRoot = dataRoot
         reloadAll()
         ensureLebensLog()
+        restoreLastOpenLog()
         recomputeAwards()
 
         // Bei Wechsel des Datenordners alles neu scannen.
@@ -39,6 +42,15 @@ final class LogbookManager: ObservableObject {
                 self?.reloadAll()
                 self?.recomputeAwards()
             }
+    }
+
+    /// Beim Start: das zuletzt aktive Log wiederherstellen.
+    private func restoreLastOpenLog() {
+        guard let raw = UserDefaults.standard.string(forKey: lastOpenLogKey),
+              let id = UUID(uuidString: raw),
+              let log = logs.first(where: { $0.id == id })
+        else { return }
+        openLog(log)
     }
 
     // MARK: - Public: Logs
@@ -51,6 +63,7 @@ final class LogbookManager: ObservableObject {
             self.openDB = db
             self.currentLogID = log.id
             self.currentQSOs = db.qsos
+            UserDefaults.standard.set(log.id.uuidString, forKey: lastOpenLogKey)
         } catch {
             print("openLog failed: \(error.localizedDescription)")
         }
@@ -60,6 +73,7 @@ final class LogbookManager: ObservableObject {
         openDB = nil
         currentLogID = nil
         currentQSOs = []
+        UserDefaults.standard.removeObject(forKey: lastOpenLogKey)
     }
 
     /// Legt ein neues Logbuch an. Wenn `targetDirectory == nil` wird der
@@ -89,6 +103,7 @@ final class LogbookManager: ObservableObject {
             openDB = nil
             currentLogID = nil
             currentQSOs = []
+            UserDefaults.standard.removeObject(forKey: lastOpenLogKey)
         }
         try? FileManager.default.removeItem(at: url)
         try? FileManager.default.removeItem(at: url.appendingPathExtension("wal"))
