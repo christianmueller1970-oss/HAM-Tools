@@ -26,6 +26,7 @@ final class ClusterClient {
     private var callsignSent  = false
     private var stopFlag      = false
     private var keepaliveWork: DispatchWorkItem?
+    private var reconnectWork: DispatchWorkItem?
 
     /// Letzter Daten-Empfang vom Cluster — für Inactivity-Watchdog.
     /// Wenn länger als `inactivityTimeout` keine Daten kommen, gilt die Verbindung
@@ -51,6 +52,8 @@ final class ClusterClient {
         stopFlag = true
         keepaliveWork?.cancel()
         keepaliveWork = nil
+        reconnectWork?.cancel()
+        reconnectWork = nil
         connection?.cancel()
         connection = nil
         appendLog("════════ Trennung von \(name) ════════")
@@ -67,6 +70,14 @@ final class ClusterClient {
     // MARK: - Private
 
     private func _connect() {
+        // Vor jedem Verbindungsaufbau: alte Verbindung sauber abräumen,
+        // damit nie zwei parallele Sessions mit gleichem Call beim Cluster
+        // landen (sonst kickt DXSpider die ältere mit "Reconnected as … at <IP>").
+        if let old = connection {
+            old.stateUpdateHandler = nil
+            old.cancel()
+        }
+        connection = nil
         buffer = ""; loggedIn = false; callsignSent = false
         keepaliveWork?.cancel(); keepaliveWork = nil
         appendLog("")
@@ -221,12 +232,16 @@ final class ClusterClient {
 
             // Inactivity-Watchdog: wenn lange keine Daten mehr kamen,
             // gilt die Verbindung als tot → Reconnect erzwingen.
+            //
+            // Wichtig: NUR `cancel()` aufrufen — der `.cancelled`-Pfad im
+            // stateUpdateHandler kümmert sich um den Reconnect. Sonst entstehen
+            // zwei Reconnect-Workitems parallel → zwei TCP-Sessions → DXSpider
+            // bootet eine davon ("Reconnected as <Call> at <IP>").
             let idle = Date().timeIntervalSince(self.lastDataAt)
             if idle > self.inactivityTimeout {
                 self.appendLog("[\(ts())] Keine Daten seit \(Int(idle))s — Verbindung als tot markiert")
                 self.setStatus(.error)
                 self.connection?.cancel()
-                self.scheduleReconnect()
                 return
             }
 
@@ -239,12 +254,20 @@ final class ClusterClient {
 
     private func scheduleReconnect() {
         guard !stopFlag else { return }
+        // Idempotent: pending Reconnect-Workitem ersetzen, nicht stapeln.
+        // Sonst können sich mehrere Pfade (`.failed`, `.cancelled`, Watchdog)
+        // zu mehreren parallelen Reconnects auftürmen.
+        if reconnectWork != nil { return }
         setStatus(.disconnected)
         appendLog("[\(ts())] Nächster Verbindungsversuch in 30s…")
-        queue.asyncAfter(deadline: .now() + 30) { [weak self] in
-            guard let self, !self.stopFlag else { return }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.reconnectWork = nil
+            guard !self.stopFlag else { return }
             self._connect()
         }
+        reconnectWork = work
+        queue.asyncAfter(deadline: .now() + 30, execute: work)
     }
 
     private func setStatus(_ s: Status) {

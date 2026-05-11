@@ -11,7 +11,7 @@ Convention:
 
 ## In Arbeit
 
-- [ ] **N:** **Local Time zusätzlich rechts anzeigen** — UTC-Anzeige im Header ist bereits korrekt vorhanden, zusätzlich lokale Zeit (Systemzeitzone) rechts daneben einblenden.
+- [x] **N:** **Local Time zusätzlich rechts anzeigen** — UTC bleibt unverändert (bold, primary), rechts daneben Local Time (regular, secondary) im Format `HH:mm:ss LT` aus `TimeZone.current`, gleicher 1-Sekunden-Timer. DXClusterView.swift Header.
 - [ ] **NW:** **Hexbeam-Rechner überarbeiten (G3TXQ-konform)** — gemeldet von Markus, HB9EIZ (Mail 2026-05-11):
   - **Spreizer-Länge stimmt nicht:** aktuell `arm = λ × 0.260 + 0.20 m Reserve` → für 20 m ≈ 5,70 m. G3TXQ-Bauanleitung gibt ≈ 3,46 m (11′ 4″) für die radialen Spreizer an. Formel für `arm_m` muss revidiert werden (Spreizer = radiale Hexagon-Halbmesser, nicht abgewickelte Drahtlänge).
   - **Grafische Darstellung der Draufsicht falsch** — siehe Referenz-Skizze G3TXQ "20 Meter Broadband Hex Wires and Spacers": Driver ist ein ½ × 214″ (≈ 5436 mm) Knick nach hinten in V-Form (orange), Reflektor ist ein größerer Bogen 404″ (≈ 10262 mm) hinten herum (blau), dazwischen Non-Metallic Tip Spacer 24″ (≈ 610 mm). Aktuelle Skizze zeigt das nicht korrekt.

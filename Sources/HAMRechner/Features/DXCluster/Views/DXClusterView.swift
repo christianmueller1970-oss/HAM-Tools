@@ -11,6 +11,7 @@ struct DXClusterView: View {
     @State private var selectedTab    = 0
     @State private var heatmapMinutes = 60
     @State private var utcTime        = ""
+    @State private var localTime      = ""
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -83,6 +84,10 @@ struct DXClusterView: View {
             Text(utcTime + " UTC")
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .foregroundStyle(theme.textPrimary)
+
+            Text(localTime + " LT")
+                .font(.system(size: 13, weight: .regular, design: .monospaced))
+                .foregroundStyle(theme.textSecondary)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
@@ -323,9 +328,12 @@ struct DXClusterView: View {
     // MARK: - Helpers
 
     private func updateClock() {
+        let now = Date()
         let f = DateFormatter()
         f.dateFormat = "HH:mm:ss"
         f.timeZone = TimeZone(identifier: "UTC")
-        utcTime = f.string(from: Date())
+        utcTime = f.string(from: now)
+        f.timeZone = TimeZone.current
+        localTime = f.string(from: now)
     }
 }
