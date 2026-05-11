@@ -359,9 +359,15 @@ function rotateModel(axis) {
     }
   }
   cfg.wires = newWires
+  const hadResult = result.value !== null
   result.value = null
   errorMsg.value = null
-  status.value = `Modell um 90° gedreht (${axis}-Achse) — neu berechnen`
+  status.value = `Modell um 90° gedreht (${axis}-Achse)…`
+  // Wenn vorher schon eine Simulation lief, automatisch neu rechnen
+  // damit Pattern + 3D unmittelbar das gedrehte Modell zeigen.
+  if (hadResult && !running.value) {
+    simulate()
+  }
 }
 
 // ─── Simulation ──────────────────────────────────────────────────────────────
@@ -882,6 +888,7 @@ const PLOT_C = PLOT_SIZE / 2
   <div v-if="primary && primary.pattern && primary.pattern.length > 0 && !isSweep" class="card">
     <h2>3D-Strahlungsdiagramm</h2>
     <Pattern3D
+      :key="`p3d-${primary.gain_max_dbi.toFixed(3)}-${primary.gain_max_theta}-${primary.gain_max_phi}`"
       :pattern="primary.pattern"
       :is-free-space="cfg.ground === 'free_space'"
       :height="480"
