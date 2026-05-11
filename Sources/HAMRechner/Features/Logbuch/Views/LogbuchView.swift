@@ -24,6 +24,13 @@ struct LogbuchView: View {
     @State private var showLogsPopover: Bool = false
     @State private var bottomTab: LogbookBottomTab = .log
 
+    // Filter-State für den Log-Tab (lebt hier oben damit die ContextBar
+    // ihn zwischen Tab-Bar und Tabelle bedienen kann).
+    @State private var filterCall: String = ""
+    @State private var filterBand: String = ""
+    @State private var filterMode: String = ""
+    @State private var filterCountry: String = ""
+
     private var theme: AppTheme { themeManager.theme }
 
     var body: some View {
@@ -50,7 +57,7 @@ struct LogbuchView: View {
 
             LogbookTabBar(selected: $bottomTab)
 
-            Divider().background(theme.separator)
+            tabContextBar
 
             bottomContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -94,11 +101,48 @@ struct LogbuchView: View {
 
     // MARK: - Bottom-Content (je nach gewähltem Tab)
 
+    // Tab-Context-Bar: zeigt je nach aktivem Tab andere Filter/Aktionen,
+    // mit konsistenter Höhe und Styling (TabContextBarShell).
+    @ViewBuilder
+    private var tabContextBar: some View {
+        switch bottomTab {
+        case .log:
+            LogContextBar(
+                filterCall: $filterCall,
+                filterBand: $filterBand,
+                filterMode: $filterMode,
+                filterCountry: $filterCountry,
+                totalCount: manager.currentQSOs.count,
+                filteredCount: filteredLogCount
+            )
+        case .dxClusters:
+            ClusterContextBar()
+        default:
+            TabContextBarShell {
+                Text("Keine Filter für »\(bottomTab.rawValue)«")
+                    .font(.caption)
+                    .foregroundStyle(theme.textDim)
+            }
+        }
+    }
+
+    private var filteredLogCount: Int {
+        manager.currentQSOs.filter { qso in
+            (filterCall.isEmpty    || qso.call.localizedCaseInsensitiveContains(filterCall)) &&
+            (filterBand.isEmpty    || qso.band.localizedCaseInsensitiveContains(filterBand)) &&
+            (filterMode.isEmpty    || qso.mode.localizedCaseInsensitiveContains(filterMode)) &&
+            (filterCountry.isEmpty || (qso.country ?? "").localizedCaseInsensitiveContains(filterCountry))
+        }.count
+    }
+
     @ViewBuilder
     private var bottomContent: some View {
         switch bottomTab {
         case .log:
-            QSOTableView()
+            QSOTableView(filterCall: $filterCall,
+                         filterBand: $filterBand,
+                         filterMode: $filterMode,
+                         filterCountry: $filterCountry)
         case .dxClusters:
             LogbookClusterTab()
         default:

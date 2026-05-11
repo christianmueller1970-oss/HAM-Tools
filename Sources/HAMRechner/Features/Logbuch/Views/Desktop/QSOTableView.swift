@@ -1,22 +1,22 @@
 import SwiftUI
 
-// Große QSO-Tabelle wie in MacLoggerDX. Color-Code:
-//   grün = LoTW/eQSL bestätigt
-//   gelb = upload pending
-//   weiß/grau = unbestätigt, nicht hochgeladen
+// Große QSO-Tabelle. Filter-State liegt in der LogbuchView und wird per
+// Binding reingereicht (damit die LogContextBar oberhalb die Filter
+// kontrolliert).
 struct QSOTableView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
 
-    @State private var filterCall: String = ""
-    @State private var filterBand: String = ""
-    @State private var filterMode: String = ""
-    @State private var filterCountry: String = ""
+    @Binding var filterCall: String
+    @Binding var filterBand: String
+    @Binding var filterMode: String
+    @Binding var filterCountry: String
+
     @State private var editingQSO: QSO?
 
     private var theme: AppTheme { themeManager.theme }
 
-    private var filteredQSOs: [QSO] {
+    var filteredQSOs: [QSO] {
         manager.currentQSOs
             .filter { qso in
                 (filterCall.isEmpty    || qso.call.localizedCaseInsensitiveContains(filterCall)) &&
@@ -27,100 +27,12 @@ struct QSOTableView: View {
             .sorted { $0.datetime > $1.datetime }
     }
 
-    private var statusLine: String {
-        let count = manager.currentQSOs.count
-        let filtered = filteredQSOs.count
-        let fileName = currentLog.flatMap { manager.fileURL(for: $0)?.lastPathComponent } ?? ""
-        let prefix = fileName.isEmpty ? "" : "\(fileName) · "
-        if filtered == count {
-            return "\(prefix)\(count) QSO\(count == 1 ? "" : "s")"
-        }
-        return "\(prefix)\(filtered) / \(count) QSOs (gefiltert)"
-    }
-
-    private var statusLineTooltip: String {
-        currentLog.flatMap { manager.fileURL(for: $0)?.path } ?? ""
-    }
-
-    var body: some View {
-        VStack(spacing: 0) {
-            filterBar
-            Divider().background(theme.separator)
-            tableContent
-        }
-        .background(theme.bgApp)
-        .sheet(item: $editingQSO) { qso in
-            QSOFormSheet(qso: qso, log: currentLog ?? manager.logs[0])
-                .environmentObject(themeManager)
-                .environmentObject(manager)
-        }
-    }
-
     private var currentLog: Log? {
         guard let id = manager.currentLogID else { return nil }
         return manager.logs.first(where: { $0.id == id })
     }
 
-    private var filterBar: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 6) {
-                Image(systemName: "doc.text")
-                    .font(.caption2)
-                    .foregroundStyle(theme.textDim)
-                Text(statusLine)
-                    .font(.caption)
-                    .foregroundStyle(theme.textSecondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .help(statusLineTooltip)
-                Spacer()
-            }
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .font(.caption)
-                    .foregroundStyle(theme.textDim)
-                filterField("Call Sign", text: $filterCall, width: 130, monospaced: true)
-                filterField("Band",      text: $filterBand, width: 80)
-                filterField("Mode",      text: $filterMode, width: 80)
-                filterField("Country",   text: $filterCountry, width: 130)
-                if !filterCall.isEmpty || !filterBand.isEmpty
-                    || !filterMode.isEmpty || !filterCountry.isEmpty {
-                    Button("Zurücksetzen") {
-                        filterCall = ""; filterBand = ""
-                        filterMode = ""; filterCountry = ""
-                    }
-                    .buttonStyle(.borderless)
-                    .font(.caption)
-                }
-                Spacer()
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(theme.bgPanel)
-    }
-
-    private func filterField(_ placeholder: String,
-                             text: Binding<String>,
-                             width: CGFloat,
-                             monospaced: Bool = false) -> some View {
-        TextField(placeholder, text: text)
-            .textFieldStyle(.plain)
-            .font(monospaced
-                  ? .system(.caption, design: .monospaced)
-                  : .caption)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 3)
-            .frame(width: width)
-            .background(theme.bgCard2)
-            .overlay(
-                RoundedRectangle(cornerRadius: 3)
-                    .stroke(theme.separator.opacity(0.5), lineWidth: 0.5)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 3))
-    }
-
-    private var tableContent: some View {
+    var body: some View {
         Group {
             if manager.currentLogID == nil {
                 emptyMessage("Kein Log aktiv", "Wähle oben links ein Log oder lege ein neues an.")
@@ -128,10 +40,16 @@ struct QSOTableView: View {
                 emptyMessage("Noch keine QSOs",
                              "Fülle oben das QSO-Panel aus und drücke »Log QSO« (⌘↩).")
             } else if filteredQSOs.isEmpty {
-                emptyMessage("Kein Treffer im Filter", "Filter zurücksetzen oder anpassen.")
+                emptyMessage("Kein Treffer im Filter", "Filter oben zurücksetzen oder anpassen.")
             } else {
                 qsoTable
             }
+        }
+        .background(theme.bgApp)
+        .sheet(item: $editingQSO) { qso in
+            QSOFormSheet(qso: qso, log: currentLog ?? manager.logs[0])
+                .environmentObject(themeManager)
+                .environmentObject(manager)
         }
     }
 
