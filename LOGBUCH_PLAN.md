@@ -283,17 +283,22 @@ im Native-Client.
 - [x] **Migration:** kein bestehendes Log — von Null. ADIF-Import in Phase 2.
 - [x] **Contests:** CQ WW + CQ WPX + IARU HF (Standard-Multis), WAE mit QTC,
   SOTA/POTA/WWFF + Field Day als Activator.
-- [x] **CAT:** Icom CI-V + Yaesu/Kenwood/Elecraft via Hamlib-Subprocess.
-  FlexRadio entfällt vorerst.
-- [ ] **Audio-Features?** noch offen — Voice-Keyer + CW-Sender. Vorschlag:
-  weglassen für MVP, später als Phase 11.
+- [x] **CAT:** Hamlib-Subprocess. Konkrete TRX: **Icom IC-7300, IC-705,
+  IC-9700** sowie ggf. ein weiterer Icom — UI braucht TRX-Auswahl als
+  Profile (Adresse + Baudrate + Device-Path) statt fixer Voreinstellung.
+- [x] **Antennen-Pool:** **EFHW** (HF, allgemein) und **VHF/UHF separat**
+  (eigene Yagi/Vertikal für 2m/70cm). Hexbeam kommt nach Aufbau im Juni
+  zur Liste dazu. Antennen-Editor soll flexibel sein — User legt seine
+  Antennen selbst an.
+- [x] **Operator:** **Multi-OP denkbar** — StationProfile bekommt eine
+  Liste aller Operator-Calls (HB9HJI + andere für Field Day / Club).
+  Pro QSO ist `operatorCall` aus dieser Liste wählbar.
+- [x] **Sprache:** **Deutsch only** — kein i18n-Overhead. Standard-Felder
+  (ADIF/Cabrillo) bleiben englisch wegen Format-Konformität.
+- [x] **Audio-Features:** **nicht prio** — kein Voice-Keyer, kein CW-Keyer.
+  Phase 10/11 fallen weg (bleibt im Plan als "optional, später vielleicht").
 
-## Noch offene Detail-Fragen
-
-- [ ] Konkrete Icom-Modelle? (für CI-V-Adressen-Voreinstellungen)
-- [ ] Antennen-Setup das geloggt werden soll? (Hexbeam, EFHW, vertikal?)
-- [ ] Operator: nur HB9HJI oder auch Club-Call / Multi-OP-Sessions?
-- [ ] Sprache UI: Deutsch only oder D/E-Toggle?
+**Damit ist die Konzept-Phase abgeschlossen — startklar für Phase 1.**
 
 ---
 
