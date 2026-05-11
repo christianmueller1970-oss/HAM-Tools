@@ -33,7 +33,10 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
     }
 
     var isAvailable: Bool {
-        self == .log    // Phase 1: nur Log-Ansicht funktional
+        switch self {
+        case .log, .dxClusters: return true
+        default:                return false
+        }
     }
 }
 

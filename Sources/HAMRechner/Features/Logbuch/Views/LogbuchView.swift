@@ -16,6 +16,7 @@ struct LogbuchView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
     @EnvironmentObject var settings: LogbookSettings
+    @EnvironmentObject var logBridge: LogEntryBridge
 
     let onBackToHome: () -> Void
 
@@ -62,6 +63,14 @@ struct LogbuchView: View {
                 manager.openLog(first)
             }
         }
+        .onChange(of: logBridge.navigationRequest) {
+            // Spot wurde im DXClusters-Tab geklickt während wir schon im
+            // Logbuch sind → zurück zum Log-Tab damit der Draft sichtbar
+            // ist und »Log QSO« einen Klick weg ist.
+            if logBridge.navigationRequest != nil {
+                bottomTab = .log
+            }
+        }
         .sheet(isPresented: $showNewLogSheet) {
             NewLogSheet { newLog, customDir in
                 manager.createLog(newLog, in: customDir)
@@ -90,6 +99,8 @@ struct LogbuchView: View {
         switch bottomTab {
         case .log:
             QSOTableView()
+        case .dxClusters:
+            LogbookClusterTab()
         default:
             comingSoon(bottomTab)
         }

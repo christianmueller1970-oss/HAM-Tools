@@ -127,6 +127,7 @@ struct ContentView: View {
                 })
                 .environmentObject(themeManager)
                 .environmentObject(logBridge)
+                .environmentObject(dxClusterVM)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(theme.bgApp)
                 .preferredColorScheme(theme.colorScheme)
