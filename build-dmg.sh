@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 APP_NAME="HAMRechner"          # Binary-Name (aus Swift-Build, nicht ändern)
 DISPLAY_NAME="HAM-Tools"       # Sichtbarer Name (Finder, Dock, About-Box)
 VOL_NAME="HAM-Tools"           # DMG-Volume-Name
-VERSION="${1:-1.5.1}"
+VERSION="${1:-1.5.2}"
 DMG_NAME="${VOL_NAME}-${VERSION}.dmg"
 
 echo "==> Release-Build (swift build -c release)..."
@@ -62,6 +62,16 @@ ${ICON_KEY}
 </plist>
 EOF
 
+# Quarantäne-Attribute vom Build entfernen (sonst klebt der Build-Mac-Quarantäne-Status am Bundle)
+xattr -cr "$APP_DIR" 2>/dev/null || true
+
+# Ad-hoc Code-Signing — auf Apple Silicon (ARM) essentiell, sonst läuft die App nicht.
+# Auf Intel ist es optional, aber konsistent. Hilft NICHT gegen Gatekeeper-Quarantäne,
+# nur gegen "App lässt sich gar nicht starten"-Probleme auf ARM.
+echo "==> Ad-hoc Code-Signing..."
+codesign --force --deep --sign - --options runtime "$APP_DIR" 2>&1 | grep -v "replacing existing signature" || true
+codesign --verify --deep --strict "$APP_DIR" && echo "    Signatur OK" || echo "    ⚠ Signatur-Verifikation fehlgeschlagen (App startet aber trotzdem)"
+
 echo "==> Erstelle DMG: ${DMG_NAME}..."
 DMG_TMP=".build/dmg-tmp"
 rm -f "$DMG_NAME"
@@ -71,6 +81,32 @@ mkdir "$DMG_TMP"
 # App + Applications-Symlink für Drag-and-Drop-Install
 cp -R "$APP_DIR" "$DMG_TMP/"
 ln -s /Applications "$DMG_TMP/Applications"
+
+# README in das DMG-Volume — Anleitung für End-User die das "beschädigt"-Problem treffen
+cat > "$DMG_TMP/LIES MICH ZUERST.txt" <<'README_EOF'
+HAM-Tools — Installation und erste Öffnung
+
+1. App nach /Applications ziehen (per Drag&Drop in den Ordner "Applications" hier)
+
+2. Beim ersten Öffnen erscheint evtl. die Meldung "App ist beschädigt" — das ist
+   IRREFÜHREND. Es ist nur Apples Gatekeeper, weil die App nicht über den
+   App Store kommt und nicht Apple-notarisiert ist (kostet 99 $/Jahr — bei einem
+   privaten Ham-Tool ein Overkill).
+
+   Lösung im Terminal (Admin-Passwort wird abgefragt):
+
+       sudo xattr -dr com.apple.quarantine /Applications/HAM-Tools.app
+
+   ALTERNATIV ohne Terminal:
+     a) Doppelklick auf HAM-Tools.app — Meldung schließen
+     b) Systemeinstellungen → Datenschutz & Sicherheit (ganz unten scrollen)
+     c) "HAM-Tools.app wurde blockiert" → Button "Trotzdem öffnen"
+     d) Passwort eingeben — App öffnet, danach normal per Doppelklick
+
+3. Updates: einfach neue HAM-Tools-X.Y.Z.dmg öffnen, App ersetzen.
+
+73 de HB9HJI
+README_EOF
 
 hdiutil create \
   -volname "$VOL_NAME" \
