@@ -208,6 +208,32 @@ final class LogbookManager: ObservableObject {
 
     // MARK: - ADIF Export
 
+    /// Schreibt das aktive Log als Cabrillo V3 in den Exports-Ordner.
+    /// Der Header kommt aus dem Cabrillo-Export-Dialog.
+    func exportActiveLogAsCabrillo(header: CabrilloHeader) -> URL? {
+        guard let logID = currentLogID,
+              let log = logs.first(where: { $0.id == logID }) else { return nil }
+        let text = CabrilloExporter.encode(qsos: currentQSOs, header: header)
+        let stamp: String = {
+            let f = DateFormatter()
+            f.dateFormat = "yyyyMMdd-HHmmss"
+            return f.string(from: Date())
+        }()
+        let contestSlug = header.contestID
+            .replacingOccurrences(of: " ", with: "_")
+            .filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
+        let safeName = log.name.replacingOccurrences(of: "/", with: "_")
+        let fileName = "\(safeName)-\(contestSlug)-\(stamp).cbr"
+        let url = dataRoot.exportsDir.appendingPathComponent(fileName)
+        do {
+            try text.write(to: url, atomically: true, encoding: .utf8)
+            return url
+        } catch {
+            print("Cabrillo Export fehlgeschlagen: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
     /// Schreibt das aktive Log als ADIF in den Exports-Ordner.
     /// Liefert die geschriebene URL bei Erfolg, sonst nil.
     func exportActiveLogAsADIF() -> URL? {

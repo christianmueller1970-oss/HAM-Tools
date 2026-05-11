@@ -23,6 +23,7 @@ struct LogContextBar: View {
     @State private var lastExportURL: URL?
     @State private var showExportDoneAlert = false
     @State private var bulkLookupProgress: BulkProgress?
+    @State private var showCabrilloSheet = false
 
     struct BulkProgress {
         var total: Int
@@ -112,6 +113,8 @@ struct LogContextBar: View {
 
                 actionButton("Import…", icon: "square.and.arrow.down", action: openADIFImport)
                 actionButton("Export ADIF", icon: "square.and.arrow.up", action: exportADIF)
+                actionButton("Cabrillo…", icon: "stopwatch",
+                             action: { showCabrilloSheet = true })
             }
         }
         .sheet(item: $pendingImport) { p in
@@ -129,6 +132,11 @@ struct LogContextBar: View {
             Button("OK", role: .cancel) {}
         } message: { url in
             Text("Log nach \(url.lastPathComponent) exportiert.")
+        }
+        .sheet(isPresented: $showCabrilloSheet) {
+            CabrilloExportSheet()
+                .environmentObject(themeManager)
+                .environmentObject(manager)
         }
     }
 
