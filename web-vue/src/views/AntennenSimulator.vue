@@ -305,6 +305,7 @@ function loadTemplate(key) {
   cfg.height = t.height
   cfg.wires = t.wires
   cfg.excitation = t.excitation
+  cfg.loads = t.loads || []
   result.value = null
   errorMsg.value = null
 }
@@ -321,6 +322,44 @@ function addWire() {
 function removeWire(idx) {
   if (cfg.wires.length <= 1) return
   cfg.wires.splice(idx, 1)
+}
+
+// ─── Konzentrierte Bauteile (LD-Karten, lumped R/L/C in Serie) ───────────────
+// Bauteil-Typen — bestimmen welche Eingabefelder relevant sind:
+//   C    = Kondensator (nur C-Wert)
+//   L    = Spule (nur L-Wert)
+//   R    = Widerstand (nur R-Wert)
+//   RLC  = Serien-RLC (alle drei Werte)
+function addLoad() {
+  if (!cfg.loads) cfg.loads = []
+  cfg.loads.push({
+    type: 'C',                              // Default: Kondensator
+    wire_tag: cfg.wires[0]?.tag ?? 1,
+    segment: 1,
+    R_ohm: 0, L_uH: 0, C_pF: 0,
+  })
+}
+function removeLoad(idx) {
+  if (!cfg.loads) return
+  cfg.loads.splice(idx, 1)
+}
+// Wenn der Typ gewechselt wird, irrelevante Werte zurücksetzen
+function onLoadTypeChange(ld) {
+  if (ld.type === 'C') { ld.R_ohm = 0; ld.L_uH = 0 }
+  else if (ld.type === 'L') { ld.R_ohm = 0; ld.C_pF = 0 }
+  else if (ld.type === 'R') { ld.L_uH = 0; ld.C_pF = 0 }
+  // RLC = alle behalten
+}
+// Kurzbeschreibung eines Drahts: erkennt Achsen-Orientierung + Länge
+function wireDescr(w) {
+  const dx = +w.x2 - +w.x1, dy = +w.y2 - +w.y1, dz = +w.z2 - +w.z1
+  const L = Math.hypot(dx, dy, dz)
+  const adx = Math.abs(dx), ady = Math.abs(dy), adz = Math.abs(dz)
+  if (adx > ady && adx > adz && ady < 0.05 && adz < 0.05) return `X-Achse, ${L.toFixed(2)}m`
+  if (ady > adx && ady > adz && adx < 0.05 && adz < 0.05) return `Y-Achse, ${L.toFixed(2)}m`
+  if (adz > adx && adz > ady && adx < 0.05 && ady < 0.05) return `Z-Achse (vertikal), ${L.toFixed(2)}m`
+  // Schräg → Anfangspunkt → Endpunkt
+  return `(${(+w.x1).toFixed(1)},${(+w.y1).toFixed(1)},${(+w.z1).toFixed(1)}) → (${(+w.x2).toFixed(1)},${(+w.y2).toFixed(1)},${(+w.z2).toFixed(1)})`
 }
 
 // ─── Modell um 90° drehen (H ↔ V Polarisation, Pole-Orientierung ändern) ────
@@ -385,6 +424,17 @@ function simulate() {
     x2: parseFloat(w.x2), y2: parseFloat(w.y2), z2: parseFloat(w.z2),
     radius: (parseFloat(w.radius_mm) || 1) / 1000,
   }))
+  // Konzentrierte Bauteile (Loads): UI hat user-friendly Einheiten
+  // (R Ω, L µH, C pF) — zur NEC2-Karte konvertieren (R Ω, L H, C F)
+  const loads = (cfg.loads || [])
+    .filter(l => (+l.R_ohm || 0) !== 0 || (+l.L_uH || 0) !== 0 || (+l.C_pF || 0) !== 0)
+    .map(l => ({
+      wire_tag: parseInt(l.wire_tag) || 1,
+      segment: parseInt(l.segment) || 1,
+      R_ohm: parseFloat(l.R_ohm) || 0,
+      L_H: (parseFloat(l.L_uH) || 0) * 1e-6,
+      C_F: (parseFloat(l.C_pF) || 0) * 1e-12,
+    }))
   const request = {
     comment: cfg.name || 'HAM-Tools Antennen-Simulator',
     wires,
@@ -393,6 +443,7 @@ function simulate() {
       segment: cfg.excitation.segment,
       voltage_real: 1.0, voltage_imag: 0,
     }],
+    loads,
     ground: cfg.ground,
     frequency_mhz: parseFloat(cfg.freq),
   }
@@ -739,6 +790,68 @@ const PLOT_C = PLOT_SIZE / 2
   </div>
 
   <div class="card">
+    <h2>Konzentrierte Bauteile (Loading)</h2>
+    <div v-if="cfg.loads && cfg.loads.length > 0" style="overflow-x:auto">
+      <table class="wire-tbl" style="min-width:640px">
+        <thead>
+          <tr>
+            <th>Bauteil</th>
+            <th>Tag (Draht)</th>
+            <th>Segment</th>
+            <th>R [Ω]</th>
+            <th>L [µH]</th>
+            <th>C [pF]</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(ld, idx) in cfg.loads" :key="`ld${idx}`">
+            <td style="text-align:center">
+              <select v-model="ld.type" @change="onLoadTypeChange(ld)" class="cell" style="width:120px">
+                <option value="C">Kondensator</option>
+                <option value="L">Spule</option>
+                <option value="R">Widerstand</option>
+                <option value="RLC">Serien-RLC</option>
+              </select>
+            </td>
+            <td style="text-align:center">
+              <select v-model.number="ld.wire_tag" class="cell" style="width:220px; text-align:left">
+                <option v-for="w in cfg.wires" :key="w.tag" :value="w.tag">T{{ w.tag }} — {{ wireDescr(w) }}</option>
+              </select>
+            </td>
+            <td style="text-align:center"><input type="number" v-model.number="ld.segment" min="1" class="cell xs"></td>
+            <td style="text-align:center">
+              <input type="number" v-model.number="ld.R_ohm" step="0.1" class="cell"
+                     :disabled="ld.type !== 'R' && ld.type !== 'RLC'"
+                     :class="{ 'cell-active': ld.type === 'R' || ld.type === 'RLC' }">
+            </td>
+            <td style="text-align:center">
+              <input type="number" v-model.number="ld.L_uH" step="0.1" class="cell"
+                     :disabled="ld.type !== 'L' && ld.type !== 'RLC'"
+                     :class="{ 'cell-active': ld.type === 'L' || ld.type === 'RLC' }">
+            </td>
+            <td style="text-align:center">
+              <input type="number" v-model.number="ld.C_pF" step="1" class="cell"
+                     :disabled="ld.type !== 'C' && ld.type !== 'RLC'"
+                     :class="{ 'cell-active': ld.type === 'C' || ld.type === 'RLC' }">
+            </td>
+            <td style="text-align:center"><button class="btn-x" @click="removeLoad(idx)">✕</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px">
+      <button class="btn" @click="addLoad">+ Bauteil hinzufügen</button>
+    </div>
+    <p style="font-size:11px; opacity:0.65; margin-top:6px; line-height:1.5">
+      NEC2-LD-Karte (Typ 2 = lumped serial RLC) — fügt eine konzentrierte Reaktanz an einem Wire-Segment ein.
+      Typische Anwendungen: <strong>Magnetic Loop</strong> → <em>Kondensator</em> (Abstimm-C ~50 pF),
+      <strong>EFHW verkürzt</strong> → <em>Spule</em> (Verlängerungsspule ~10 µH),
+      <em>Widerstand</em> für Verlustsimulation, <em>Serien-RLC</em> für Spezialfälle.
+    </p>
+  </div>
+
+  <div class="card">
     <h2>Modell-Vorschau</h2>
     <div style="display:flex; gap:24px; flex-wrap:wrap; justify-content:center">
       <div style="text-align:center">
@@ -990,6 +1103,8 @@ select { padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border, #
   -moz-appearance: textfield;
 }
 .cell.xs { width: 50px }
+.cell:disabled { opacity: 0.3; cursor: not-allowed; background: rgba(0,0,0,0.1) }
+.cell.cell-active { border-color: #3b82f6; background: rgba(59,130,246,0.08) }
 /* Native Spinner-Buttons komplett verstecken — Pfeiltasten/Tippen reicht */
 .cell::-webkit-outer-spin-button,
 .cell::-webkit-inner-spin-button {

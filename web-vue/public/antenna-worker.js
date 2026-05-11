@@ -46,6 +46,21 @@ function buildDeck(req) {
   } else {
     lines.push(`GN 2 0 0 0 13.0000 0.005000`)
   }
+  // Konzentrierte Bauteile (LD-Karten, Typ 2 = Series-RLC lumped):
+  //   LD 2 wireTag firstSeg lastSeg R(Ω) L(H) C(F)
+  // Bauteilwerte werden hier vom Modell schon in SI-Einheiten erwartet
+  // (R in Ω, L in Henry, C in Farad). Werte = 0 lassen das Bauteil weg.
+  // Reihenfolge: LD muss VOR EX und FR stehen.
+  if (Array.isArray(req.loads)) {
+    for (const ld of req.loads) {
+      const r = +ld.R_ohm || 0
+      const l = +ld.L_H   || 0
+      const c = +ld.C_F   || 0
+      if (r === 0 && l === 0 && c === 0) continue   // leere Load skippen
+      const seg = +ld.segment || 1
+      lines.push(`LD 2 ${ld.wire_tag} ${seg} ${seg} ${r.toExponential(4)} ${l.toExponential(4)} ${c.toExponential(4)}`)
+    }
+  }
   for (const e of req.excitations) {
     lines.push(`EX 0 ${e.wire_tag} ${e.segment} 0 ${(e.voltage_real ?? 1).toFixed(4)} ${(e.voltage_imag ?? 0).toFixed(4)}`)
   }

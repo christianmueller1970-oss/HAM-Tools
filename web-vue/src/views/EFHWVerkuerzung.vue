@@ -88,28 +88,38 @@ const spulenPath = computed(() => {
 })
 
 // ─── Im Sim öffnen ───────────────────────────────────────────────────────────
-// EFHW mit Verlängerungsspule — NEC2 modelliert keine konzentrierte Induktivität
-// direkt (Loading-Karte LD wäre möglich, ist aber im AntennenSim noch nicht
-// implementiert). Wir exportieren daher eine IDEALISIERTE EFHW der vollen
-// λ/2-Länge (ohne Spule). Sim zeigt Strahlungseigenschaften, aber die echte
-// Resonanz hängt von Spulenposition und L-Wert ab.
+// EFHW mit Verlängerungsspule: verkürzter Strahler (Länge v.len) + Loading-Spule
+// (L = result.L_uH) als NEC2-LD-Karte am Spulen-Segment. Position:
+//   v.posMitte=true → Spule mittig (= Segment-Mitte des Strahler-Wires)
+//   v.posMitte=false → Spule am äußeren Ende (= letztes Segment)
 function imSimOeffnen() {
+  if (!result.value) return
+  const r = result.value
   const f = pf(v.freq)
   if (!f) return
-  const fl = 142.5 / f   // volle resonante Länge (≈ λ/2 mit VF≈0.95)
   const lambda = 300 / f
   const hz = Math.max(8, lambda / 2)
+  const wireLen = r.ok ? r.fullLen : r.h   // verkürzte Länge (falls Spule nötig)
+  const segs = 21
+  const coilSeg = v.posMitte ? Math.ceil(segs / 2) : segs   // Mitte oder Ende
+  const loads = r.ok ? [] : [
+    // Loading-Spule mit berechneter Induktivität auf gewähltem Segment
+    { type: 'L', wire_tag: 1, segment: coilSeg, R_ohm: 0, L_uH: r.L_uH, C_pF: 0 },
+  ]
   openInSim(router, {
-    name: `EFHW (idealisiert, ohne Spule) ${fl.toFixed(2)}m @ ${f} MHz`,
+    name: r.ok
+      ? `EFHW ${wireLen.toFixed(2)}m @ ${f} MHz (voll resonant)`
+      : `EFHW ${wireLen.toFixed(2)}m @ ${f} MHz, ${v.posMitte ? 'Spule mittig' : 'Spule am Ende'} ${r.L_uH.toFixed(1)}µH`,
     freq: f,
     ground: 'average',
     height: hz,
     wires: [
-      { tag: 1, segments: 21, x1: 0, y1: 0, z1: hz, x2: fl, y2: 0, z2: hz, radius_mm: 1.0 },
+      { tag: 1, segments: segs, x1: 0, y1: 0, z1: hz, x2: wireLen, y2: 0, z2: hz, radius_mm: 1.0 },
       // Kurzes Gegengewicht
-      { tag: 2, segments: 5,  x1: 0, y1: 0, z1: hz, x2: -lambda * 0.05, y2: 0, z2: hz, radius_mm: 1.0 },
+      { tag: 2, segments: 5,    x1: 0, y1: 0, z1: hz, x2: -lambda * 0.05, y2: 0, z2: hz, radius_mm: 1.0 },
     ],
     excitation: { wire_tag: 1, segment: 1 },
+    loads,
   })
 }
 </script>
@@ -188,10 +198,7 @@ function imSimOeffnen() {
         <div class="rr"><span class="lbl">Drahtlänge gesamt</span><span class="val">{{ fmt(result.wireLen_m, 2) }} m</span></div>
         <div class="rr"><span class="lbl">Spulen-Außen-Ø</span><span class="val">{{ fmt(result.outerD_mm, 1) }} mm</span></div>
         <div style="margin-top:12px; text-align:right">
-          <button class="btn-sim" @click="imSimOeffnen"
-                  title="Exportiert vereinfacht als volle λ/2 EFHW (ohne konzentrierte Spule — NEC2 modelliert die Loading-Spule nicht)">
-            📡 Im Sim öffnen (idealisiert)
-          </button>
+          <button class="btn-sim" @click="imSimOeffnen">📡 Im Sim öffnen</button>
         </div>
       </div>
 

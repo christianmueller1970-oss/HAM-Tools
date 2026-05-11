@@ -64,11 +64,8 @@ function voltString(v) {
 
 // ─── Im Sim öffnen ───────────────────────────────────────────────────────────
 // Magnetic Loop: geschlossene Stromschleife mit Vakuum-Kondensator zur Abstimmung.
-// NEC2 modelliert keinen konzentrierten Kondensator direkt — wir exportieren die
-// Loop-Geometrie OHNE Kondensator. Im NEC2-Sim ist die Loop dann nicht resonant
-// (wäre als reine Drahtschleife ein Full-Wave-Loop), die Strahlungsverteilung
-// (Doughnut-Pattern) bleibt aber sichtbar. Echter Magloop-Sim braucht eine
-// LD-Karte (Loading mit Kapazität) — kommt in einer späteren AntennenSim-Phase.
+// Der Abstimm-C wird als NEC2-LD-Karte (Typ 2, lumped serial RLC) auf das
+// Segment dem Speisepunkt gegenüber gesetzt → echter resonanter Sim.
 function imSimOeffnen() {
   if (!result.value) return
   const r = result.value
@@ -78,6 +75,7 @@ function imSimOeffnen() {
   const D = r.d                 // Loop-Durchmesser
   const radius = D / 2
   const wires = []
+  let feedWire = 1, feedSeg = 3, capWire = 1, capSeg = 3
   if (ml.shape === 'kreis') {
     // Kreis-Loop als 12-Eck approximieren, in Y-Z-Ebene (Antenne broadside auf X)
     const N = 12
@@ -91,6 +89,8 @@ function imSimOeffnen() {
         radius_mm,
       })
     }
+    feedWire = 1; feedSeg = 3
+    capWire = 7; capSeg = 3   // gegenüberliegend (180°)
   } else if (ml.shape === 'quadrat') {
     const corners = [
       { y:  radius, z: h - radius }, { y:  radius, z: h + radius },
@@ -103,6 +103,8 @@ function imSimOeffnen() {
         x1: 0, y1: a.y, z1: a.z, x2: 0, y2: b.y, z2: b.z, radius_mm,
       })
     }
+    feedWire = 1; feedSeg = 4
+    capWire = 3; capSeg = 4   // gegenüberliegende Seite
   } else {
     // Achteck
     const N = 8
@@ -117,15 +119,20 @@ function imSimOeffnen() {
         radius_mm,
       })
     }
+    feedWire = 1; feedSeg = 3
+    capWire = 5; capSeg = 3
   }
   openInSim(router, {
-    name: `Magnetic Loop ${D.toFixed(2)}m (${ml.shape}, ohne C) @ ${r.f} MHz`,
+    name: `Magnetic Loop ${D.toFixed(2)}m (${ml.shape}) @ ${r.f} MHz, C=${r.C_pF.toFixed(1)}pF`,
     freq: r.f,
     ground: 'average',
     height: h,
     wires,
-    // Speisung am ersten Wire-Segment (Loop-Spitze)
-    excitation: { wire_tag: 1, segment: 3 },
+    excitation: { wire_tag: feedWire, segment: feedSeg },
+    // Abstimm-Kondensator als LD-Karte am gegenüberliegenden Segment
+    loads: [
+      { type: 'C', wire_tag: capWire, segment: capSeg, R_ohm: 0, L_uH: 0, C_pF: r.C_pF },
+    ],
   })
 }
 function bwString(hz) {
@@ -217,10 +224,7 @@ const sketchGeom = computed(() => {
         <div class="ken"><div class="ken-val">{{ fmt(result.eta, 1) }} %</div><div class="ken-lbl">Wirkungsgrad η</div></div>
       </div>
       <div style="margin-top:12px; text-align:right">
-        <button class="btn-sim" @click="imSimOeffnen"
-                title="Exportiert nur die Loop-Geometrie. NEC2 modelliert den Abstimmkondensator nicht — Sim ist nicht resonant, aber Strahlungspattern wird sichtbar">
-          📡 Im Sim öffnen (ohne C)
-        </button>
+        <button class="btn-sim" @click="imSimOeffnen">📡 Im Sim öffnen</button>
       </div>
     </div>
 
