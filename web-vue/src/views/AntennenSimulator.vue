@@ -613,6 +613,60 @@ const wirePathsXZ = computed(() => cfg.wires.map(w => {
   return { a, b, tag: w.tag, isExcited }
 }))
 
+// ─── Bauteil-Marker auf den Wires (für Modell-Vorschau) ─────────────────────
+// Berechnet pro Load die Segment-Mittelposition im 3D, projiziert auf beide
+// Ansichten (XY top-down + XZ side), und bestimmt einen Tangentialwinkel
+// für die Marker-Orientierung.
+function loadMarkerPositions(load, view /* 'xy' | 'xz' */) {
+  const w = cfg.wires.find(ww => ww.tag === load.wire_tag)
+  if (!w) return null
+  const segs = Math.max(1, parseInt(w.segments) || 1)
+  const segIdx = Math.max(1, Math.min(segs, parseInt(load.segment) || 1))
+  // Mittelposition vom Segment: (segIdx - 0.5) / segs entlang [0..1]
+  const f = (segIdx - 0.5) / segs
+  const px3 = +w.x1 + f * (+w.x2 - +w.x1)
+  const py3 = +w.y1 + f * (+w.y2 - +w.y1)
+  const pz3 = +w.z1 + f * (+w.z2 - +w.z1)
+  if (view === 'xy') {
+    const p = projectXY(px3, py3)
+    // Tangentialwinkel der Wire-Projektion (X-Y)
+    const a = projectXY(+w.x1, +w.y1)
+    const b = projectXY(+w.x2, +w.y2)
+    const angle = Math.atan2(b.y - a.y, b.x - a.x)
+    return { pos: p, angle }
+  } else {
+    const p = projectXZ(px3, pz3)
+    const a = projectXZ(+w.x1, +w.z1)
+    const b = projectXZ(+w.x2, +w.z2)
+    const angle = Math.atan2(b.y - a.y, b.x - a.x)
+    return { pos: p, angle }
+  }
+}
+function loadMarkersXY() {
+  if (!cfg.loads) return []
+  return cfg.loads.map((ld, idx) => {
+    const m = loadMarkerPositions(ld, 'xy')
+    if (!m) return null
+    return { ...m, type: ld.type || 'C', idx, label: loadLabel(ld) }
+  }).filter(Boolean)
+}
+function loadMarkersXZ() {
+  if (!cfg.loads) return []
+  return cfg.loads.map((ld, idx) => {
+    const m = loadMarkerPositions(ld, 'xz')
+    if (!m) return null
+    return { ...m, type: ld.type || 'C', idx, label: loadLabel(ld) }
+  }).filter(Boolean)
+}
+function loadLabel(ld) {
+  if (ld.type === 'C') return `${(+ld.C_pF || 0).toFixed(1)} pF`
+  if (ld.type === 'L') return `${(+ld.L_uH || 0).toFixed(2)} µH`
+  if (ld.type === 'R') return `${(+ld.R_ohm || 0).toFixed(1)} Ω`
+  return 'RLC'
+}
+const loadMarkersXYComputed = computed(() => loadMarkersXY())
+const loadMarkersXZComputed = computed(() => loadMarkersXZ())
+
 // ─── Helpers für Result-Zugriff ──────────────────────────────────────────────
 
 const primary = computed(() => result.value?.primary || null)
@@ -1069,6 +1123,31 @@ const PLOT_C = PLOT_SIZE / 2
             <text :x="(p.a.x + p.b.x)/2 + 8" :y="(p.a.y + p.b.y)/2"
                   font-size="10" :fill="p.isExcited ? '#ef4444' : '#aaa'">T{{ p.tag }}</text>
           </g>
+          <!-- Bauteil-Marker -->
+          <g v-for="m in loadMarkersXYComputed" :key="`ldm-xy-${m.idx}`">
+            <g :transform="`translate(${m.pos.x}, ${m.pos.y}) rotate(${m.angle * 180 / Math.PI})`">
+              <!-- Kondensator: zwei parallele Striche || -->
+              <g v-if="m.type === 'C'">
+                <line x1="-3" y1="-8" x2="-3" y2="8" stroke="#fbbf24" stroke-width="2"/>
+                <line x1="3"  y1="-8" x2="3"  y2="8" stroke="#fbbf24" stroke-width="2"/>
+              </g>
+              <!-- Spule: kleiner Doppel-Bogen -->
+              <g v-else-if="m.type === 'L'">
+                <path d="M -8 0 a 2.5 2.5 0 0 1 5 0 a 2.5 2.5 0 0 1 5 0 a 2.5 2.5 0 0 1 5 0"
+                      fill="none" stroke="#86efac" stroke-width="2"/>
+              </g>
+              <!-- Widerstand: kleines Rechteck -->
+              <g v-else-if="m.type === 'R'">
+                <rect x="-7" y="-4" width="14" height="8" fill="none" stroke="#f472b6" stroke-width="1.8"/>
+              </g>
+              <!-- RLC: gefüllter Kreis (generisch) -->
+              <g v-else>
+                <circle r="5" fill="none" stroke="#a78bfa" stroke-width="1.8"/>
+                <text x="0" y="3" text-anchor="middle" font-size="7" fill="#a78bfa">RLC</text>
+              </g>
+            </g>
+            <text :x="m.pos.x + 10" :y="m.pos.y - 8" font-size="9" fill="#fbbf24">{{ m.label }}</text>
+          </g>
           <text x="6" y="14" font-size="10" fill="#666">Y ↑</text>
           <text :x="VIEW_SIZE-30" :y="VIEW_SIZE/2 - 4" font-size="10" fill="#666">→ X</text>
         </svg>
@@ -1084,6 +1163,26 @@ const PLOT_C = PLOT_SIZE / 2
                   :stroke-width="p.isExcited ? 3 : 2"/>
             <text :x="(p.a.x + p.b.x)/2 + 8" :y="(p.a.y + p.b.y)/2 - 4"
                   font-size="10" :fill="p.isExcited ? '#ef4444' : '#aaa'">T{{ p.tag }}</text>
+          </g>
+          <g v-for="m in loadMarkersXZComputed" :key="`ldm-xz-${m.idx}`">
+            <g :transform="`translate(${m.pos.x}, ${m.pos.y}) rotate(${m.angle * 180 / Math.PI})`">
+              <g v-if="m.type === 'C'">
+                <line x1="-3" y1="-8" x2="-3" y2="8" stroke="#fbbf24" stroke-width="2"/>
+                <line x1="3"  y1="-8" x2="3"  y2="8" stroke="#fbbf24" stroke-width="2"/>
+              </g>
+              <g v-else-if="m.type === 'L'">
+                <path d="M -8 0 a 2.5 2.5 0 0 1 5 0 a 2.5 2.5 0 0 1 5 0 a 2.5 2.5 0 0 1 5 0"
+                      fill="none" stroke="#86efac" stroke-width="2"/>
+              </g>
+              <g v-else-if="m.type === 'R'">
+                <rect x="-7" y="-4" width="14" height="8" fill="none" stroke="#f472b6" stroke-width="1.8"/>
+              </g>
+              <g v-else>
+                <circle r="5" fill="none" stroke="#a78bfa" stroke-width="1.8"/>
+                <text x="0" y="3" text-anchor="middle" font-size="7" fill="#a78bfa">RLC</text>
+              </g>
+            </g>
+            <text :x="m.pos.x + 10" :y="m.pos.y - 8" font-size="9" fill="#fbbf24">{{ m.label }}</text>
           </g>
           <text x="6" y="14" font-size="10" fill="#666">Z ↑</text>
           <text :x="VIEW_SIZE-30" :y="VIEW_SIZE/2 - 4" font-size="10" fill="#666">→ X</text>
