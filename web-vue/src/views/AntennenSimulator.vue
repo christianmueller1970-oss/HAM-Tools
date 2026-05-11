@@ -483,6 +483,40 @@ const elevationPoints = computed(() => {
 
 const SWEEP_W = 640, SWEEP_H = 200
 
+// HAM-Amateurfunk-Bänder Region 1 (Mittel-Europa). Werden im Sweep-Chart als
+// gefärbte vertikale Streifen unterlegt — der User sieht so wo die Antenne in
+// den Bändern resonant ist.
+const HAM_BANDS = [
+  { name: '160m', lo: 1.810,   hi: 2.000,   color: '#8b4513' },
+  { name: '80m',  lo: 3.500,   hi: 3.800,   color: '#a0522d' },
+  { name: '60m',  lo: 5.351,   hi: 5.366,   color: '#cd853f' },
+  { name: '40m',  lo: 7.000,   hi: 7.200,   color: '#a855f7' },
+  { name: '30m',  lo: 10.100,  hi: 10.150,  color: '#6366f1' },
+  { name: '20m',  lo: 14.000,  hi: 14.350,  color: '#3b82f6' },
+  { name: '17m',  lo: 18.068,  hi: 18.168,  color: '#06b6d4' },
+  { name: '15m',  lo: 21.000,  hi: 21.450,  color: '#22c55e' },
+  { name: '12m',  lo: 24.890,  hi: 24.990,  color: '#eab308' },
+  { name: '10m',  lo: 28.000,  hi: 29.700,  color: '#f97316' },
+  { name: '6m',   lo: 50.000,  hi: 52.000,  color: '#ef4444' },
+  { name: '4m',   lo: 70.000,  hi: 70.500,  color: '#ec4899' },
+  { name: '2m',   lo: 144.000, hi: 146.000, color: '#ec4899' },
+  { name: '70cm', lo: 430.000, hi: 440.000, color: '#a855f7' },
+]
+
+// Bänder die mit dem Sweep-Bereich überlappen
+const visibleBands = computed(() => {
+  const blocks = sweepBlocks.value
+  if (blocks.length < 2) return []
+  const fMin = blocks[0].frequency_mhz
+  const fMax = blocks[blocks.length - 1].frequency_mhz
+  return HAM_BANDS.filter(b => b.hi >= fMin && b.lo <= fMax).map(b => ({
+    ...b,
+    // Auf den Sweep-Bereich klippen
+    loClip: Math.max(b.lo, fMin),
+    hiClip: Math.min(b.hi, fMax),
+  }))
+})
+
 function sweepChart(blocks, key, color, yMin, yMax, label) {
   if (blocks.length < 2) return { path: '', ticks: [] }
   const fMin = blocks[0].frequency_mhz
@@ -776,7 +810,7 @@ const PLOT_C = PLOT_SIZE / 2
       </button>
       <span style="opacity:0.7; font-size:12px">{{ status }}</span>
     </div>
-    <div v-if="errorMsg" style="color:#ef4444; margin-top:10px; font-size:13px">⚠ {{ errorMsg }}</div>
+    <div v-if="errorMsg" style="color:#ef4444; margin-top:10px; font-size:12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-all; max-height: 380px; overflow-y: auto; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.3); padding: 8px; border-radius: 6px">⚠ {{ errorMsg }}</div>
   </div>
 
   <div v-if="primary && !isSweep" class="card">
@@ -811,6 +845,17 @@ const PLOT_C = PLOT_SIZE / 2
     <!-- SWR Chart -->
     <h3 style="margin-top:18px">SWR über Frequenz</h3>
     <svg :viewBox="`0 0 ${SWEEP_W} ${SWEEP_H}`" :width="SWEEP_W" :height="SWEEP_H" style="background: rgba(0,0,0,0.15); border-radius: 4px; max-width: 100%; height: auto">
+      <!-- HAM-Band-Streifen (unter dem Grid, damit die Linien obendrauf liegen) -->
+      <g v-for="band in visibleBands" :key="`swrband-${band.name}`">
+        <rect :x="swrChart.margin.l + (band.loClip - swrChart.fMin) / (swrChart.fMax - swrChart.fMin) * swrChart.W"
+              :y="swrChart.margin.t"
+              :width="((band.hiClip - band.loClip) / (swrChart.fMax - swrChart.fMin) * swrChart.W)"
+              :height="swrChart.H"
+              :fill="band.color" fill-opacity="0.14"/>
+        <text :x="swrChart.margin.l + ((band.loClip + band.hiClip) / 2 - swrChart.fMin) / (swrChart.fMax - swrChart.fMin) * swrChart.W"
+              :y="swrChart.margin.t + 12"
+              text-anchor="middle" font-size="9" font-weight="600" :fill="band.color" opacity="0.85">{{ band.name }}</text>
+      </g>
       <!-- Grid -->
       <g v-for="v in [1.5, 2, 3, 4, 5]" :key="`gy${v}`">
         <line :x1="swrChart.margin.l" :y1="swrChart.margin.t + swrChart.H * (1 - (v-1)/4)"
@@ -832,6 +877,17 @@ const PLOT_C = PLOT_SIZE / 2
     <!-- Z Chart -->
     <h3 style="margin-top:18px">Impedanz R + jX über Frequenz</h3>
     <svg v-if="zChart" :viewBox="`0 0 ${SWEEP_W} ${SWEEP_H}`" :width="SWEEP_W" :height="SWEEP_H" style="background: rgba(0,0,0,0.15); border-radius: 4px; max-width: 100%; height: auto">
+      <!-- HAM-Band-Streifen -->
+      <g v-for="band in visibleBands" :key="`zband-${band.name}`">
+        <rect :x="zChart.margin.l + (band.loClip - zChart.fMin) / (zChart.fMax - zChart.fMin) * zChart.W"
+              :y="zChart.margin.t"
+              :width="((band.hiClip - band.loClip) / (zChart.fMax - zChart.fMin) * zChart.W)"
+              :height="zChart.H"
+              :fill="band.color" fill-opacity="0.14"/>
+        <text :x="zChart.margin.l + ((band.loClip + band.hiClip) / 2 - zChart.fMin) / (zChart.fMax - zChart.fMin) * zChart.W"
+              :y="zChart.margin.t + 12"
+              text-anchor="middle" font-size="9" font-weight="600" :fill="band.color" opacity="0.85">{{ band.name }}</text>
+      </g>
       <!-- Grid: 50, 0, -50 etc. -->
       <g v-for="v in [zChart.yMin, zChart.yMin + (zChart.yMax-zChart.yMin)*0.25, (zChart.yMin + zChart.yMax)/2, zChart.yMin + (zChart.yMax-zChart.yMin)*0.75, zChart.yMax]" :key="`zy${v}`">
         <line :x1="zChart.margin.l" :y1="zChart.margin.t + zChart.H * (1 - (v - zChart.yMin)/(zChart.yMax - zChart.yMin))"

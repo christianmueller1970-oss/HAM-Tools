@@ -64,6 +64,10 @@ function buildDeck(req) {
     const nTheta = Math.floor((isFree ? 360 : 180) / step) + 1
     const nPhi = Math.floor(360 / step)
     lines.push(`RP 0 ${nTheta} ${nPhi} 1000 ${thetaStart.toFixed(1)} 0.0 ${step.toFixed(1)} ${step.toFixed(1)}`)
+  } else {
+    // Sweep ohne RP: XQ-Karte zwingt nec2c zur Berechnung pro Frequenz
+    // (sonst läuft die FR-Schleife durch, ohne Impedanz/SWR auszugeben).
+    lines.push('XQ 0')
   }
   lines.push('EN')
   return lines.join('\n') + '\n'
@@ -172,7 +176,18 @@ async function simulate(req) {
   }
   const blocks = parseOutput(output)
   if (blocks.length === 0) {
-    throw new Error('nec2c-Output enthält keine Frequenz-Daten')
+    // Debug-Hilfe: alle Zeilen die "FREQUENCY" enthalten + die letzten 2000 Zeichen
+    const freqLines = output.split('\n').filter(l => /FREQ/i.test(l)).slice(0, 40)
+    const tail = output.length > 2000 ? '\n…(Anfang gekürzt)\n' + output.slice(-2000) : output
+    const debugMsg = [
+      `nec2c-Output enthält keine Frequenz-Daten`,
+      `Output-Länge: ${output.length} Zeichen`,
+      `Gefundene Zeilen mit "FREQ" (${freqLines.length}):`,
+      ...freqLines.map(l => '  > ' + l.trim()),
+      `--- Output (letzte 2000 Zeichen) ---`,
+      tail,
+    ].join('\n')
+    throw new Error(debugMsg)
   }
   return {
     blocks,                                // alle Frequenz-Blöcke
