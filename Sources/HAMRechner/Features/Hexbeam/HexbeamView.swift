@@ -9,12 +9,22 @@ struct HexbeamBand: Identifiable {
     let istWARC: Bool
     var aktiv: Bool
 
-    var lambda: Double       { 300.0 / fMHz }
-    var treiber_m: Double    { lambda * 0.440 }
-    var reflektor_m: Double  { lambda * 0.495 }
-    var arm_m: Double        { lambda * 0.260 }
-    /// Physische Spreizer-Länge inkl. ~20 cm Reserve für Tip Spacer + Knotensicherung
-    var spreizer_m: Double   { arm_m + 0.20 }
+    var lambda: Double { 300.0 / fMHz }
+
+    // G3TXQ Broadband Hexbeam (Steve Hunt, lizenziert in der WiMo EAntenna HEX6B).
+    // Faktoren abgeleitet aus den 20m-Referenzmaßen (G3TXQ Original-Diagramm "20 Meter
+    // Broadband Hex Wires and Spacers"):
+    //   ½ Driver = 214"  = 5.44 m  →  0.2570 × λ   (Drahtlänge, 3D entlang Spreader-Bogen)
+    //   Reflector = 404" = 10.26 m →  0.4849 × λ   (Drahtlänge, Gesamtdraht)
+    //   Tip Spacer = 24" = 0.61 m  →  0.0288 × λ   (PVC-Isolator zw. Driver-Tip und Reflector)
+    //   Spreader-Radius (horizontal) ≈ 3.46 m für 20m → 0.1635 × λ
+    var driver_half_m: Double  { lambda * 0.2570 }
+    var driver_full_m: Double  { lambda * 0.5140 }
+    var reflector_m:   Double  { lambda * 0.4849 }
+    var tip_spacer_m:  Double  { lambda * 0.0288 }
+    /// Horizontaler Eyelet-Radius (Top-View-Projektion). Der echte Pole ist länger
+    /// (Schüssel-Krümmung), das Wire läuft entlang dem gebogenen Spreader.
+    var radius_m:      Double  { lambda * 0.1635 }
 }
 
 // MARK: - View
@@ -34,7 +44,8 @@ struct HexbeamView: View {
 
     private var aktiveBaender: [HexbeamBand] { baender.filter(\.aktiv) }
     private var referenzBand: HexbeamBand?   { aktiveBaender.min(by: { $0.fMHz < $1.fMHz }) }
-    private var maxArm: Double               { aktiveBaender.map(\.arm_m).max() ?? 0 }
+    /// Größter horizontaler Eyelet-Radius (= Spreader-Tip-Radius des niedrigsten aktiven Bands).
+    private var maxRadius: Double            { aktiveBaender.map(\.radius_m).max() ?? 0 }
 
     private let bandColors: [String: Color] = [
         "40m": .purple, "30m": .indigo, "20m": .blue, "17m": .cyan,
@@ -61,21 +72,21 @@ struct HexbeamView: View {
         .navigationTitle("Hexbeam")
     }
 
-    // MARK: Überarbeitungs-Hinweis
+    // MARK: G3TXQ-Quellen-Hinweis
 
     private var ueberarbeitungsHinweis: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+            Image(systemName: "checkmark.seal.fill")
+                .foregroundStyle(.green)
                 .font(.title3)
             VStack(alignment: .leading, spacing: 4) {
-                Text("Überarbeitung notwendig")
+                Text("G3TXQ Broadband Hexbeam")
                     .font(.callout).bold()
-                Text("Die berechneten Spreizer-Längen und die Draufsicht-Geometrie entsprechen aktuell nicht der G3TXQ-Bauanleitung (z. B. 20 m: berechnet 5,70 m, G3TXQ ≈ 3,46 m). Korrigierte Formeln und eine korrekte Skizze folgen in einer der nächsten Versionen — bitte bis dahin die Originaldoku von G3TXQ verwenden.")
+                Text("Werte und Geometrie nach Steve Hunt G3TXQ — referenziert über die lizenzierte WiMo EAntenna HEX6B Bauanleitung. 20m-Referenz: ½ Driver 214″ · Reflector 404″ · Tip Spacer 24″ · Spreader-Radius ≈ 11′4″. Andere Bänder linear mit λ skaliert.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Danke an Markus, HB9EIZ, für den Hinweis.")
+                Text("Danke an Markus, HB9EIZ, für den Hinweis und die Bauanleitung.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .italic()
@@ -83,10 +94,10 @@ struct HexbeamView: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(Color.orange.opacity(0.12))
+        .background(Color.green.opacity(0.10))
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.orange.opacity(0.5), lineWidth: 1)
+                .stroke(Color.green.opacity(0.45), lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
@@ -116,15 +127,15 @@ struct HexbeamView: View {
     // MARK: Maße-Tabelle
 
     private var masseBereich: some View {
-        SectionCard(title: "Maße pro Band") {
+        SectionCard(title: "Maße pro Band (Drahtlängen)") {
             VStack(spacing: 0) {
                 HStack {
-                    Text("Band")     .font(.caption).bold().foregroundStyle(.secondary).frame(width: 44, alignment: .leading)
-                    Text("Frequenz") .font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
-                    Text("Treiber")  .font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
-                    Text("Reflektor").font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
-                    Text("Arm el.")  .font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
-                    Text("Spreizer") .font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                    Text("Band")       .font(.caption).bold().foregroundStyle(.secondary).frame(width: 44, alignment: .leading)
+                    Text("Frequenz")   .font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                    Text("½ Driver")   .font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                    Text("Driver ges.").font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                    Text("Reflektor")  .font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                    Text("Tip Spacer") .font(.caption).bold().foregroundStyle(.secondary).frame(maxWidth: .infinity)
                 }
                 .padding(.vertical, 6)
                 Divider()
@@ -133,16 +144,16 @@ struct HexbeamView: View {
                         Text(band.name).font(.callout).bold()
                             .foregroundStyle(bandColors[band.id] ?? .primary)
                             .frame(width: 44, alignment: .leading)
-                        Text(String(format: "%.3f MHz", band.fMHz))        .font(.callout).frame(maxWidth: .infinity)
-                        Text(String(format: "%.3f m",   band.treiber_m))   .font(.callout).frame(maxWidth: .infinity)
-                        Text(String(format: "%.3f m",   band.reflektor_m)) .font(.callout).frame(maxWidth: .infinity)
-                        Text(String(format: "%.3f m",   band.arm_m))       .font(.callout).frame(maxWidth: .infinity)
-                        Text(String(format: "%.3f m",   band.spreizer_m))  .font(.callout).bold().frame(maxWidth: .infinity)
+                        Text(String(format: "%.3f MHz", band.fMHz))          .font(.callout).frame(maxWidth: .infinity)
+                        Text(String(format: "%.3f m",   band.driver_half_m)) .font(.callout).bold().frame(maxWidth: .infinity)
+                        Text(String(format: "%.3f m",   band.driver_full_m)) .font(.callout).frame(maxWidth: .infinity)
+                        Text(String(format: "%.3f m",   band.reflector_m))   .font(.callout).frame(maxWidth: .infinity)
+                        Text(String(format: "%.3f m",   band.tip_spacer_m))  .font(.callout).frame(maxWidth: .infinity)
                     }
                     .padding(.vertical, 4)
                     Divider()
                 }
-                Text("Spreizer = Arm + 20 cm Reserve (Tip Spacer & Knotensicherung). Pro Hexbeam werden 6 Spreizer benötigt — alle in Länge des längsten aktiven Arms.")
+                Text("Drahtlängen sind 3D entlang dem Spreader-Bogen (so wie das Wire durch die Eyelets läuft). Driver pro Band = 2× ½ Driver; Reflector ist eine durchgehende Schleife durch die 4 hinteren Spreader-Tips; Tip Spacer ist der PVC-Isolator zwischen Driver-Tip und Reflector-Ende am selben Spreader.")
                     .font(.caption2).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 6)
@@ -152,11 +163,18 @@ struct HexbeamView: View {
 
     // MARK: Draufsicht
     //
-    // Geometry: all bands share the same 6 arm directions.
-    // Each band's wires run almost completely around the hexagon (open only at front).
-    // Driver (solid): front V-shape, arm0(30°) → coax-center → arm5(330°)
-    // Reflector (dashed): 5-sided back polygon, arm5 → arm4 → arm3 → arm2 → arm1 → arm0
-    // Bands differ only in scale (arm_m). Draw largest band first (back of stack).
+    // G3TXQ-Topologie (Top View, horizontale Projektion):
+    // - 6 Spreader bei 30°, 90°, 150°, 210°, 270°, 330° (im Uhrzeigersinn ab "vorne")
+    // - 30° und 330° sind die FRONT-Spreader (Driver-Seite)
+    // - 90°, 150°, 210°, 270° sind die hinteren 4 Spreader (Reflector-Seite)
+    // Pro Band:
+    // - Driver (solid): V mit Apex am Center, Endpunkte an Front-Spreader-Tips (30°, 330°)
+    // - Reflector (dashed): 3-Sehnen-Polygon durch die 4 hinteren Spreader-Tips
+    //   (90° → 150° → 210° → 270°). Vorne offen (Tip Spacer trennt elektrisch vom Driver).
+    // - Tip Spacer (kleiner Marker): am Spreader-Tip 30°/330° zwischen Driver-Endpunkt
+    //   und Reflector-Anfang. Mechanisch verbunden, elektrisch isoliert.
+    // Bänder unterscheiden sich nur im Radius (band.radius_m, λ-skaliert).
+    // Spreader-Länge (graue Achsen) = maxRadius über alle aktiven Bänder.
 
     private var draufsichtBereich: some View {
         SectionCard(title: "Bauplan – Draufsicht (Vogelperspektive)") {
@@ -166,13 +184,11 @@ struct HexbeamView: View {
                 let cx = W / 2
                 let cy = H / 2 + 10
                 let radius = min(W - 2 * margin, H - 2 * margin) / 2
-                guard maxArm > 0, radius > 30 else { return }
+                guard maxRadius > 0, radius > 30 else { return }
 
-                let armScale = radius / CGFloat(maxArm)
+                let scale = radius / CGFloat(maxRadius)
 
                 // Compass bearings, clockwise from "up" (beam direction = 0°)
-                // arm0=30° upper-right, arm1=90° right, arm2=150° lower-right,
-                // arm3=210° lower-left, arm4=270° left, arm5=330° upper-left
                 let brgs: [Double] = [30, 90, 150, 210, 270, 330]
 
                 func pt(_ bearing: Double, _ dist: CGFloat) -> CGPoint {
@@ -181,65 +197,72 @@ struct HexbeamView: View {
                                    y: cy - dist * CGFloat(cos(r)))
                 }
 
-                // ── 6 Spreader arms (to max arm radius) ──
+                // ── 6 Spreader arms (bis maxRadius, das ist der Spreader-Tip-Radius) ──
                 for b in brgs {
                     let tip = pt(b, radius)
                     ctx.stroke(Path { p in
                         p.move(to: CGPoint(x: cx, y: cy))
                         p.addLine(to: tip)
                     }, with: .color(.gray.opacity(0.40)), lineWidth: 2)
-                    // Arm tip circle = Tip Spacer position
+                    // Spreader-Tip-Marker
                     ctx.stroke(
                         Path(ellipseIn: CGRect(x: tip.x - 5, y: tip.y - 5, width: 10, height: 10)),
                         with: .color(.gray.opacity(0.45)), lineWidth: 1.5)
                 }
 
-                // ── Wire elements: largest band first so smaller bands render on top ──
-                let sorted = aktiveBaender.sorted { $0.arm_m > $1.arm_m }
+                // ── Wire elements: längstes Band zuerst (Hintergrund), kürzeste oben ──
+                let sorted = aktiveBaender.sorted { $0.radius_m > $1.radius_m }
 
                 for band in sorted {
                     let color = bandColors[band.id] ?? .blue
-                    let r = CGFloat(band.arm_m) * armScale
+                    let r = CGFloat(band.radius_m) * scale
 
-                    // Reflektor: dashed 5-sided polygon going around the back
-                    // arm5(330°)→arm4(270°)→arm3(210°)→arm2(150°)→arm1(90°)→arm0(30°)
+                    // Reflector: dashed 3-Sehnen-Polygon durch die 4 hinteren Spreader-Tips
+                    //   90° → 150° → 210° → 270°
                     ctx.stroke(Path { p in
-                        p.move(to: pt(330, r))
-                        for b in [270.0, 210.0, 150.0, 90.0, 30.0] {
+                        p.move(to: pt(90, r))
+                        for b in [150.0, 210.0, 270.0] {
                             p.addLine(to: pt(b, r))
                         }
-                    }, with: .color(color.opacity(0.60)),
+                    }, with: .color(color.opacity(0.65)),
                                style: StrokeStyle(lineWidth: 1.8, dash: [5, 3]))
 
-                    // Treiber: solid V, front sector → center → other front arm
-                    // arm0(30°) → coax-center → arm5(330°)
+                    // Treiber: solid V, Front-Spreader-Tip 30° → Center → 330°
                     ctx.stroke(Path { p in
                         p.move(to: pt(30, r))
                         p.addLine(to: CGPoint(x: cx, y: cy))
                         p.addLine(to: pt(330, r))
                     }, with: .color(color), lineWidth: 2.5)
 
-                    // Schnur (structural cord, not antenna wire): thin neutral line
-                    // connecting the two front tip spacers straight across
-                    ctx.stroke(Path { p in
-                        p.move(to: pt(30, r))
-                        p.addLine(to: pt(330, r))
-                    }, with: .color(.secondary.opacity(0.45)),
-                               style: StrokeStyle(lineWidth: 0.8, dash: [3, 4]))
-
-                    // Tip spacer dots at the two front arm-tip junctions
-                    for b in [30.0, 330.0] {
-                        let tp = pt(b, r)
+                    // Tip Spacer: kurzer dashed Strich am Front-Spreader-Tip, zwischen Driver-Endpunkt
+                    // (auf der Achse 30°/330°) und Reflector-Anfang (entlang Sehne zum hinteren
+                    // Nachbar-Spreader-Tip). Visuell ~16% der Sehne pro Tip Spacer.
+                    let tipFrac: CGFloat = 0.16
+                    for (front, neighbor) in [(30.0, 90.0), (330.0, 270.0)] {
+                        let pDriver   = pt(front, r)
+                        let pNeighbor = pt(neighbor, r)
+                        let pSpacer   = CGPoint(
+                            x: pDriver.x + (pNeighbor.x - pDriver.x) * tipFrac,
+                            y: pDriver.y + (pNeighbor.y - pDriver.y) * tipFrac)
+                        ctx.stroke(Path { p in
+                            p.move(to: pDriver)
+                            p.addLine(to: pSpacer)
+                        }, with: .color(.secondary.opacity(0.7)),
+                                   style: StrokeStyle(lineWidth: 1.2, dash: [2, 2]))
+                        // Driver-Endpunkt (gefüllt) + Reflector-Anfang (offen)
                         ctx.fill(
-                            Path(ellipseIn: CGRect(x: tp.x - 4, y: tp.y - 4, width: 8, height: 8)),
-                            with: .color(color.opacity(0.85)))
+                            Path(ellipseIn: CGRect(x: pDriver.x - 4, y: pDriver.y - 4, width: 8, height: 8)),
+                            with: .color(color.opacity(0.9)))
+                        ctx.stroke(
+                            Path(ellipseIn: CGRect(x: pSpacer.x - 3.5, y: pSpacer.y - 3.5, width: 7, height: 7)),
+                            with: .color(color.opacity(0.7)), lineWidth: 1.3)
                     }
                 }
 
                 // ── Band labels at right arm (90°) ──
                 for band in sorted {
                     let color = bandColors[band.id] ?? .blue
-                    let r = CGFloat(band.arm_m) * armScale
+                    let r = CGFloat(band.radius_m) * scale
                     let lp = pt(90, r)
                     ctx.draw(
                         Text(band.name).font(.system(size: 10, weight: .bold)).foregroundStyle(color),
@@ -287,8 +310,8 @@ struct HexbeamView: View {
 
                 // ── Legend ──
                 ctx.draw(
-                    Text("─── Treiber (Driver)   - - - Reflektor   ● Tip Spacer")
-                        .font(.system(size: 9)).foregroundStyle(.secondary),
+                    Text("─── Driver-V   - - - Reflektor (3 Sehnen)   ● Driver-Ende   ○ Reflector-Anfang (Tip Spacer dazw.)")
+                        .font(.system(size: 8)).foregroundStyle(.secondary),
                     at: CGPoint(x: W / 2, y: H - 10), anchor: .center)
             }
             .frame(height: 420)
@@ -297,15 +320,12 @@ struct HexbeamView: View {
 
     // MARK: Seitenansicht
     //
-    // Side view matching reference Image #5:
-    // Semicircular bowl outline (Bezier approximation, avoids addArc convention issues).
-    // Each band = one horizontal straight line whose endpoints touch the bowl arc.
-    // Largest arm (lowest freq) is at the rim (top, widest).
-    // Smaller bands are lower inside the bowl.
-    // Labels right of center mast.
+    // Side view (G3TXQ "bowl" Schüsselform, vgl. WiMo HEX6B Bauanleitung Seite 4/13):
+    // Halbkreis-Schüsselrand, pro Band eine horizontale Drahtlinie. 20m am Rand (oben/breit),
+    // 6m am Boden (unten/schmal). Band-Radius (horizontal) = band.radius_m, λ-skaliert.
     //
-    // Geometry: bowl centered at (cx, rimY), radius R.
-    // Band arm fraction f = band.arm_m / maxArm:
+    // Geometry: bowl centered at (cx, rimY), radius R (visuell, nicht maßstabstreu zur Tiefe).
+    // Band fraction f = band.radius_m / maxRadius:
     //   lineY     = rimY + R × √(1 − f²)
     //   halfWidth = R × f
 
@@ -320,8 +340,8 @@ struct HexbeamView: View {
                     let marginT: CGFloat = 28
                     let marginB: CGFloat = 14
 
-                    let maxArmCG = CGFloat(maxArm)
-                    guard maxArmCG > 0 else { return }
+                    let maxRadCG = CGFloat(maxRadius)
+                    guard maxRadCG > 0 else { return }
 
                     // Bowl fits the available rectangle
                     let availW = W - marginL - marginR
@@ -364,7 +384,7 @@ struct HexbeamView: View {
                         }, with: .color(.secondary.opacity(0.45)), lineWidth: 1)
                     }
                     ctx.draw(
-                        Text(String(format: "⌀ %.0f cm", maxArm * 200))
+                        Text(String(format: "⌀ %.0f cm", maxRadius * 200))
                             .font(.system(size: 9)).foregroundStyle(.secondary),
                         at: CGPoint(x: cx, y: dimY - 9), anchor: .center)
 
@@ -375,8 +395,8 @@ struct HexbeamView: View {
                     }, with: .color(.secondary), lineWidth: 3)
 
                     // ── Vertical height dimension (just left of bowl arc) ──
-                    // Physical construction depth ≈ 0.20 × maxArm (G3TXQ typical sag ratio)
-                    let physDepthM = maxArm * 0.20
+                    // Schüssel-Tiefe (vertikaler Sag) ≈ 0.20 × maxRadius (G3TXQ-typische Krümmung)
+                    let physDepthM = maxRadius * 0.20
                     let bowlLeft   = cx - R
                     let dimX       = bowlLeft - 14   // 14 px left of bowl edge
                     let dimTop     = rimY
@@ -414,10 +434,10 @@ struct HexbeamView: View {
                         at: CGPoint(x: cx + 8, y: rimY - 12), anchor: .leading)
 
                     // ── Horizontal wire lines ──
-                    let sorted = aktiveBaender.sorted { $0.arm_m > $1.arm_m }
+                    let sorted = aktiveBaender.sorted { $0.radius_m > $1.radius_m }
                     for band in sorted {
                         let color = bandColors[band.id] ?? .blue
-                        let f     = CGFloat(band.arm_m) / maxArmCG
+                        let f     = CGFloat(band.radius_m) / maxRadCG
                         let lineY = rimY + R * sqrt(max(0, 1 - f * f))
                         let halfW = R * f
 
@@ -596,31 +616,33 @@ struct HexbeamView: View {
     private var zusammenfassungBereich: some View {
         SectionCard(title: "Zusammenfassung") {
             VStack(spacing: 4) {
-                ResultRow(label: "Anzahl Bänder",        value: "\(aktiveBaender.count)")
-                ResultRow(label: "Niedrigstes Band",     value: referenzBand.map { "\($0.name) (\(String(format: "%.3f MHz", $0.fMHz)))" } ?? "–")
-                ResultRow(label: "Längster Arm (el.)",   value: String(format: "%.3f m", maxArm),       highlight: true)
-                ResultRow(label: "Spreizer-Länge phys.", value: String(format: "%.2f m × 6 Stück", maxArm + 0.20), highlight: true)
-                ResultRow(label: "Material-Empfehlung",  value: spreizerEmpfehlung)
-                ResultRow(label: "Gesamtdurchmesser",    value: String(format: "%.2f m", (maxArm + 0.20) * 2))
+                ResultRow(label: "Anzahl Bänder",         value: "\(aktiveBaender.count)")
+                ResultRow(label: "Niedrigstes Band",      value: referenzBand.map { "\($0.name) (\(String(format: "%.3f MHz", $0.fMHz)))" } ?? "–")
+                ResultRow(label: "Spreader-Radius (horiz.)", value: String(format: "%.2f m × 6 Stück", maxRadius), highlight: true)
+                ResultRow(label: "Pole-Länge (Bogen)",    value: String(format: "ca. %.2f m (≈ π/2 × Radius, Schüsselform)", maxRadius * .pi / 2))
+                ResultRow(label: "Material-Empfehlung",   value: spreizerEmpfehlung)
+                ResultRow(label: "Hexagon-Durchmesser",   value: String(format: "%.2f m (horizontal)", maxRadius * 2))
                 if let ref = referenzBand {
-                    ResultRow(label: "Treiber \(ref.name)",   value: String(format: "%.3f m", ref.treiber_m))
-                    ResultRow(label: "Reflektor \(ref.name)", value: String(format: "%.3f m", ref.reflektor_m))
+                    ResultRow(label: "½ Driver \(ref.name)",   value: String(format: "%.3f m (Drahtlänge)", ref.driver_half_m))
+                    ResultRow(label: "Reflektor \(ref.name)",  value: String(format: "%.3f m (Drahtlänge)", ref.reflector_m))
+                    ResultRow(label: "Tip Spacer \(ref.name)", value: String(format: "%.3f m (PVC-Isolator)", ref.tip_spacer_m))
                 }
-                ResultRow(label: "Speisepunkt-Impedanz", value: "≈ 50 Ω (direktgekoppelt)")
-                ResultRow(label: "Mantelwellensperre",   value: "1:1 Choke-Balun direkt am Speisepunkt")
-                ResultRow(label: "Gewinn",               value: "≈ 5–6 dBd (HF-Bänder)")
+                ResultRow(label: "Speisepunkt-Impedanz",  value: "≈ 50 Ω (direktgekoppelt)")
+                ResultRow(label: "Mantelwellensperre",    value: "1:1 Choke-Balun direkt am Speisepunkt")
+                ResultRow(label: "Gewinn",                value: "≈ 3,5–3,8 dBd (laut WiMo HEX6B Datenblatt)")
             }
         }
     }
 
     private var spreizerEmpfehlung: String {
-        let physM = maxArm + 0.20
-        if physM <= 5.5 {
-            return "5,4 m konische Glasfaserstäbe (Spiderbeam-Lieferant)"
-        } else if physM <= 6.5 {
+        // Physische Pole-Länge entlang dem Bogen (≈ π/2 × Horizontal-Radius bei Halbkreis-Schüssel).
+        let poleM = maxRadius * .pi / 2
+        if poleM <= 5.5 {
+            return "5,4 m konische Glasfaserstäbe (Spiderbeam-Lieferant) — passend für 20m+"
+        } else if poleM <= 6.5 {
             return "6 m Glasfaserstäbe (Verstärkung am Knick empfohlen)"
-        } else if physM <= 8.0 {
-            return "7,8 m konische Stäbe (z.B. 40m-Hexbeam-Set)"
+        } else if poleM <= 8.0 {
+            return "7,8 m konische Stäbe (z. B. 40m-Hexbeam-Set)"
         } else {
             return "Maßanfertigung erforderlich"
         }
@@ -630,7 +652,7 @@ struct HexbeamView: View {
 
     private var hinweisBereich: some View {
         SectionCard(title: "Hinweis") {
-            Text("G3TXQ Hexbeam: 6 Speicherarme (Spreader) im 60°-Abstand. Pro Band laufen die Drähte fast vollständig um die Antenne herum – nur in Strahlungsrichtung (vorne) ist eine Lücke. Der Treiber (solid) bildet ein V zur Koax-Einspeisung hin. Der Reflektor (gestrichelt) läuft als 5-seitiger Polygonzug um den Rücken der Antenne. Formeln: Treiber = 0.44λ, Reflektor = 0.495λ, Arm = 0.26λ. Tip Spacer = kleine Isolatoren an den Armspitzen.")
+            Text("G3TXQ Broadband Hexbeam: 6 Spreader im 60°-Abstand, alle gleich lang (dimensioniert für das niedrigste Band). Pro Band ein eigenes Wire-Set (Driver + Reflector) auf einem eigenen Eyelet entlang dem Spreader — niedere Frequenz = größerer Radius (am Spreader-Tip), höhere Frequenz = kleinerer Radius (innen). Driver: V vorne (Apex am Center-Post, Endpunkte an Front-Spreader-Tips 30°/330°). Reflector: 3-Sehnen-Bogen hinten durch die 4 hinteren Spreader-Tips (90°→150°→210°→270°). Tip Spacer: PVC-Isolator am Front-Spreader-Tip, trennt Driver elektrisch vom Reflector-Anfang. Werte G3TXQ-konform (referenziert aus WiMo EAntenna HEX6B Bauanleitung, 20m-Maße: ½ Driver 214″, Reflector 404″, Tip Spacer 24″).")
                 .font(.callout).foregroundStyle(.secondary)
         }
     }

@@ -12,12 +12,7 @@ Convention:
 ## In Arbeit
 
 - [x] **N:** **Local Time zusätzlich rechts anzeigen** — UTC bleibt unverändert (bold, primary), rechts daneben Local Time (regular, secondary) im Format `HH:mm:ss LT` aus `TimeZone.current`, gleicher 1-Sekunden-Timer. DXClusterView.swift Header.
-- [ ] **NW:** **Hexbeam-Rechner überarbeiten (G3TXQ-konform)** — gemeldet von Markus, HB9EIZ (Mail 2026-05-11):
-  - **Spreizer-Länge stimmt nicht:** aktuell `arm = λ × 0.260 + 0.20 m Reserve` → für 20 m ≈ 5,70 m. G3TXQ-Bauanleitung gibt ≈ 3,46 m (11′ 4″) für die radialen Spreizer an. Formel für `arm_m` muss revidiert werden (Spreizer = radiale Hexagon-Halbmesser, nicht abgewickelte Drahtlänge).
-  - **Grafische Darstellung der Draufsicht falsch** — siehe Referenz-Skizze G3TXQ "20 Meter Broadband Hex Wires and Spacers": Driver ist ein ½ × 214″ (≈ 5436 mm) Knick nach hinten in V-Form (orange), Reflektor ist ein größerer Bogen 404″ (≈ 10262 mm) hinten herum (blau), dazwischen Non-Metallic Tip Spacer 24″ (≈ 610 mm). Aktuelle Skizze zeigt das nicht korrekt.
-  - **Länge der Verbindungsstücke (Tip Spacer) zwischen Strahler und Reflektor** sollte zusätzlich angezeigt werden (G3TXQ: 24″ ≈ 610 mm für 20 m, skaliert mit λ).
-  - Warnungs-Banner ist bereits in Native + Web sichtbar (Hinweis "Überarbeitung notwendig" oben in der Hexbeam-Ansicht).
-  - Quelle: G3TXQ Broadband Hexbeam Bauanleitung — Werte für andere Bänder ableiten.
+- [x] **NW:** **Hexbeam-Rechner G3TXQ-konform überarbeitet** — Quelle: WiMo EAntenna HEX6B Bauanleitung Rev. V2.1 (offizielle G3TXQ-Lizenz). Faktoren aus 20m-Referenzmaßen abgeleitet, linear mit λ skaliert: ½ Driver 0,2570·λ · Reflector 0,4849·λ · Tip Spacer 0,0288·λ · Spreader-Radius (horiz.) 0,1635·λ. Erklärung Schüsselform: Pole-Bogenlänge ≈ π/2 × Horizontal-Radius (≈ Halbkreis). Native + Web: Tabelle hat jetzt ½ Driver / Driver gesamt / Reflektor / Tip Spacer (Spreader wandert in Summary). Draufsicht: Reflector korrigiert auf 3-Sehnen-Polygon durch hintere 4 Spreader-Tips (90°→150°→210°→270°), Tip-Spacer-Marker (gefüllter Driver-Endpunkt + offener Reflector-Anfang) am Front-Spreader-Tip. Warning-Banner ersetzt durch grünen G3TXQ-Quellen-Hinweis. hexbeam.md mit Bracket-Anordnung (12E/16E/20E pro Band) und HEX6B-Specs erweitert.
 
 ---
 
