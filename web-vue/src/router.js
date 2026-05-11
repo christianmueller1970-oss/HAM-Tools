@@ -1,6 +1,6 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { seoFor } from './seo.js'
 
-const routes = [
+const rawRoutes = [
   { path: '/',              component: () => import('./views/Welcome.vue') },
   { path: '/dipol',         component: () => import('./views/Dipol.vue') },
   { path: '/groundplane',   component: () => import('./views/Groundplane.vue') },
@@ -33,7 +33,8 @@ const routes = [
   { path: '/antennensim',   component: () => import('./views/AntennenSimulator.vue') },
 ]
 
-export const router = createRouter({
-  history: createWebHashHistory(),
-  routes,
-})
+// SEO-Meta an jede Route hängen (für vite-ssg Pre-Rendering verfügbar)
+export const routes = rawRoutes.map(r => ({
+  ...r,
+  meta: seoFor(r.path),
+}))

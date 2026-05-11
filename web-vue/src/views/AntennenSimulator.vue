@@ -353,6 +353,7 @@ const SAVED_KEY = 'antennensim:saved-models:v1'
 const savedModels = ref([])
 
 function loadSavedModels() {
+  if (typeof localStorage === 'undefined') return
   try {
     const raw = localStorage.getItem(SAVED_KEY)
     if (!raw) return
@@ -363,6 +364,7 @@ function loadSavedModels() {
   }
 }
 function persistSavedModels() {
+  if (typeof localStorage === 'undefined') return
   try {
     localStorage.setItem(SAVED_KEY, JSON.stringify(savedModels.value))
   } catch (e) {

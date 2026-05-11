@@ -1,6 +1,8 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useHead } from '@unhead/vue'
+import { seoFor, SITE_URL, SITE_NAME } from './seo.js'
 import {
   RadioTower, ArrowUpToLine, Square, Cylinder, Triangle,
   ArrowRightToLine, Spline, CircleDashed, RectangleHorizontal,
@@ -9,17 +11,21 @@ import {
   AudioWaveform, LineChart, Send, MapPin, Menu, Home, BarChart3, Target, Activity,
 } from 'lucide-vue-next'
 
-const theme = ref(localStorage.getItem('ht_theme') || 'classic')
+// Während SSG-Pre-Rendering läuft Code im Node, kein window/localStorage
+const isBrowser = typeof window !== 'undefined'
+const theme = ref(isBrowser ? (localStorage.getItem('ht_theme') || 'classic') : 'classic')
 const sidebarOpen = ref(false)
 const route = useRoute()
 // Embedded-Modus: in WKWebView/iframe — keine eigene Sidebar zeigen
-const isEmbedded = new URLSearchParams(window.location.search).has('embedded')
-if (isEmbedded) document.body.classList.add('embedded')
+const isEmbedded = isBrowser && new URLSearchParams(window.location.search).has('embedded')
+if (isBrowser && isEmbedded) document.body.classList.add('embedded')
 
 function setTheme(t) {
   theme.value = t
-  document.body.className = t
-  localStorage.setItem('ht_theme', t)
+  if (isBrowser) {
+    document.body.className = t
+    localStorage.setItem('ht_theme', t)
+  }
 }
 
 function toggleSidebar() { sidebarOpen.value = !sidebarOpen.value }
@@ -27,6 +33,47 @@ function closeSidebar() { sidebarOpen.value = false }
 
 // Mobile-Sidebar bei Navigationswechsel automatisch schließen
 watch(() => route.path, () => closeSidebar())
+
+// SEO: Head-Tags reaktiv abhängig von route.path setzen.
+useHead({
+  htmlAttrs: { lang: 'de' },
+  title: () => seoFor(route.path).title,
+  link: [
+    { rel: 'canonical', href: () => `${SITE_URL}${route.path}` },
+  ],
+  meta: [
+    { name: 'description', content: () => seoFor(route.path).description },
+    { name: 'keywords', content: () => seoFor(route.path).keywords || '' },
+    { name: 'author', content: 'HB9HJI / Funkwelt' },
+    { name: 'theme-color', content: '#d9a847' },
+    { property: 'og:site_name', content: SITE_NAME },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:locale', content: 'de_DE' },
+    { property: 'og:title', content: () => seoFor(route.path).title },
+    { property: 'og:description', content: () => seoFor(route.path).description },
+    { property: 'og:url', content: () => `${SITE_URL}${route.path}` },
+    { name: 'twitter:card', content: 'summary' },
+    { name: 'twitter:title', content: () => seoFor(route.path).title },
+    { name: 'twitter:description', content: () => seoFor(route.path).description },
+  ],
+  script: [
+    {
+      type: 'application/ld+json',
+      innerHTML: () => JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'WebApplication',
+        name: SITE_NAME,
+        url: `${SITE_URL}${route.path}`,
+        description: seoFor(route.path).description,
+        applicationCategory: 'UtilitiesApplication',
+        operatingSystem: 'Web Browser',
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+        author: { '@type': 'Person', name: 'HB9HJI', url: 'https://funkwelt.net' },
+        inLanguage: 'de',
+      }),
+    },
+  ],
+})
 
 onMounted(() => {
   document.body.className = theme.value

@@ -14,15 +14,15 @@ struct AntennenSimulatorView: View {
     @State private var loadError: String? = nil
     @State private var currentURL: URL = AntennenSimulatorView.defaultURL
 
-    // ?embedded=1 aktiviert in der Web-App den schlanken Modus ohne eigene Sidebar
-    private static let defaultURL = URL(string: "https://toolbox.funkwelt.net/?embedded=1#/antennensim")!
+    // ?embedded=1 aktiviert in der Web-App den schlanken Modus ohne eigene Sidebar.
+    // History-Mode-Router (seit SEO-Refactor): /antennensim ist eine echte URL.
+    private static let defaultURL = URL(string: "https://toolbox.funkwelt.net/antennensim?embedded=1")!
 
     private var theme: AppTheme { themeManager.theme }
 
     private func makeURL(modelParam: String?) -> URL {
         guard let p = modelParam, !p.isEmpty else { return Self.defaultURL }
-        // Vue-Router Hash-Mode: ?model=… muss NACH dem # stehen
-        let s = "https://toolbox.funkwelt.net/?embedded=1#/antennensim?model=\(p)"
+        let s = "https://toolbox.funkwelt.net/antennensim?embedded=1&model=\(p)"
         return URL(string: s) ?? Self.defaultURL
     }
 

@@ -5,13 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "sitemap": "node scripts/gen-sitemap.mjs",
+    "build": "npm run sitemap && vite-ssg build",
+    "build:spa": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@unhead/vue": "^2.1.15",
     "lucide-vue-next": "^1.0.0",
     "marked": "^18.0.3",
     "three": "^0.184.0",
+    "vite-ssg": "^28.3.0",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },
