@@ -109,6 +109,7 @@ enum Calculator: String, CaseIterable, Identifiable {
 struct ContentView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @StateObject private var dxClusterVM = DXClusterViewModel()
+    @StateObject private var simBridge   = AntennaSimBridge.shared
     @State private var selectedCalculator: Calculator? = .dxCluster
 
     private var theme: AppTheme { themeManager.theme }
@@ -121,6 +122,7 @@ struct ContentView: View {
                 CalculatorRouter(calculator: calc)
                     .environmentObject(dxClusterVM)
                     .environmentObject(themeManager)
+                    .environmentObject(simBridge)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(theme.bgApp)
                     .preferredColorScheme(theme.colorScheme)
@@ -132,6 +134,12 @@ struct ContentView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .preferredColorScheme(theme.colorScheme)
+        // "Im Sim öffnen" aus einer Antennen-View → wechselt zum Sim-Tab
+        .onChange(of: simBridge.navigationRequest) {
+            if simBridge.navigationRequest != nil {
+                selectedCalculator = .antennenSim
+            }
+        }
     }
 }
 

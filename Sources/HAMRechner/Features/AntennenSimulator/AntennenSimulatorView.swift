@@ -9,18 +9,28 @@ import WebKit
 
 struct AntennenSimulatorView: View {
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var isLoading: Bool = true
     @State private var loadError: String? = nil
+    @State private var currentURL: URL = AntennenSimulatorView.defaultURL
 
     // ?embedded=1 aktiviert in der Web-App den schlanken Modus ohne eigene Sidebar
-    private let simulatorURL = URL(string: "https://toolbox.funkwelt.net/?embedded=1#/antennensim")!
+    private static let defaultURL = URL(string: "https://toolbox.funkwelt.net/?embedded=1#/antennensim")!
+
     private var theme: AppTheme { themeManager.theme }
+
+    private func makeURL(modelParam: String?) -> URL {
+        guard let p = modelParam, !p.isEmpty else { return Self.defaultURL }
+        // Vue-Router Hash-Mode: ?model=… muss NACH dem # stehen
+        let s = "https://toolbox.funkwelt.net/?embedded=1#/antennensim?model=\(p)"
+        return URL(string: s) ?? Self.defaultURL
+    }
 
     var body: some View {
         ZStack {
             theme.bgApp.ignoresSafeArea()
 
-            WKWebViewWrapper(url: simulatorURL,
+            WKWebViewWrapper(url: currentURL,
                              isLoading: $isLoading,
                              loadError: $loadError)
                 .opacity(loadError == nil ? 1 : 0)
@@ -67,6 +77,28 @@ struct AntennenSimulatorView: View {
             }
         }
         .navigationTitle("Antennen-Simulator")
+        .onAppear {
+            // Beim Auftauchen prüfen ob ein Modell-Param wartet (von einem
+            // Antennen-Rechner via "Im Sim öffnen" gesetzt). Falls ja: URL ersetzen,
+            // WKWebView lädt dann mit ?model=... neu.
+            if let p = simBridge.consumeParam() {
+                let newURL = makeURL(modelParam: p)
+                if currentURL != newURL {
+                    isLoading = true
+                    currentURL = newURL
+                }
+            }
+        }
+        .onChange(of: simBridge.navigationRequest) {
+            // Bei nachfolgenden Im-Sim-Klicks (während Sim-Tab schon offen war)
+            if let p = simBridge.consumeParam() {
+                let newURL = makeURL(modelParam: p)
+                if currentURL != newURL {
+                    isLoading = true
+                    currentURL = newURL
+                }
+            }
+        }
     }
 }
 
@@ -90,10 +122,15 @@ private struct WKWebViewWrapper: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: WKWebView, context: Context) {
-        // Wenn loadError zurückgesetzt wurde, neu laden
-        if loadError == nil && nsView.url?.absoluteString != url.absoluteString && !isLoading {
-            // nichts — Erstladen reicht
+        // Wenn die SwiftUI-URL gewechselt hat (z.B. nach "Im Sim öffnen"
+        // mit ?model=... Param) → WKWebView neu laden.
+        if loadError == nil,
+           let currentLoaded = nsView.url?.absoluteString,
+           currentLoaded != url.absoluteString {
+            nsView.load(URLRequest(url: url))
+            return
         }
+        // Erstladen falls Wrapper neu eingehängt aber WebView noch leer.
         if loadError == nil && isLoading && nsView.isLoading == false && nsView.url == nil {
             nsView.load(URLRequest(url: url))
         }

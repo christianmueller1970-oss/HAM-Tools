@@ -27,6 +27,7 @@ private struct DipolErgebnis {
 // MARK: - View
 
 struct DipolView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var freqText = "14.175"
     @State private var vfText   = "0.95"
     @State private var typ: DipolTyp = .klassisch
@@ -114,8 +115,56 @@ struct DipolView: View {
                 ResultRow(label: "Speisepunkt-Impedanz",       value: r.impedanz)
                 ResultRow(label: "Frequenz",                   value: String(format: "%.3f MHz", r.f))
                 ResultRow(label: "Verkürzungsfaktor",          value: String(format: "%.3f", r.vf))
+                HStack {
+                    Spacer()
+                    Button { imSimOeffnen(r) } label: {
+                        Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(.top, 4)
             }
         }
+    }
+
+    /// "Im Sim öffnen": Dipol → NEC2-Drahtmodell (analog zu Dipol.vue buildDipolModel)
+    private func imSimOeffnen(_ r: DipolErgebnis) {
+        let f = r.f
+        let halfLen = r.arm_m
+        let lambda = 300.0 / f
+        let h = max(8.0, lambda / 2.0)
+        let segs = 21
+        let radius_mm = 1.0
+
+        let model: [String: Any]
+        if typ == .falter {
+            let d = 0.030  // 30mm Leiterabstand
+            model = [
+                "name": "Faltdipol \(String(format: "%.2f", halfLen * 2))m @ \(f) MHz",
+                "freq": f,
+                "ground": "average",
+                "height": h,
+                "wires": [
+                    ["tag": 1, "segments": segs, "x1": -halfLen, "y1": 0.0, "z1": h, "x2": halfLen, "y2": 0.0, "z2": h, "radius_mm": radius_mm],
+                    ["tag": 2, "segments": segs, "x1": -halfLen, "y1": 0.0, "z1": h + d, "x2": halfLen, "y2": 0.0, "z2": h + d, "radius_mm": radius_mm],
+                    ["tag": 3, "segments": 3, "x1": -halfLen, "y1": 0.0, "z1": h, "x2": -halfLen, "y2": 0.0, "z2": h + d, "radius_mm": radius_mm],
+                    ["tag": 4, "segments": 3, "x1": halfLen, "y1": 0.0, "z1": h, "x2": halfLen, "y2": 0.0, "z2": h + d, "radius_mm": radius_mm],
+                ],
+                "excitation": ["wire_tag": 1, "segment": Int(ceil(Double(segs) / 2.0))],
+            ]
+        } else {
+            model = [
+                "name": "Dipol \(String(format: "%.2f", halfLen * 2))m @ \(f) MHz (VF \(r.vf))",
+                "freq": f,
+                "ground": "average",
+                "height": h,
+                "wires": [
+                    ["tag": 1, "segments": segs, "x1": -halfLen, "y1": 0.0, "z1": h, "x2": halfLen, "y2": 0.0, "z2": h, "radius_mm": radius_mm],
+                ],
+                "excitation": ["wire_tag": 1, "segment": Int(ceil(Double(segs) / 2.0))],
+            ]
+        }
+        simBridge.openInSim(model: model)
     }
 
     // MARK: Skizze

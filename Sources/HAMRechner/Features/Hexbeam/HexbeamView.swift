@@ -30,6 +30,7 @@ struct HexbeamBand: Identifiable {
 // MARK: - View
 
 struct HexbeamView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var baender: [HexbeamBand] = [
         HexbeamBand(id: "40m",  name: "40m",  fMHz:  7.100, istWARC: false, aktiv: false),
         HexbeamBand(id: "30m",  name: "30m",  fMHz: 10.125, istWARC: true,  aktiv: false),
@@ -41,6 +42,7 @@ struct HexbeamView: View {
         HexbeamBand(id: "6m",   name: "6m",   fMHz: 50.150, istWARC: false, aktiv: false),
         HexbeamBand(id: "2m",   name: "2m",   fMHz: 145.00, istWARC: false, aktiv: false),
     ]
+    @State private var excitedBandId: String? = nil
 
     private var aktiveBaender: [HexbeamBand] { baender.filter(\.aktiv) }
     private var referenzBand: HexbeamBand?   { aktiveBaender.min(by: { $0.fMHz < $1.fMHz }) }
@@ -63,6 +65,7 @@ struct HexbeamView: View {
                     seitenansichtBereich
                     einspeisungBereich
                     zusammenfassungBereich
+                    simExportBereich
                 }
                 hinweisBereich
                 RechnerBeschreibung(resourceName: "hexbeam")
@@ -70,6 +73,36 @@ struct HexbeamView: View {
             .padding(24)
         }
         .navigationTitle("Hexbeam")
+    }
+
+    private var simExportBereich: some View {
+        SectionCard(title: "Im Antennen-Simulator öffnen") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Alle aktiven Bänder werden als NEC2-Drahtmodell exportiert (Driver + Reflektor pro Band). Ein Band wird gespeist — die anderen wirken als passive Parasiten und beeinflussen das Strahlungsdiagramm realitätsnah.")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 10) {
+                    Text("Speisung Band:").font(.callout)
+                    Picker("", selection: Binding<String>(
+                        get: { excitedBandId ?? aktiveBaender.min(by: { $0.fMHz < $1.fMHz })?.id ?? "" },
+                        set: { excitedBandId = $0 }
+                    )) {
+                        ForEach(aktiveBaender.sorted(by: { $0.fMHz < $1.fMHz })) { b in
+                            Text("\(b.name) (\(String(format: "%.3f MHz", b.fMHz)))").tag(b.id)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 220)
+                    Spacer()
+                    Button {
+                        imSimOeffnen()
+                    } label: {
+                        Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+        }
     }
 
     // MARK: G3TXQ-Quellen-Hinweis
@@ -677,5 +710,111 @@ struct HexbeamView: View {
             Text("G3TXQ Broadband Hexbeam: 6 Spreader im 60°-Abstand, alle gleich lang (dimensioniert für das niedrigste Band). Pro Band ein eigenes Wire-Set (Driver + Reflector) auf einem eigenen Eyelet entlang dem Spreader — niedere Frequenz = größerer Radius (am Spreader-Tip), höhere Frequenz = kleinerer Radius (innen). Driver: V vorne (Apex am Center-Post), beide Enden laufen am Front-Spreader-Tip 30°/330° noch ein Stück Richtung hinterem Nachbar-Spreader weiter. Reflector: durchgehender 5-Sehnen-Bogen hinten — beginnt knapp vor dem rechten Driver-Ende, läuft via 90°→150°→210°→270° um die Rückseite, endet knapp vor dem linken Driver-Ende. Tip Spacer (PVC-Isolator, 24″): kurze gestrichelte Verbindung zwischen Driver-Ende und Reflector-Anfang an jedem Front-Spreader, mechanisch verbunden, elektrisch isoliert. Werte G3TXQ-konform (referenziert aus WiMo EAntenna HEX6B Bauanleitung, 20m-Maße: ½ Driver 214″, Reflector 404″, Tip Spacer 24″).")
                 .font(.callout).foregroundStyle(.secondary)
         }
+    }
+
+    // MARK: Sim-Export
+
+    /// "Im Sim öffnen" — generiert ein NEC2-Drahtmodell aller aktiven Bänder
+    /// (analog zur Web-Version in Hexbeam.vue) und übergibt es an die Bridge.
+    /// Excitation am Driver des gewählten (oder niedrigsten) Bands.
+    private func imSimOeffnen() {
+        let akt = aktiveBaender
+        guard !akt.isEmpty else { return }
+        let excitedBand: HexbeamBand = {
+            if let id = excitedBandId, let b = akt.first(where: { $0.id == id }) { return b }
+            return akt.min(by: { $0.fMHz < $1.fMHz })!  // niedrigstes
+        }()
+
+        let h = max(8.0, excitedBand.lambda / 2.0)
+        let fDriverTail = 0.75
+        let fTipSpacerEnd = 0.93
+        let radius_mm = 1.5
+
+        func pt(_ bearingDeg: Double, _ r: Double) -> (x: Double, y: Double, z: Double) {
+            let a = bearingDeg * .pi / 180
+            return (r * sin(a), -r * cos(a), h)
+        }
+        func lerp(_ A: (Double, Double, Double), _ B: (Double, Double, Double), _ f: Double) -> (Double, Double, Double) {
+            return (A.0 + (B.0 - A.0) * f, A.1 + (B.1 - A.1) * f, A.2 + (B.2 - A.2) * f)
+        }
+
+        var wires: [[String: Any]] = []
+        var tag = 0
+        var excitationTag = 1
+
+        for band in akt {
+            let r = band.radius_m
+            let front30 = pt(30, r)
+            let front330 = pt(330, r)
+            let back90 = pt(90, r), back150 = pt(150, r), back210 = pt(210, r), back270 = pt(270, r)
+            let tailL = lerp(front30, back90, fDriverTail)
+            let tailR = lerp(front330, back270, fDriverTail)
+            let reflTipL = lerp(front30, back90, fTipSpacerEnd)
+            let reflTipR = lerp(front330, back270, fTipSpacerEnd)
+
+            // Driver-Radial links (Center → Front-Spreader-Tip 30°)
+            tag += 1
+            let drvLeftRadialTag = tag
+            wires.append([
+                "tag": tag, "segments": 11,
+                "x1": 0.0, "y1": 0.0, "z1": h,
+                "x2": front30.x, "y2": front30.y, "z2": front30.z,
+                "radius_mm": radius_mm,
+            ])
+            // Driver-Tail links (30°-Tip → Sehne Richtung 90°)
+            tag += 1
+            wires.append([
+                "tag": tag, "segments": 7,
+                "x1": front30.x, "y1": front30.y, "z1": front30.z,
+                "x2": tailL.0, "y2": tailL.1, "z2": tailL.2,
+                "radius_mm": radius_mm,
+            ])
+            // Driver-Radial rechts (Center → Front-Spreader-Tip 330°)
+            tag += 1
+            wires.append([
+                "tag": tag, "segments": 11,
+                "x1": 0.0, "y1": 0.0, "z1": h,
+                "x2": front330.x, "y2": front330.y, "z2": front330.z,
+                "radius_mm": radius_mm,
+            ])
+            // Driver-Tail rechts
+            tag += 1
+            wires.append([
+                "tag": tag, "segments": 7,
+                "x1": front330.x, "y1": front330.y, "z1": front330.z,
+                "x2": tailR.0, "y2": tailR.1, "z2": tailR.2,
+                "radius_mm": radius_mm,
+            ])
+
+            // Reflector 5-Sehnen-Pfad
+            let reflPath: [(Double, Double, Double)] = [
+                reflTipL, back90, back150, back210, back270, reflTipR,
+            ]
+            for i in 0..<(reflPath.count - 1) {
+                tag += 1
+                let a = reflPath[i], b = reflPath[i + 1]
+                wires.append([
+                    "tag": tag, "segments": 11,
+                    "x1": a.0, "y1": a.1, "z1": a.2,
+                    "x2": b.0, "y2": b.1, "z2": b.2,
+                    "radius_mm": radius_mm,
+                ])
+            }
+
+            if band.id == excitedBand.id {
+                excitationTag = drvLeftRadialTag
+            }
+        }
+
+        let bandsStr = akt.map(\.name).joined(separator: "/")
+        let model: [String: Any] = [
+            "name": "Hexbeam \(bandsStr) (Speisung \(excitedBand.name))",
+            "freq": excitedBand.fMHz,
+            "ground": "average",
+            "height": h,
+            "wires": wires,
+            "excitation": ["wire_tag": excitationTag, "segment": 1],
+        ]
+        simBridge.openInSim(model: model)
     }
 }

@@ -94,6 +94,7 @@ private func calculateYagi(bandKey: String, numEle: Int, preset: String, materia
 // MARK: - View
 
 struct YagiRechnerView: View {
+    @EnvironmentObject var simBridge: AntennaSimBridge
     @State private var selectedBand = "20"
     @State private var numElements  = 3
     @State private var preset       = "ssb"
@@ -188,17 +189,54 @@ struct YagiRechnerView: View {
 
     private func zusammenfassungBereich(_ r: YagiErgebnis) -> some View {
         SectionCard(title: "Übersicht") {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
-                KenngroesseKachel(wert: "\(r.numEle) Ele", label: "Elemente", hervorheben: true, farbe: .accentColor)
-                KenngroesseKachel(wert: String(format: "%.3f m", r.boomLength), label: "Boom-Länge")
-                KenngroesseKachel(wert: String(format: "%.1f dBi", r.design.gain), label: "Gewinn (ca.)")
-                KenngroesseKachel(wert: "\(r.design.fb) dB", label: "F/B (ca.)")
-                KenngroesseKachel(wert: "\(r.design.impedance) Ω", label: "Impedanz (ca.)")
-                KenngroesseKachel(wert: r.material == "alu" ? "Alurohr" : "Draht", label: "Bauweise")
-                KenngroesseKachel(wert: r.band.name, label: "Band")
-                KenngroesseKachel(wert: String(format: "%.3f MHz", r.freq), label: "Frequenz")
+            VStack(spacing: 12) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+                    KenngroesseKachel(wert: "\(r.numEle) Ele", label: "Elemente", hervorheben: true, farbe: .accentColor)
+                    KenngroesseKachel(wert: String(format: "%.3f m", r.boomLength), label: "Boom-Länge")
+                    KenngroesseKachel(wert: String(format: "%.1f dBi", r.design.gain), label: "Gewinn (ca.)")
+                    KenngroesseKachel(wert: "\(r.design.fb) dB", label: "F/B (ca.)")
+                    KenngroesseKachel(wert: "\(r.design.impedance) Ω", label: "Impedanz (ca.)")
+                    KenngroesseKachel(wert: r.material == "alu" ? "Alurohr" : "Draht", label: "Bauweise")
+                    KenngroesseKachel(wert: r.band.name, label: "Band")
+                    KenngroesseKachel(wert: String(format: "%.3f MHz", r.freq), label: "Frequenz")
+                }
+                HStack {
+                    Spacer()
+                    Button { imSimOeffnen(r) } label: {
+                        Label("Im Sim öffnen", systemImage: "antenna.radiowaves.left.and.right")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             }
         }
+    }
+
+    /// Yagi → NEC2-Drahtmodell (analog YagiRechner.vue buildYagiModel)
+    private func imSimOeffnen(_ r: YagiErgebnis) {
+        let h = max(10.0, r.lambda / 2.0)
+        let radius_mm = r.material == "alu" ? 5.0 : 1.5
+        let segs = 21
+
+        var wires: [[String: Any]] = []
+        for (idx, el) in r.elements.enumerated() {
+            let half = el.length / 2.0
+            wires.append([
+                "tag": idx + 1, "segments": segs,
+                "x1": el.position, "y1": -half, "z1": h,
+                "x2": el.position, "y2": half,  "z2": h,
+                "radius_mm": radius_mm,
+            ])
+        }
+        let drvTag = 2  // Element-Index 1 (Reflector=0, Driver=1)
+        let model: [String: Any] = [
+            "name": "\(r.numEle)-Element Yagi \(r.band.name) (\(String(format: "%.3f", r.freq)) MHz)",
+            "freq": r.freq,
+            "ground": "average",
+            "height": h,
+            "wires": wires,
+            "excitation": ["wire_tag": drvTag, "segment": Int(ceil(Double(segs) / 2.0))],
+        ]
+        simBridge.openInSim(model: model)
     }
 
     // MARK: Tabelle
