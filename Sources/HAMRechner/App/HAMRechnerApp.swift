@@ -10,6 +10,7 @@ struct HAMRechnerApp: App {
     @StateObject private var logbookManager:   LogbookManager
     @StateObject private var callbookSettings: CallbookSettings
     @StateObject private var callbookManager:  CallbookManager
+    @StateObject private var memoryStore:      MemoryStore
 
     init() {
         // Root zuerst — alle anderen Komponenten hängen davon ab.
@@ -28,6 +29,8 @@ struct HAMRechnerApp: App {
         _callbookSettings = StateObject(wrappedValue: cbSettings)
         _callbookManager  = StateObject(wrappedValue:
             CallbookManager(settings: cbSettings, dataRoot: root))
+
+        _memoryStore = StateObject(wrappedValue: MemoryStore(dataRoot: root))
     }
 
     var body: some Scene {
@@ -41,6 +44,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(logbookManager)
                 .environmentObject(callbookSettings)
                 .environmentObject(callbookManager)
+                .environmentObject(memoryStore)
                 .frame(minWidth: 900, minHeight: 580)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
@@ -61,6 +65,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(logbookManager)
                 .environmentObject(callbookSettings)
                 .environmentObject(callbookManager)
+                .environmentObject(memoryStore)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
     }

@@ -124,6 +124,10 @@ struct LogbuchView: View {
             .environmentObject(themeManager)
             .environmentObject(settings)
         }
+        .sheet(isPresented: $showNewMemorySheet) {
+            NewMemorySheet(existing: nil)
+                .environmentObject(themeManager)
+        }
     }
 
     // MARK: - Entry-Sektion (Radio links, QSO-Eingabe rechts)
@@ -163,6 +167,8 @@ struct LogbuchView: View {
             mapBandsContextBar
         case .history:
             historyContextBar
+        case .memories:
+            memoriesContextBar
         default:
             TabContextBarShell {
                 Text("Keine Filter für »\(bottomTab.rawValue)«")
@@ -177,6 +183,11 @@ struct LogbuchView: View {
     @AppStorage("logbook.history.mode")  private var historyModeFilter   = "Alle"
     @AppStorage("logbook.history.band")  private var historyBandFilter   = "Alle"
     @AppStorage("logbook.history.days")  private var historyDaysFilter   = 365
+
+    // Memories-Tab
+    @State private var memoriesSearch: String = ""
+    @State private var memoriesUpcomingOnly: Bool = false
+    @State private var showNewMemorySheet: Bool = false
 
     private var historyContextBar: some View {
         TabContextBarShell {
@@ -246,6 +257,51 @@ struct LogbuchView: View {
                 Text(historyStatusText)
                     .font(.caption)
                     .foregroundStyle(theme.textSecondary)
+            }
+        }
+    }
+
+    private var memoriesContextBar: some View {
+        TabContextBarShell {
+            HStack(spacing: 8) {
+                Image(systemName: "star.fill")
+                    .font(.caption)
+                    .foregroundStyle(theme.accentYellow)
+                Text("Schnellzugriff")
+                    .font(.caption)
+                    .foregroundStyle(theme.textPrimary)
+                HStack(spacing: 4) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.caption2)
+                        .foregroundStyle(theme.textDim)
+                    TextField("Suche", text: $memoriesSearch)
+                        .textFieldStyle(.plain)
+                        .font(.caption)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .frame(width: 140)
+                        .background(theme.bgCard2)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 3)
+                                .stroke(theme.separator.opacity(0.5), lineWidth: 0.5)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                }
+                Toggle(isOn: $memoriesUpcomingOnly) {
+                    Text("Nur anstehende Skeds")
+                        .font(.caption)
+                }
+                .toggleStyle(.checkbox)
+                .controlSize(.mini)
+                Spacer()
+                Button {
+                    showNewMemorySheet = true
+                } label: {
+                    Label("Neue Memory", systemImage: "plus.circle.fill")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(theme.accentGreen)
             }
         }
     }
@@ -460,6 +516,9 @@ struct LogbuchView: View {
             BandmapView(spots: spotsForMapOrBands, theme: theme)
         case .history:
             HistoryTab()
+        case .memories:
+            MemoriesTab(searchText: $memoriesSearch,
+                        showOnlyUpcomingSkeds: $memoriesUpcomingOnly)
         default:
             comingSoon(bottomTab)
         }

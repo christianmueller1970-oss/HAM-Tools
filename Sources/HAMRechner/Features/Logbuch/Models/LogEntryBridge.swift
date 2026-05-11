@@ -16,6 +16,16 @@ final class LogEntryBridge: ObservableObject {
     static let shared = LogEntryBridge()
     private init() {}
 
+    func openInLog(from memory: Memory) {
+        var draft = QSODraft(call: memory.call)
+        draft.frequencyMHz = memory.frequencyMHz
+        draft.band = memory.band
+        draft.mode = memory.mode
+        draft.spotComment = memory.notes
+        pendingDraft = draft
+        navigationRequest = UUID()
+    }
+
     func openInLog(from spot: DXSpot) {
         var draft = QSODraft(call: spot.dxCall)
         // DXSpot.frequency ist in kHz.
