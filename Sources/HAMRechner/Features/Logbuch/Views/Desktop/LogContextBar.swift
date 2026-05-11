@@ -7,11 +7,14 @@ import UniformTypeIdentifiers
 struct LogContextBar: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
+    @EnvironmentObject var callbookSettings: CallbookSettings
+    @EnvironmentObject var callbookManager: CallbookManager
 
     @Binding var filterCall: String
     @Binding var filterBand: String
     @Binding var filterMode: String
     @Binding var filterCountry: String
+    @Binding var selectedQSOs: Set<UUID>
 
     let totalCount: Int
     let filteredCount: Int
@@ -19,6 +22,13 @@ struct LogContextBar: View {
     @State private var pendingImport: PendingImport?
     @State private var lastExportURL: URL?
     @State private var showExportDoneAlert = false
+    @State private var bulkLookupProgress: BulkProgress?
+
+    struct BulkProgress {
+        var total: Int
+        var done: Int
+        var enriched: Int
+    }
 
     struct PendingImport: Identifiable {
         let id = UUID()
@@ -82,6 +92,24 @@ struct LogContextBar: View {
                     .foregroundStyle(theme.accentBlue)
                 }
                 Divider().frame(height: 16).background(theme.separator)
+
+                if !selectedQSOs.isEmpty {
+                    if let p = bulkLookupProgress {
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .controlSize(.mini)
+                            Text("\(p.done)/\(p.total) (\(p.enriched) ergänzt)")
+                                .font(.caption2.monospaced())
+                                .foregroundStyle(theme.textSecondary)
+                        }
+                    } else {
+                        actionButton("QRZ für \(selectedQSOs.count) Auswahl",
+                                     icon: "person.text.rectangle",
+                                     enabled: callbookSettings.qrzIsConfigured,
+                                     action: bulkLookupSelection)
+                    }
+                }
+
                 actionButton("Import…", icon: "square.and.arrow.down", action: openADIFImport)
                 actionButton("Export ADIF", icon: "square.and.arrow.up", action: exportADIF)
             }
@@ -106,6 +134,7 @@ struct LogContextBar: View {
 
     private func actionButton(_ label: String,
                               icon: String,
+                              enabled: Bool = true,
                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 3) {
@@ -122,9 +151,47 @@ struct LogContextBar: View {
                     .stroke(theme.separator, lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 4))
+            .opacity(enabled ? 1.0 : 0.55)
         }
         .buttonStyle(.plain)
-        .disabled(manager.currentLogID == nil)
+        .disabled(!enabled || manager.currentLogID == nil)
+    }
+
+    // MARK: - Bulk-Lookup
+
+    private func bulkLookupSelection() {
+        let selectedList = manager.currentQSOs.filter { selectedQSOs.contains($0.id) }
+        guard !selectedList.isEmpty else { return }
+        bulkLookupProgress = BulkProgress(total: selectedList.count, done: 0, enriched: 0)
+        Task {
+            await runBulkLookup(selectedList)
+        }
+    }
+
+    private func runBulkLookup(_ qsos: [QSO]) async {
+        var enriched = 0
+        for (idx, qso) in qsos.enumerated() {
+            guard let result = await callbookManager.lookup(call: qso.call) else {
+                await MainActor.run {
+                    bulkLookupProgress = BulkProgress(total: qsos.count,
+                                                      done: idx + 1,
+                                                      enriched: enriched)
+                }
+                continue
+            }
+            await MainActor.run {
+                var updated = qso
+                result.applyFillingEmpty(to: &updated)
+                manager.updateQSO(updated)
+                enriched += 1
+                bulkLookupProgress = BulkProgress(total: qsos.count,
+                                                  done: idx + 1,
+                                                  enriched: enriched)
+            }
+        }
+        await MainActor.run {
+            bulkLookupProgress = nil
+        }
     }
 
     // MARK: - Export

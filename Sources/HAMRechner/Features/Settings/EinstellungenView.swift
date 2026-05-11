@@ -11,12 +11,131 @@ struct EinstellungenView: View {
                 .tabItem { Label("Cluster", systemImage: "server.rack") }
             DatenTab()
                 .tabItem { Label("Daten", systemImage: "internaldrive") }
+            CallbookTab()
+                .tabItem { Label("Callbook", systemImage: "person.text.rectangle") }
             DarstellungTab()
                 .tabItem { Label("Darstellung", systemImage: "paintpalette") }
             AlertsTab()
                 .tabItem { Label("Alerts", systemImage: "bell.badge") }
         }
         .frame(width: 580, height: 440)
+    }
+}
+
+// MARK: - Callbook (QRZ.com etc.)
+
+private struct CallbookTab: View {
+    @EnvironmentObject var settings: CallbookSettings
+    @EnvironmentObject var manager:  CallbookManager
+    @State private var testCall: String = ""
+    @State private var testResult: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                GroupBox("QRZ.com — Zugangsdaten") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("Benutzername").frame(width: 110, alignment: .leading)
+                            TextField("HB9HJI", text: $settings.qrzUsername)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(maxWidth: 220)
+                        }
+                        HStack {
+                            Text("Passwort").frame(width: 110, alignment: .leading)
+                            SecureField("", text: $settings.qrzPassword)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(maxWidth: 220)
+                        }
+                        HStack(spacing: 6) {
+                            Image(systemName: settings.qrzIsConfigured
+                                  ? "checkmark.circle.fill" : "exclamationmark.circle")
+                                .foregroundStyle(settings.qrzIsConfigured ? .green : .orange)
+                            Text(settings.qrzIsConfigured
+                                 ? "Konfiguriert — bereit für Lookups"
+                                 : "Noch keine Zugangsdaten hinterlegt")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("QRZ.com benötigt einen kostenlosen Account für Basis-Lookups (Name, QTH, Locator, Country). Erweiterte Daten (E-Mail, Bio, Bild) brauchen ein XML-Subscription-Abo.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(4)
+                }
+
+                GroupBox("Verhalten") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Toggle("Auto-Lookup beim TAB im Call-Feld",
+                               isOn: $settings.autoLookupOnTab)
+                            .toggleStyle(.checkbox)
+                        Text("Wenn aktiv: sobald du einen Call eintippst und mit TAB ins nächste Feld springst, werden die Daten online abgefragt und leere Felder ausgefüllt. Bereits eingetragene Werte werden nicht überschrieben.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(4)
+                }
+
+                GroupBox("Test-Lookup") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            TextField("Call", text: $testCall)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(.body, design: .monospaced))
+                                .frame(maxWidth: 160)
+                                .onChange(of: testCall) { _, v in testCall = v.uppercased() }
+                            Button("Lookup") { runTestLookup() }
+                                .disabled(testCall.isEmpty || !settings.qrzIsConfigured)
+                            Spacer()
+                        }
+                        if let r = testResult {
+                            Text(r)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(8)
+                                .textSelection(.enabled)
+                        }
+                    }
+                    .padding(4)
+                }
+
+                GroupBox("Cache") {
+                    HStack {
+                        Image(systemName: "tray.full")
+                            .foregroundStyle(.blue)
+                        Text("\(manager.cacheCount) Calls im Cache (30 Tage TTL)")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Cache leeren") { manager.clearCache() }
+                            .disabled(manager.cacheCount == 0)
+                    }
+                    .padding(4)
+                }
+            }
+            .padding(16)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func runTestLookup() {
+        let call = testCall
+        testResult = "Frage QRZ ab …"
+        Task {
+            let result = await manager.lookup(call: call, forceRefresh: true)
+            await MainActor.run {
+                if let r = result {
+                    testResult = """
+                    \(r.firstName ?? "") \(r.lastName ?? "")
+                    \(r.qth ?? "") \(r.state ?? "")
+                    \(r.country ?? "") (\(r.continent ?? "?"))
+                    Locator: \(r.locator ?? "—") · CQ: \(r.cqZone.map(String.init) ?? "—") · ITU: \(r.ituZone.map(String.init) ?? "—")
+                    """
+                } else {
+                    testResult = "Keine Daten oder Fehler: \(manager.lastError ?? "unbekannt")"
+                }
+            }
+        }
     }
 }
 

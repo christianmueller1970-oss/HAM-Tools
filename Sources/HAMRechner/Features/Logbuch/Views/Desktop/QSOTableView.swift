@@ -11,6 +11,7 @@ struct QSOTableView: View {
     @Binding var filterBand: String
     @Binding var filterMode: String
     @Binding var filterCountry: String
+    @Binding var selectedQSOs: Set<UUID>
 
     @State private var editingQSO: QSO?
 
@@ -89,6 +90,7 @@ struct QSOTableView: View {
 
     private var qsoTable: some View {
         Table(sortedQSOs,
+              selection: $selectedQSOs,
               sortOrder: $sortOrder,
               columnCustomization: $columnCustomization) {
             // Default-sichtbare Spalten in einer Group — sonst überschreitet

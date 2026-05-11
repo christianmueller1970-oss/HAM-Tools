@@ -45,10 +45,17 @@ struct QSOEntryPanel: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
     @EnvironmentObject var logBridge: LogEntryBridge
+    @EnvironmentObject var callbookSettings: CallbookSettings
+    @EnvironmentObject var callbookManager: CallbookManager
 
     @State private var entryMode: EntryMode = .dx
     @State private var lastFilledFromSpot: Date? = nil
+    @State private var lastFilledFromCallbook: Date? = nil
     @State private var pendingDupe: DupeWarning? = nil
+
+    // Focus-State für Call-Feld — Wechsel raus = Auto-Lookup-Trigger
+    @FocusState private var callFieldFocused: Bool
+    @State private var lastLookedUpCall: String = ""
 
     // Pflichtfelder
     @State private var call: String = ""
@@ -256,7 +263,7 @@ struct QSOEntryPanel: View {
         HStack(alignment: .top, spacing: 12) {
             // Spalte 1: Call + Personen / Adresse
             VStack(spacing: 4) {
-                fieldRow("Call",     value: $call, monospaced: true, uppercased: true, accent: true)
+                callFieldRow
                 fieldRow("First",    value: $firstName)
                 fieldRow("Last",     value: $lastName)
                 fieldRow("Street",   value: $street)
@@ -307,6 +314,82 @@ struct QSOEntryPanel: View {
     // MARK: - Field Helpers
 
     private static let labelColumnWidth: CGFloat = 65
+
+    // Spezial-Row für das Call-Feld: zusätzlich FocusState (TAB-Wechsel
+    // triggert Callbook-Lookup) und Lookup-Spinner rechts.
+    private var callFieldRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("Call")
+                .font(.caption)
+                .foregroundStyle(theme.textSecondary)
+                .frame(width: Self.labelColumnWidth, alignment: .trailing)
+            TextField("HB9HJI", text: $call)
+                .textFieldStyle(.plain)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(theme.accentBlue)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(theme.bgCard2)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .stroke(theme.separator.opacity(0.5), lineWidth: 0.5)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 3))
+                .focused($callFieldFocused)
+                .onChange(of: call) { _, newValue in
+                    if newValue != newValue.uppercased() {
+                        call = newValue.uppercased()
+                    }
+                }
+                .onChange(of: callFieldFocused) { _, focused in
+                    // Fokus raus = User hat TAB gedrückt (oder anders weg)
+                    if !focused { triggerCallbookLookup() }
+                }
+            // Lookup-Indikator
+            if callbookManager.isInFlight(call) {
+                ProgressView()
+                    .controlSize(.mini)
+                    .frame(width: 14, height: 14)
+            } else if lastFilledFromCallbook != nil {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(theme.accentGreen)
+                    .help("Vom Callbook ausgefüllt")
+            }
+        }
+    }
+
+    private func triggerCallbookLookup() {
+        guard callbookSettings.autoLookupOnTab,
+              callbookSettings.qrzIsConfigured else { return }
+        let trimmed = call.trimmingCharacters(in: .whitespaces).uppercased()
+        // Nur lookup wenn Call nicht trivial und sich geändert hat
+        guard trimmed.count >= 3, trimmed != lastLookedUpCall else { return }
+        lastLookedUpCall = trimmed
+        Task {
+            guard let result = await callbookManager.lookup(call: trimmed) else { return }
+            await MainActor.run { applyCallbookResult(result) }
+        }
+    }
+
+    private func applyCallbookResult(_ r: CallbookResult) {
+        // Nur leere Felder befüllen — überschreibt nichts vom User
+        let combinedName = [r.firstName, r.lastName]
+            .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        if !combinedName.isEmpty, firstName.isEmpty, lastName.isEmpty {
+            firstName = r.firstName ?? ""
+            lastName  = r.lastName  ?? ""
+        }
+        if let v = r.qth,     city.isEmpty    { city    = v }
+        if let v = r.country, country.isEmpty { country = v }
+        if let v = r.street,  street.isEmpty  { street  = v }
+        if let v = r.state,   state.isEmpty   { state   = v }
+        if let v = r.locator, locator.isEmpty { locator = v.uppercased() }
+        if let v = r.email,   email.isEmpty   { email   = v }
+        lastFilledFromCallbook = Date()
+    }
 
     private func fieldRow(_ label: String,
                           value: Binding<String>,
@@ -517,6 +600,8 @@ struct QSOEntryPanel: View {
         url = ""
         dxDe = ""
         lastFilledFromSpot = nil
+        lastFilledFromCallbook = nil
+        lastLookedUpCall = ""
         // freqMHz/band/mode/rst/power bleiben (Run-Mode)
     }
 }

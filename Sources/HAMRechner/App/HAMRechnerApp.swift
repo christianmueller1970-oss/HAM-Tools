@@ -5,9 +5,11 @@ struct HAMRechnerApp: App {
     @StateObject private var themeManager     = ThemeManager()
     @StateObject private var clusterStore     = ClusterSettingsStore()
     @StateObject private var watchList        = WatchListStore()
-    @StateObject private var dataRoot:        AppDataRoot
-    @StateObject private var logbookSettings: LogbookSettings
-    @StateObject private var logbookManager:  LogbookManager
+    @StateObject private var dataRoot:         AppDataRoot
+    @StateObject private var logbookSettings:  LogbookSettings
+    @StateObject private var logbookManager:   LogbookManager
+    @StateObject private var callbookSettings: CallbookSettings
+    @StateObject private var callbookManager:  CallbookManager
 
     init() {
         // Root zuerst — alle anderen Komponenten hängen davon ab.
@@ -21,6 +23,11 @@ struct HAMRechnerApp: App {
         _logbookSettings = StateObject(wrappedValue: settings)
         _logbookManager  = StateObject(wrappedValue:
             LogbookManager(settings: settings, dataRoot: root))
+
+        let cbSettings = CallbookSettings()
+        _callbookSettings = StateObject(wrappedValue: cbSettings)
+        _callbookManager  = StateObject(wrappedValue:
+            CallbookManager(settings: cbSettings, dataRoot: root))
     }
 
     var body: some Scene {
@@ -32,6 +39,8 @@ struct HAMRechnerApp: App {
                 .environmentObject(dataRoot)
                 .environmentObject(logbookSettings)
                 .environmentObject(logbookManager)
+                .environmentObject(callbookSettings)
+                .environmentObject(callbookManager)
                 .frame(minWidth: 900, minHeight: 580)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
@@ -50,6 +59,8 @@ struct HAMRechnerApp: App {
                 .environmentObject(dataRoot)
                 .environmentObject(logbookSettings)
                 .environmentObject(logbookManager)
+                .environmentObject(callbookSettings)
+                .environmentObject(callbookManager)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
     }

@@ -44,6 +44,11 @@ struct LogbuchView: View {
     @AppStorage("logbook.spotsModeFilter")  private var spotsModeFilter: String = "Alle"
     @AppStorage("logbook.spotsRadiusKm")    private var spotsRadiusKm:   Int    = 0
 
+    // Auswahl in der QSO-Tabelle (für Bulk-QRZ-Lookup) — bleibt während
+    // der Session bestehen, persistiert aber nicht (Selektionen sind
+    // typischerweise transient).
+    @State private var selectedQSOs: Set<UUID> = []
+
     private var theme: AppTheme { themeManager.theme }
 
     var body: some View {
@@ -146,6 +151,7 @@ struct LogbuchView: View {
                 filterBand: $filterBand,
                 filterMode: $filterMode,
                 filterCountry: $filterCountry,
+                selectedQSOs: $selectedQSOs,
                 totalCount: manager.currentQSOs.count,
                 filteredCount: filteredLogCount
             )
@@ -347,7 +353,8 @@ struct LogbuchView: View {
             QSOTableView(filterCall: $filterCall,
                          filterBand: $filterBand,
                          filterMode: $filterMode,
-                         filterCountry: $filterCountry)
+                         filterCountry: $filterCountry,
+                         selectedQSOs: $selectedQSOs)
         case .dxClusters:
             LogbookClusterTab()
         case .awards:
