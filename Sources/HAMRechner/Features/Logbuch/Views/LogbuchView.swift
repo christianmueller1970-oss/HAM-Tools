@@ -42,9 +42,9 @@ struct LogbuchView: View {
             Divider().background(theme.separator)
 
             entrySection
-                .padding(.horizontal, 10)
-                .padding(.top, 8)
-                .padding(.bottom, 6)
+                .padding(.horizontal, 8)
+                .padding(.top, 6)
+                .padding(.bottom, 4)
                 .background(theme.bgApp)
 
             LogbookTabBar(selected: $bottomTab)
@@ -74,13 +74,13 @@ struct LogbuchView: View {
     // MARK: - Entry-Sektion (Radio links, QSO-Eingabe rechts)
 
     private var entrySection: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 8) {
             RadioControlPanel()
-                .frame(width: 200)
+                .frame(width: 195)
             QSOEntryPanel()
                 .frame(maxWidth: .infinity)
         }
-        .frame(height: 340)
+        .frame(height: 310)
     }
 
     // MARK: - Bottom-Content (je nach gewähltem Tab)

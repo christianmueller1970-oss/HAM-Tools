@@ -81,46 +81,61 @@ struct QSOEntryPanel: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
-    // MARK: - Mode-Tabs (DX | Contest)
+    // MARK: - Header mit DX | Contest-Tabs
 
     private var modeTabs: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
             modeTab(.dx, label: "DX")
-            modeTab(.contest, label: "Contest")
+            modeTab(.contest, label: "Contest", enabled: false)
             Spacer()
-            Text("QSO-Erfassung")
-                .font(.caption.bold())
+            if !canLog {
+                HStack(spacing: 4) {
+                    Image(systemName: "info.circle")
+                    Text("Pflichtfelder: Call + Frequenz")
+                }
+                .font(.caption2)
                 .foregroundStyle(theme.textDim)
-                .padding(.horizontal, 10)
+            }
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, 8)
         .padding(.top, 6)
-        .padding(.bottom, 0)
+        .padding(.bottom, 4)
     }
 
-    private func modeTab(_ m: EntryMode, label: String) -> some View {
+    private func modeTab(_ m: EntryMode, label: String, enabled: Bool = true) -> some View {
         Button {
-            entryMode = m
+            if enabled { entryMode = m }
         } label: {
             Text(label)
                 .font(.caption.bold())
-                .foregroundStyle(entryMode == m ? theme.textPrimary : theme.textSecondary)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 5)
-                .background(entryMode == m ? theme.accentBlue.opacity(0.25) : Color.clear)
+                .foregroundStyle(
+                    !enabled ? theme.textDim
+                    : entryMode == m ? .white
+                    : theme.textSecondary
+                )
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .background(entryMode == m && enabled ? theme.accentBlue : theme.bgCard2)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(entryMode == m && enabled ? theme.accentBlue : theme.separator,
+                                lineWidth: 1)
+                )
                 .clipShape(RoundedRectangle(cornerRadius: 4))
+                .opacity(enabled ? 1.0 : 0.55)
         }
         .buttonStyle(.plain)
+        .disabled(!enabled)
+        .help(enabled ? "" : "Contest-Modus · Phase 4")
     }
 
     // MARK: - Entry-Grid (drei Spalten)
 
     private var entryGrid: some View {
-        HStack(alignment: .top, spacing: 16) {
-            // Spalte 1: Personen/Adresse
-            VStack(spacing: 4) {
+        HStack(alignment: .top, spacing: 14) {
+            // Spalte 1: Call + Personen / Adresse
+            VStack(spacing: 5) {
                 fieldRow("Call",     value: $call, monospaced: true, uppercased: true, accent: true)
-                fieldRow("Local",    value: .constant(""), placeholder: "(automatisch)")
                 fieldRow("First",    value: $firstName)
                 fieldRow("Last",     value: $lastName)
                 fieldRow("Street",   value: $street)
@@ -133,36 +148,35 @@ struct QSOEntryPanel: View {
             }
             .frame(maxWidth: .infinity)
 
-            // Spalte 2: Zeit, Frequenz, Award-Refs
-            VStack(spacing: 4) {
+            // Spalte 2: Zeit + Frequenz / Band / Mode / RST / Power
+            VStack(spacing: 5) {
                 timeFieldRow("Time On",  value: $timeOn)
                 timeFieldRow("Time Off", value: Binding(
                     get: { timeOff ?? Date() },
                     set: { timeOff = $0 }
                 ), enabled: timeOff != nil)
-                fieldRow("MHz",   value: $freqMHz, monospaced: true) { _ in autoUpdateBand() }
-                fieldRow("Power", value: $powerW, monospaced: true)
-                fieldRow("Grid",  value: $locator, monospaced: true, uppercased: true)
-                fieldRow("ITU",   value: $itu)
-                fieldRow("SOTA",  value: $sota)
+                fieldRow("MHz",     value: $freqMHz, monospaced: true) { _ in autoUpdateBand() }
+                bandPickerRow
+                modePickerRow
+                fieldRow("RST S",   value: $rstSent, monospaced: true)
+                fieldRow("RST R",   value: $rstReceived, monospaced: true)
+                fieldRow("Power",   value: $powerW, monospaced: true)
+                fieldRow("Locator", value: $locator, monospaced: true, uppercased: true)
                 fieldRow("QSL Via", value: $qslVia)
-                fieldRow("DXCC",  value: $dxcc)
-                fieldRow("URL",   value: $url)
             }
             .frame(maxWidth: .infinity)
 
-            // Spalte 3: Mode, RST, restl. Refs
-            VStack(spacing: 4) {
-                modePickerRow
-                fieldRow("RST S", value: $rstSent, monospaced: true)
-                fieldRow("RST R", value: $rstReceived, monospaced: true)
-                bandPickerRow
-                fieldRow("Locator", value: $locator, monospaced: true, uppercased: true)
-                fieldRow("IOTA", value: $iota)
-                fieldRow("POTA", value: $pota)
-                fieldRow("SKCC", value: $skcc)
-                fieldRow("WWFF", value: $wwff)
-                fieldRow("CQ",   value: $cq)
+            // Spalte 3: Award-Refs + Zonen
+            VStack(spacing: 5) {
+                fieldRow("DXCC",  value: $dxcc)
+                fieldRow("CQ",    value: $cq)
+                fieldRow("ITU",   value: $itu)
+                fieldRow("IOTA",  value: $iota)
+                fieldRow("POTA",  value: $pota)
+                fieldRow("SOTA",  value: $sota)
+                fieldRow("WWFF",  value: $wwff)
+                fieldRow("SKCC",  value: $skcc)
+                fieldRow("URL",   value: $url)
                 fieldRow("DX de", value: $dxDe)
             }
             .frame(maxWidth: .infinity)
@@ -170,6 +184,8 @@ struct QSOEntryPanel: View {
     }
 
     // MARK: - Field Helpers
+
+    private static let labelColumnWidth: CGFloat = 65
 
     private func fieldRow(_ label: String,
                           value: Binding<String>,
@@ -182,7 +198,7 @@ struct QSOEntryPanel: View {
             Text(label)
                 .font(.caption)
                 .foregroundStyle(theme.textSecondary)
-                .frame(width: 60, alignment: .trailing)
+                .frame(width: Self.labelColumnWidth, alignment: .trailing)
             TextField(placeholder, text: value)
                 .textFieldStyle(.plain)
                 .font(monospaced
@@ -213,7 +229,7 @@ struct QSOEntryPanel: View {
             Text(label)
                 .font(.caption)
                 .foregroundStyle(theme.textSecondary)
-                .frame(width: 60, alignment: .trailing)
+                .frame(width: Self.labelColumnWidth, alignment: .trailing)
             Text(enabled ? formatUTC(value.wrappedValue) : "—")
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(enabled ? theme.textPrimary : theme.textDim)
@@ -230,7 +246,7 @@ struct QSOEntryPanel: View {
             Text("Mode")
                 .font(.caption)
                 .foregroundStyle(theme.textSecondary)
-                .frame(width: 60, alignment: .trailing)
+                .frame(width: Self.labelColumnWidth, alignment: .trailing)
             Picker("Mode", selection: $mode) {
                 ForEach(Self.modes, id: \.self) { m in
                     Text(m).tag(m)
@@ -256,7 +272,7 @@ struct QSOEntryPanel: View {
             Text("Band")
                 .font(.caption)
                 .foregroundStyle(theme.textSecondary)
-                .frame(width: 60, alignment: .trailing)
+                .frame(width: Self.labelColumnWidth, alignment: .trailing)
             Picker("Band", selection: $bandRaw) {
                 ForEach(HamBand.allCases) { b in
                     Text(b.displayName).tag(b.rawValue)

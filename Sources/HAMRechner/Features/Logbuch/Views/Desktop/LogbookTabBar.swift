@@ -44,16 +44,21 @@ struct LogbookTabBar: View {
     private var theme: AppTheme { themeManager.theme }
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 2) {
             ForEach(LogbookBottomTab.allCases) { tab in
                 tabButton(tab)
             }
             Spacer()
             awardCounter
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
         .background(theme.bgPanel)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(theme.separator)
+                .frame(height: 1)
+        }
     }
 
     private func tabButton(_ tab: LogbookBottomTab) -> some View {
@@ -74,7 +79,14 @@ struct LogbookTabBar: View {
             )
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(isSelected ? theme.bgHover : Color.clear)
+            .background(isSelected ? theme.accentBlue.opacity(0.18) : Color.clear)
+            .overlay(alignment: .bottom) {
+                if isSelected {
+                    Rectangle()
+                        .fill(theme.accentBlue)
+                        .frame(height: 2)
+                }
+            }
             .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
@@ -82,24 +94,29 @@ struct LogbookTabBar: View {
         .help(tab.isAvailable ? "" : "\(tab.rawValue) — kommt in späterer Phase")
     }
 
-    // Platzhalter für Award-Counter (Phase 7) — visuelle Verankerung
+    // Platzhalter für Award-Counter (Phase 7) — dezent
     private var awardCounter: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             awardBadge("DXCC", "0/0")
             awardBadge("WAZ",  "0/0")
             awardBadge("WAS",  "0/0")
             awardBadge("IOTA", "0/0")
         }
-        .padding(.trailing, 4)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+        .background(theme.bgCard2)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .opacity(0.7)
+        .help("Award-Counter — Phase 7")
     }
 
     private func awardBadge(_ name: String, _ value: String) -> some View {
         HStack(spacing: 3) {
-            Text(name + ":")
-                .font(.caption2)
+            Text(name)
+                .font(.caption2.weight(.medium))
                 .foregroundStyle(theme.textDim)
             Text(value)
-                .font(.caption2.monospaced().weight(.semibold))
+                .font(.caption2.monospaced())
                 .foregroundStyle(theme.textSecondary)
         }
     }

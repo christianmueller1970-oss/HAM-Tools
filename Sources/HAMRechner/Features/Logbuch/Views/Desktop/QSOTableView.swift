@@ -30,12 +30,16 @@ struct QSOTableView: View {
     private var statusLine: String {
         let count = manager.currentQSOs.count
         let filtered = filteredQSOs.count
-        if let id = manager.currentLogID, let url = manager.fileURL(for: manager.logs.first { $0.id == id } ?? manager.logs[0]) {
-            return filtered == count
-                ? "\(count) QSOs · \(url.path)"
-                : "\(filtered) / \(count) QSOs (gefiltert) · \(url.path)"
+        let fileName = currentLog.flatMap { manager.fileURL(for: $0)?.lastPathComponent } ?? ""
+        let prefix = fileName.isEmpty ? "" : "\(fileName) · "
+        if filtered == count {
+            return "\(prefix)\(count) QSO\(count == 1 ? "" : "s")"
         }
-        return "\(count) QSOs"
+        return "\(prefix)\(filtered) / \(count) QSOs (gefiltert)"
+    }
+
+    private var statusLineTooltip: String {
+        currentLog.flatMap { manager.fileURL(for: $0)?.path } ?? ""
     }
 
     var body: some View {
@@ -60,11 +64,15 @@ struct QSOTableView: View {
     private var filterBar: some View {
         VStack(spacing: 4) {
             HStack(spacing: 6) {
+                Image(systemName: "doc.text")
+                    .font(.caption2)
+                    .foregroundStyle(theme.textDim)
                 Text(statusLine)
                     .font(.caption)
                     .foregroundStyle(theme.textSecondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                    .help(statusLineTooltip)
                 Spacer()
             }
             HStack(spacing: 6) {
@@ -244,12 +252,15 @@ struct QSOTableView: View {
         .background(theme.bgApp)
     }
 
-    // MARK: - Color coding (MacLoggerDX-Stil)
+    // MARK: - Color coding
+    //   default = noch nicht hochgeladen
+    //   gelb    = upload pending (gesendet, nicht bestätigt)
+    //   grün    = bestätigt (LoTW oder eQSL)
 
     private func uploadColor(for qso: QSO) -> Color {
         if qso.lotwConfirmed || qso.eqslConfirmed { return theme.accentGreen }
         if qso.lotwSent || qso.eqslSent || qso.clublogSent { return theme.accentYellow }
-        return theme.accentRed  // klassisches MacLoggerDX: rot = noch nicht hochgeladen
+        return theme.textPrimary
     }
 
     private func statusBadgeText(for qso: QSO) -> String {

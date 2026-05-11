@@ -21,18 +21,24 @@ struct LogbookTopBar: View {
     }
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             Button {
                 onBackToHome()
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
+                        .font(.caption.weight(.semibold))
                     Text("Startseite")
+                        .font(.subheadline.weight(.medium))
                 }
-                .font(.subheadline.weight(.medium))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(theme.accentBlue.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 5))
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
             .foregroundStyle(theme.accentBlue)
+            .help("Zurück zur Startseite")
 
             Divider().frame(height: 18).background(theme.separator)
 
@@ -53,14 +59,22 @@ struct LogbookTopBar: View {
                         .font(.caption2)
                         .foregroundStyle(theme.textSecondary)
                 }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(theme.bgCard2)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(theme.separator, lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 5))
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.plain)
             .help("Logs verwalten")
 
             Spacer()
 
-            HStack(spacing: 14) {
-                HStack(spacing: 4) {
+            HStack(spacing: 10) {
+                HStack(spacing: 5) {
                     Image(systemName: "clock")
                         .font(.caption)
                         .foregroundStyle(theme.textSecondary)
@@ -68,11 +82,15 @@ struct LogbookTopBar: View {
                         .font(.system(.subheadline, design: .monospaced).weight(.semibold))
                         .foregroundStyle(theme.textPrimary)
                     Text("UTC")
-                        .font(.caption2)
-                        .foregroundStyle(theme.textDim)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(theme.accentOrange)
                 }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(theme.bgCard2)
+                .clipShape(RoundedRectangle(cornerRadius: 5))
 
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Image(systemName: "person.crop.square")
                         .font(.caption)
                         .foregroundStyle(theme.textSecondary)
@@ -80,14 +98,14 @@ struct LogbookTopBar: View {
                         .font(.system(.subheadline, design: .monospaced).weight(.bold))
                         .foregroundStyle(theme.accentBlue)
                 }
-
-                Text("HAM-Tools")
-                    .font(.caption2)
-                    .foregroundStyle(theme.textDim)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(theme.accentBlue.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 5))
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
         .background(theme.bgCard)
         .onAppear { updateClock() }
         .onReceive(timer) { _ in updateClock() }
