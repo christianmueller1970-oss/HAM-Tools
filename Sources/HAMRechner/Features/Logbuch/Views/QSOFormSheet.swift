@@ -89,7 +89,7 @@ struct QSOFormSheet: View {
             // Reihe 1: Call, UTC-Datum
             HStack(alignment: .top, spacing: 12) {
                 fieldLabel("Call *", width: 110)
-                TextField("HB9HJI", text: $call)
+                TextField("Call", text: $call)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
                     .onChange(of: call) { _, newValue in
@@ -183,7 +183,7 @@ struct QSOFormSheet: View {
 
             HStack(alignment: .top, spacing: 12) {
                 fieldLabel("Locator", width: 110)
-                TextField("JN47PN", text: $locator)
+                TextField("Locator", text: $locator)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(.body, design: .monospaced))
                     .frame(maxWidth: 130)

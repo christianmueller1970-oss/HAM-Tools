@@ -5,7 +5,7 @@ import SwiftUI
 struct LogbookTopBar: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
-    @AppStorage("callsign") private var callsign = "HB9HJI"
+    @AppStorage("callsign") private var callsign = ""
 
     let onBackToHome: () -> Void
     let onShowLogs: () -> Void
@@ -95,9 +95,9 @@ struct LogbookTopBar: View {
                     Image(systemName: "person.crop.square")
                         .font(.caption)
                         .foregroundStyle(theme.textSecondary)
-                    Text(callsign)
+                    Text(callsign.isEmpty ? "Rufzeichen ?" : callsign)
                         .font(.system(.subheadline, design: .monospaced).weight(.bold))
-                        .foregroundStyle(theme.accentBlue)
+                        .foregroundStyle(callsign.isEmpty ? theme.textDim : theme.accentBlue)
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)

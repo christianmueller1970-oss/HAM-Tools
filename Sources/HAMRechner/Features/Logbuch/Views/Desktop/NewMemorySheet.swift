@@ -36,7 +36,7 @@ struct NewMemorySheet: View {
 
             VStack(spacing: 8) {
                 row("Label *", value: $label, placeholder: "z.B. »HB9XYZ Field Day«")
-                row("Call *",  value: $call,  placeholder: "HB9HJI",
+                row("Call *",  value: $call,  placeholder: "Call",
                     monospaced: true, uppercased: true)
                 row("Name",    value: $name,  placeholder: "Vorname")
 

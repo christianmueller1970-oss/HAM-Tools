@@ -37,7 +37,7 @@ private struct CallbookTab: View {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             Text("Benutzername").frame(width: 110, alignment: .leading)
-                            TextField("HB9HJI", text: $settings.qrzUsername)
+                            TextField("QRZ-Benutzername", text: $settings.qrzUsername)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.system(.body, design: .monospaced))
                                 .frame(maxWidth: 220)
@@ -242,8 +242,8 @@ private struct DatenTab: View {
 // MARK: - Station
 
 private struct StationTab: View {
-    @AppStorage("callsign")   private var callsign   = "HB9HJI"
-    @AppStorage("qthLocator") private var qthLocator = "JN47PN"
+    @AppStorage("callsign")   private var callsign   = ""
+    @AppStorage("qthLocator") private var qthLocator = ""
 
     var body: some View {
         ScrollView {
@@ -252,7 +252,7 @@ private struct StationTab: View {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             Text("Rufzeichen").frame(width: 110, alignment: .leading)
-                            TextField("HB9HJI", text: $callsign)
+                            TextField("Rufzeichen", text: $callsign)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.system(.body, design: .monospaced))
                                 .frame(width: 160)
@@ -260,7 +260,7 @@ private struct StationTab: View {
                         }
                         HStack {
                             Text("QTH-Locator").frame(width: 110, alignment: .leading)
-                            TextField("JN47PN", text: $qthLocator)
+                            TextField("Locator (z.B. JN47PN)", text: $qthLocator)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.system(.body, design: .monospaced))
                                 .frame(width: 160)
@@ -555,7 +555,7 @@ private struct AlertsTab: View {
                         }
 
                         HStack(spacing: 8) {
-                            TextField("Rufzeichen oder Präfix (z.B. DL, HB9HJI)", text: $newEntry)
+                            TextField("Rufzeichen oder Präfix (z.B. DL, K1AA)", text: $newEntry)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.system(.body, design: .monospaced))
                                 .onSubmit { addEntry() }

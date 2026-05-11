@@ -401,7 +401,7 @@ struct LogbuchView: View {
     }
 
     // Spots gefiltert auf Mode + Radius vom eigenen QTH
-    @AppStorage("qthLocator") private var qthLocator = "JN47PN"
+    @AppStorage("qthLocator") private var qthLocator = ""
 
     private var spotsForMapOrBands: [DXSpot] {
         let base = clusterVM.filteredSpots

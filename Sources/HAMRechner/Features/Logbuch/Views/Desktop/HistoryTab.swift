@@ -8,7 +8,7 @@ struct HistoryTab: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
 
-    @AppStorage("qthLocator")            private var qthLocator       = "JN47PN"
+    @AppStorage("qthLocator")            private var qthLocator       = ""
     @AppStorage("logbook.history.lines") private var showLines: Bool  = true
     @AppStorage("logbook.history.mode")  private var modeFilter       = "Alle"
     @AppStorage("logbook.history.band")  private var bandFilter       = "Alle"
@@ -164,7 +164,7 @@ struct HistoryTab: View {
     }
 
     private static func initialCameraPosition() -> MapCameraPosition {
-        let loc = UserDefaults.standard.string(forKey: "qthLocator") ?? "JN47PN"
+        let loc = UserDefaults.standard.string(forKey: "qthLocator") ?? ""
         let center: CLLocationCoordinate2D
         if let (lat, lon) = locatorToLatLon(loc) {
             center = CLLocationCoordinate2D(latitude: lat, longitude: lon)

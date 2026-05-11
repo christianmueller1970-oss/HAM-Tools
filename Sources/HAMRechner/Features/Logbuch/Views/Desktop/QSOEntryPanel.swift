@@ -401,7 +401,7 @@ struct QSOEntryPanel: View {
                 .font(Self.fieldFont)
                 .foregroundStyle(theme.textSecondary)
                 .frame(width: Self.labelColumnWidth, alignment: .trailing)
-            TextField("HB9HJI", text: $call)
+            TextField("Call", text: $call)
                 .textFieldStyle(.plain)
                 .font(Self.fieldFontMono)
                 .foregroundStyle(theme.accentBlue)
