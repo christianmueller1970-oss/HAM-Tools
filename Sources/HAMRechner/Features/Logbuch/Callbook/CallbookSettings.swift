@@ -1,43 +1,45 @@
 import Foundation
 import Combine
 
-// Credentials für die Callbook-Services. UserDefaults für jetzt — bei
-// Bedarf später auf Keychain migrieren (braucht Codesigning-Setup).
-@MainActor
+// Credentials für die Callbook-Services. Schreibt direkt in UserDefaults
+// via Combine-Sink — robuster als didSet (der bei SecureField-Bindings
+// auf macOS gelegentlich nicht zuverlässig feuert).
 final class CallbookSettings: ObservableObject {
-    private let usernameKey = "callbook.qrz.username"
-    private let passwordKey = "callbook.qrz.password"
-    private let autoLookupKey = "callbook.autoLookupOnTab"
+    static let usernameKey   = "callbook.qrz.username"
+    static let passwordKey   = "callbook.qrz.password"
+    static let autoLookupKey = "callbook.autoLookupOnTab"
 
-    @Published var qrzUsername: String {
-        didSet {
-            UserDefaults.standard.set(qrzUsername, forKey: usernameKey)
-            recomputeIsConfigured()
-        }
-    }
-    @Published var qrzPassword: String {
-        didSet {
-            UserDefaults.standard.set(qrzPassword, forKey: passwordKey)
-            recomputeIsConfigured()
-        }
-    }
-    @Published var autoLookupOnTab: Bool {
-        didSet { UserDefaults.standard.set(autoLookupOnTab, forKey: autoLookupKey) }
-    }
+    @Published var qrzUsername: String
+    @Published var qrzPassword: String
+    @Published var autoLookupOnTab: Bool
 
-    // Als @Published statt computed — damit SwiftUI zuverlässig re-rendert
-    // wenn Username/Passwort sich ändern.
-    @Published private(set) var qrzIsConfigured: Bool = false
+    private var cancellables = Set<AnyCancellable>()
 
     init() {
-        self.qrzUsername = UserDefaults.standard.string(forKey: usernameKey) ?? ""
-        self.qrzPassword = UserDefaults.standard.string(forKey: passwordKey) ?? ""
-        self.autoLookupOnTab = (UserDefaults.standard.object(forKey: autoLookupKey) as? Bool) ?? true
-        recomputeIsConfigured()
+        self.qrzUsername     = UserDefaults.standard.string(forKey: Self.usernameKey)   ?? ""
+        self.qrzPassword     = UserDefaults.standard.string(forKey: Self.passwordKey)   ?? ""
+        self.autoLookupOnTab = (UserDefaults.standard.object(forKey: Self.autoLookupKey) as? Bool) ?? true
+
+        // Combine-basierte Persistenz — feuert zuverlässig bei jeder
+        // Änderung (auch bei SecureField, wo didSet manchmal zickt).
+        $qrzUsername
+            .dropFirst()
+            .sink { UserDefaults.standard.set($0, forKey: Self.usernameKey) }
+            .store(in: &cancellables)
+        $qrzPassword
+            .dropFirst()
+            .sink { UserDefaults.standard.set($0, forKey: Self.passwordKey) }
+            .store(in: &cancellables)
+        $autoLookupOnTab
+            .dropFirst()
+            .sink { UserDefaults.standard.set($0, forKey: Self.autoLookupKey) }
+            .store(in: &cancellables)
     }
 
-    private func recomputeIsConfigured() {
-        qrzIsConfigured = !qrzUsername.trimmingCharacters(in: .whitespaces).isEmpty
+    // Computed — wird bei jedem View-Re-Render aus den @Published-Werten
+    // neu berechnet. Kein Caching → kein Stale-State.
+    var qrzIsConfigured: Bool {
+        !qrzUsername.trimmingCharacters(in: .whitespaces).isEmpty
             && !qrzPassword.trimmingCharacters(in: .whitespaces).isEmpty
     }
 }

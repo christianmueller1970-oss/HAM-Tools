@@ -55,8 +55,8 @@ final class QRZService: CallbookService {
     // MARK: - Login
 
     private func login() async -> String? {
-        let user = await MainActor.run { settings.qrzUsername }
-        let pass = await MainActor.run { settings.qrzPassword }
+        let user = settings.qrzUsername.trimmingCharacters(in: .whitespaces)
+        let pass = settings.qrzPassword.trimmingCharacters(in: .whitespaces)
         guard !user.isEmpty, !pass.isEmpty else { return nil }
 
         var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)!

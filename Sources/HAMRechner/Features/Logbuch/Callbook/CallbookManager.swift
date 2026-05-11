@@ -44,7 +44,11 @@ final class CallbookManager: ObservableObject {
             return cached.result
         }
 
-        guard settings.qrzIsConfigured else {
+        // Direkt aus den Settings-Properties lesen — kein cached Flag,
+        // damit kein Stale-State bei frisch eingetippten Credentials.
+        let user = settings.qrzUsername.trimmingCharacters(in: .whitespaces)
+        let pass = settings.qrzPassword.trimmingCharacters(in: .whitespaces)
+        guard !user.isEmpty, !pass.isEmpty else {
             lastError = "QRZ.com nicht konfiguriert — Einstellungen → Callbook"
             return nil
         }
