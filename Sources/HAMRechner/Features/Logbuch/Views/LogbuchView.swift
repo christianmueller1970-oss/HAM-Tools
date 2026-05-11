@@ -161,6 +161,8 @@ struct LogbuchView: View {
             awardsContextBar
         case .map, .bands:
             mapBandsContextBar
+        case .history:
+            historyContextBar
         default:
             TabContextBarShell {
                 Text("Keine Filter für »\(bottomTab.rawValue)«")
@@ -168,6 +170,98 @@ struct LogbuchView: View {
                     .foregroundStyle(theme.textDim)
             }
         }
+    }
+
+    // History-Tab: Filter über Mode/Band/Zeitraum + Linien-Toggle
+    @AppStorage("logbook.history.lines") private var historyShowLines: Bool = true
+    @AppStorage("logbook.history.mode")  private var historyModeFilter   = "Alle"
+    @AppStorage("logbook.history.band")  private var historyBandFilter   = "Alle"
+    @AppStorage("logbook.history.days")  private var historyDaysFilter   = 365
+
+    private var historyContextBar: some View {
+        TabContextBarShell {
+            HStack(spacing: 10) {
+                Image(systemName: "clock.arrow.circlepath")
+                    .font(.caption)
+                    .foregroundStyle(theme.accentBlue)
+
+                Toggle(isOn: $historyShowLines) {
+                    Text("Linien zeigen").font(.caption)
+                }
+                .toggleStyle(.checkbox)
+                .controlSize(.mini)
+
+                Divider().frame(height: 16).background(theme.separator)
+
+                HStack(spacing: 3) {
+                    Text("Mode").font(.caption2).foregroundStyle(theme.textDim)
+                    Picker("", selection: $historyModeFilter) {
+                        ForEach(historyModeOptions, id: \.self) { Text($0).tag($0) }
+                    }
+                    .labelsHidden()
+                    .controlSize(.mini)
+                    .frame(width: 90)
+                }
+                HStack(spacing: 3) {
+                    Text("Band").font(.caption2).foregroundStyle(theme.textDim)
+                    Picker("", selection: $historyBandFilter) {
+                        ForEach(historyBandOptions, id: \.self) { Text($0).tag($0) }
+                    }
+                    .labelsHidden()
+                    .controlSize(.mini)
+                    .frame(width: 80)
+                }
+                HStack(spacing: 3) {
+                    Text("Zeitraum").font(.caption2).foregroundStyle(theme.textDim)
+                    Picker("", selection: $historyDaysFilter) {
+                        Text("30 Tage").tag(30)
+                        Text("3 Monate").tag(90)
+                        Text("1 Jahr").tag(365)
+                        Text("Alle").tag(0)
+                    }
+                    .labelsHidden()
+                    .controlSize(.mini)
+                    .frame(width: 90)
+                }
+
+                if historyModeFilter != "Alle" || historyBandFilter != "Alle"
+                    || historyDaysFilter != 365 {
+                    Button {
+                        historyModeFilter = "Alle"
+                        historyBandFilter = "Alle"
+                        historyDaysFilter = 365
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: "xmark.circle.fill")
+                            Text("Zurücksetzen")
+                        }
+                        .font(.caption2)
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(theme.accentBlue)
+                }
+
+                Spacer()
+
+                Text(historyStatusText)
+                    .font(.caption)
+                    .foregroundStyle(theme.textSecondary)
+            }
+        }
+    }
+
+    private var historyModeOptions: [String] {
+        ["Alle"] + Array(Set(manager.currentQSOs.map(\.mode))).filter { !$0.isEmpty }.sorted()
+    }
+    private var historyBandOptions: [String] {
+        ["Alle"] + Array(Set(manager.currentQSOs.map(\.band))).filter { !$0.isEmpty }.sorted()
+    }
+    private var historyStatusText: String {
+        let total = manager.currentQSOs.count
+        let withLocator = manager.currentQSOs.filter { ($0.locator ?? "").count >= 4 }.count
+        return withLocator < total
+            ? "\(withLocator) / \(total) QSOs mit Locator"
+            : "\(total) QSOs"
     }
 
     private var mapBandsContextBar: some View {
@@ -364,6 +458,8 @@ struct LogbuchView: View {
             WeltkarteView(spots: spotsForMapOrBands, theme: theme)
         case .bands:
             BandmapView(spots: spotsForMapOrBands, theme: theme)
+        case .history:
+            HistoryTab()
         default:
             comingSoon(bottomTab)
         }
