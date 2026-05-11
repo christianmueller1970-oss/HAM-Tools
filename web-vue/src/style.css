@@ -201,6 +201,18 @@ hr.div{border:none;border-top:1px solid var(--sep);margin:10px 0}
 .fw7{font-weight:700}.mt8{margin-top:8px}.mt4{margin-top:4px}
 .small{font-size:11px;color:var(--ts)}
 
+/* "Im Sim öffnen"-Button (verwendet in Dipol/Hexbeam/Yagi/... → AntennenSim-Bridge) */
+.btn-sim{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 14px;border-radius:6px;cursor:pointer;
+  background:linear-gradient(135deg,#3b82f6 0%,#6366f1 100%);
+  color:#fff;border:none;font-weight:600;font-size:13px;
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.btn-sim:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(59,130,246,0.35)}
+.btn-sim:active{transform:translateY(0)}
+.btn-sim:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+
 /* ── Responsive ─────────────────────────────────────────────── */
 @media(max-width:768px){
   /* App-Layout: vertikal mit Mobile-Header oben */

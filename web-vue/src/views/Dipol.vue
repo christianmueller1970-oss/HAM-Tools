@@ -1,9 +1,12 @@
 <script setup>
 import { reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { pf, fmt } from '../composables/useHam.js'
 import BandGrid from '../components/BandGrid.vue'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
 
+const router = useRouter()
 const dip = reactive({ freq: '14.175', vf: '0.95', typ: 'klassisch' })
 
 const result = computed(() => {
@@ -22,6 +25,61 @@ const margin = 40
 const cx = SVG_W / 2
 const cy = SVG_H / 2
 const armLen = (SVG_W - 2 * margin) / 2
+
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// Dipol in NEC2-Drahtmodell konvertieren:
+//   klassisch: 1 horizontaler Wire der Länge L = λ × VF / 2 entlang X-Achse
+//   falter:    2 parallele Drähte mit 30mm Abstand + 2 kurze Querverbinder
+// Höhe h = λ/2 (typisch für Resonanz-Test ohne starken Boden-Einfluss).
+
+function buildDipolModel() {
+  if (!result.value) return null
+  const r = result.value
+  const f = r.f
+  const halfLen = r.arm                 // λ/4 × VF
+  const lambda = r.lambda
+  const h = Math.max(8, lambda / 2)     // mind. 8m, sonst λ/2
+  const segs = 21
+  const radius_mm = 1.0                 // 2mm Kupferdraht
+
+  if (dip.typ === 'falter') {
+    // Faltdipol: 2 parallele Drähte mit Abstand d = 30mm, + 2 Endverbinder
+    const d = 0.030
+    return {
+      name: `Faltdipol ${(halfLen * 2).toFixed(2)}m @ ${f} MHz`,
+      freq: f,
+      ground: 'average',
+      height: h,
+      wires: [
+        // Unterer Draht (gespeist)
+        { tag: 1, segments: segs, x1: -halfLen, y1: 0, z1: h, x2: halfLen, y2: 0, z2: h, radius_mm },
+        // Oberer Draht (parallel)
+        { tag: 2, segments: segs, x1: -halfLen, y1: 0, z1: h + d, x2: halfLen, y2: 0, z2: h + d, radius_mm },
+        // Linker Verbinder
+        { tag: 3, segments: 3, x1: -halfLen, y1: 0, z1: h, x2: -halfLen, y2: 0, z2: h + d, radius_mm },
+        // Rechter Verbinder
+        { tag: 4, segments: 3, x1: halfLen, y1: 0, z1: h, x2: halfLen, y2: 0, z2: h + d, radius_mm },
+      ],
+      excitation: { wire_tag: 1, segment: Math.ceil(segs / 2) },
+    }
+  }
+  // Klassischer Dipol
+  return {
+    name: `Dipol ${(halfLen * 2).toFixed(2)}m @ ${f} MHz (VF ${r.vf})`,
+    freq: f,
+    ground: 'average',
+    height: h,
+    wires: [
+      { tag: 1, segments: segs, x1: -halfLen, y1: 0, z1: h, x2: halfLen, y2: 0, z2: h, radius_mm },
+    ],
+    excitation: { wire_tag: 1, segment: Math.ceil(segs / 2) },
+  }
+}
+
+function imSimOeffnen() {
+  const m = buildDipolModel()
+  if (m) openInSim(router, m)
+}
 </script>
 
 <template>
@@ -62,6 +120,9 @@ const armLen = (SVG_W - 2 * margin) / 2
       <div class="rr"><span class="lbl">Speisepunkt-Impedanz</span><span class="val">{{ result.imp }}</span></div>
       <div class="rr"><span class="lbl">Frequenz</span><span class="val">{{ fmt(result.f) }} MHz</span></div>
       <div class="rr"><span class="lbl">Verkürzungsfaktor</span><span class="val">{{ fmt(result.vf) }}</span></div>
+      <div style="margin-top:12px; text-align:right">
+        <button class="btn-sim" @click="imSimOeffnen">📡 Im Sim öffnen</button>
+      </div>
     </div>
 
     <div class="card">

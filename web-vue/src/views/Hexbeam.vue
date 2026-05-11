@@ -1,7 +1,11 @@
 <script setup>
-import { reactive, computed } from 'vue'
+import { reactive, ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { fmt } from '../composables/useHam.js'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
+
+const router = useRouter()
 
 const bandColors = {
   '40m': '#a855f7', '30m': '#6366f1', '20m': '#3b82f6', '17m': '#06b6d4',
@@ -142,6 +146,130 @@ const sideGeom = computed(() => {
   const physDepthM = maxRadius.value * 0.20
   return { cx, rimY, R, bowlPath, wires, physDepthM, marginL }
 })
+
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// Hexbeam → NEC2-Drahtmodell:
+//   Pro aktivem Band 9 Wires (4 Driver-Hälften × 2 Segmente + 5 Reflector-Segmente).
+//   Tip Spacer wird nicht als Conductor modelliert (PVC-Isolator).
+//   Excitation: Driver-Wire des vom User ausgewählten Bands.
+
+// State für Band-Picker (Excitation)
+const excitedBandId = ref(null)
+
+// Default-Excited = niedrigstes aktives Band (sobald welche aktiv sind)
+const effectiveExcitedBandId = computed(() => {
+  const akt = aktiveBaender.value
+  if (akt.length === 0) return null
+  if (excitedBandId.value && akt.some(b => b.id === excitedBandId.value)) return excitedBandId.value
+  // niedrigstes aktives Band
+  return [...akt].sort((a, b) => a.fMHz - b.fMHz)[0].id
+})
+
+function buildHexbeamModel() {
+  const akt = aktiveBaender.value
+  if (akt.length === 0) return null
+  const exId = effectiveExcitedBandId.value
+  const excitedBand = akt.find(b => b.id === exId)
+  if (!excitedBand) return null
+
+  // Hexbeam-Geometrie (horizontale Projektion, alle Drähte bei z=h)
+  const h = Math.max(8, excitedBand.lambda / 2)  // mind. 8m oder λ/2
+  const fDriverTail = 0.75
+  const fTipSpacerEnd = 0.93
+  const radius_mm = 1.5   // 3mm CuLi
+
+  // Helper: Punkt auf Spreader-Achse (Bearing, Radius) in 3D
+  function pt(bearingDeg, r) {
+    const a = bearingDeg * Math.PI / 180
+    return { x: r * Math.sin(a), y: -r * Math.cos(a), z: h }
+  }
+  function lerp(A, B, f) {
+    return { x: A.x + (B.x - A.x) * f, y: A.y + (B.y - A.y) * f, z: A.z + (B.z - A.z) * f }
+  }
+  const center = { x: 0, y: 0, z: h }
+
+  const wires = []
+  let tag = 0
+  let excitationTag = null
+
+  for (const band of akt) {
+    const r = band.radius
+    // Spreader-Tip-Positionen
+    const front30  = pt(30, r)
+    const front330 = pt(330, r)
+    const back90   = pt(90, r)
+    const back150  = pt(150, r)
+    const back210  = pt(210, r)
+    const back270  = pt(270, r)
+
+    // Driver-Tail-Endpunkte (Chord 30→90 bzw. 330→270 bei fDriverTail)
+    const tailL = lerp(front30, back90, fDriverTail)
+    const tailR = lerp(front330, back270, fDriverTail)
+
+    // Reflector-Tips (bei fTipSpacerEnd)
+    const reflTipL = lerp(front30, back90, fTipSpacerEnd)
+    const reflTipR = lerp(front330, back270, fTipSpacerEnd)
+
+    // Driver-Wires (linker Halbarm: 2 Segmente radial + chord-tail)
+    const drvSegs = 11
+    const drvLeftRadial = {
+      tag: ++tag, segments: drvSegs,
+      x1: center.x, y1: center.y, z1: center.z,
+      x2: front30.x, y2: front30.y, z2: front30.z,
+      radius_mm,
+    }
+    const drvLeftRadialTag = tag
+    wires.push(drvLeftRadial)
+    wires.push({
+      tag: ++tag, segments: 7,
+      x1: front30.x, y1: front30.y, z1: front30.z,
+      x2: tailL.x,   y2: tailL.y,   z2: tailL.z,
+      radius_mm,
+    })
+    // Rechter Driver
+    wires.push({
+      tag: ++tag, segments: drvSegs,
+      x1: center.x, y1: center.y, z1: center.z,
+      x2: front330.x, y2: front330.y, z2: front330.z,
+      radius_mm,
+    })
+    wires.push({
+      tag: ++tag, segments: 7,
+      x1: front330.x, y1: front330.y, z1: front330.z,
+      x2: tailR.x,    y2: tailR.y,    z2: tailR.z,
+      radius_mm,
+    })
+
+    // Reflector: 5-Segmente (reflTipL → 90° → 150° → 210° → 270° → reflTipR)
+    const reflPath = [reflTipL, back90, back150, back210, back270, reflTipR]
+    for (let i = 0; i < reflPath.length - 1; i++) {
+      wires.push({
+        tag: ++tag, segments: 11,
+        x1: reflPath[i].x,   y1: reflPath[i].y,   z1: reflPath[i].z,
+        x2: reflPath[i+1].x, y2: reflPath[i+1].y, z2: reflPath[i+1].z,
+        radius_mm,
+      })
+    }
+
+    if (band.id === exId) {
+      excitationTag = drvLeftRadialTag   // gespeist wird am Driver-Apex (= Center)
+    }
+  }
+
+  return {
+    name: `Hexbeam ${akt.map(b => b.name).join('/')} (Speisung ${excitedBand.name})`,
+    freq: excitedBand.fMHz,
+    ground: 'average',
+    height: h,
+    wires,
+    excitation: { wire_tag: excitationTag, segment: 1 },  // Segment 1 = am Center (start des radialen Wires)
+  }
+}
+
+function imSimOeffnen() {
+  const m = buildHexbeamModel()
+  if (m) openInSim(router, m)
+}
 </script>
 
 <template>
@@ -358,6 +486,23 @@ const sideGeom = computed(() => {
       <div class="rr"><span class="lbl">Speisepunkt-Impedanz</span><span class="val">≈ 50 Ω (direktgekoppelt)</span></div>
       <div class="rr"><span class="lbl">Mantelwellensperre</span><span class="val">1:1 Choke-Balun direkt am Speisepunkt</span></div>
       <div class="rr"><span class="lbl">Gewinn</span><span class="val">≈ 3,5–3,8 dBd (laut WiMo HEX6B Datenblatt)</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Im Antennen-Simulator öffnen</h2>
+      <div class="small" style="margin-bottom:10px; line-height:1.5">
+        Alle aktiven Bänder werden als NEC2-Drahtmodell exportiert (Driver + Reflektor pro Band). Ein Band wird gespeist —
+        die anderen wirken als passive Parasiten und beeinflussen das Strahlungsdiagramm realitätsnah.
+      </div>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+        <label class="small" for="hexbeam-excite-band">Speisung Band:</label>
+        <select id="hexbeam-excite-band" v-model="excitedBandId" style="padding:6px 10px; border-radius:4px; border:1px solid var(--border, #444); background:var(--bg-input, #1a1a1a); color:inherit">
+          <option v-for="b in [...aktiveBaender].sort((a, bb) => a.fMHz - bb.fMHz)" :key="b.id" :value="b.id">
+            {{ b.name }} ({{ fmt(b.fMHz) }} MHz)
+          </option>
+        </select>
+        <button class="btn-sim" @click="imSimOeffnen">📡 Im Sim öffnen</button>
+      </div>
     </div>
   </template>
 

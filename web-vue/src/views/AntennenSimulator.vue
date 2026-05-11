@@ -1,6 +1,10 @@
 <script setup>
 import { reactive, ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import Pattern3D from '../components/Pattern3D.vue'
+import { decodeModel } from '../composables/openInSim.js'
+
+const route = useRoute()
 
 // ─── Templates ────────────────────────────────────────────────────────────────
 
@@ -132,6 +136,23 @@ onMounted(() => {
     running.value = false
   }
   status.value = 'Bereit'
+
+  // ?model=<base64-JSON> → Antennen-Modell aus anderem Rechner importieren
+  // (gesetzt vom "Im Sim öffnen"-Button in Hexbeam/Yagi/Dipol-Views)
+  if (route.query.model) {
+    const m = decodeModel(String(route.query.model))
+    if (m && m.wires && Array.isArray(m.wires) && m.wires.length > 0) {
+      cfg.name = m.name || 'Importiertes Modell'
+      cfg.freq = m.freq
+      cfg.ground = m.ground || 'average'
+      cfg.height = m.height || 10
+      cfg.wires = m.wires
+      cfg.excitation = m.excitation || { wire_tag: m.wires[0].tag, segment: Math.ceil(m.wires[0].segments / 2) }
+      status.value = `Modell aus Rechner importiert: ${cfg.name}`
+    } else {
+      status.value = 'Bereit · (URL-Modell ungültig, Default geladen)'
+    }
+  }
 })
 onBeforeUnmount(() => { if (worker) worker.terminate() })
 

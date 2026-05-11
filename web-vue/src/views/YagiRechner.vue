@@ -1,8 +1,11 @@
 <script setup>
 import { reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { fmt } from '../composables/useHam.js'
 import RechnerBeschreibung from '../components/RechnerBeschreibung.vue'
+import { openInSim } from '../composables/openInSim.js'
 
+const router = useRouter()
 const yg = reactive({ band: '20', numEle: 3, preset: 'ssb', material: 'alu' })
 
 const YAGI_BANDS = {
@@ -93,6 +96,48 @@ const elementsSvg = computed(() => {
 
 const totalEleLen = computed(() => result.value ? result.value.elements.reduce((s, e) => s + e.length, 0) : 0)
 const maxHalf = computed(() => result.value ? Math.max(...result.value.elements.map(e => e.length)) / 2 : 0)
+
+// ─── Im Sim öffnen ───────────────────────────────────────────────────────────
+// Yagi-Elemente → NEC2-Drahtmodell:
+//   Boom entlang X-Achse, Elemente perpendicular (entlang Y-Achse, zentriert bei y=0).
+//   Reflektor bei x=0, Driver bei x=positions[1], Direktoren weiter entlang Boom.
+//   Höhe h = max(λ/2, 10m) — typisches HF-Setup.
+
+function buildYagiModel() {
+  if (!result.value) return null
+  const r = result.value
+  const h = Math.max(10, r.lambda / 2)
+  const radius_mm = r.material === 'alu' ? 5.0 : 1.5
+  const segs = 21
+
+  const wires = r.elements.map((el, idx) => {
+    const half = el.length / 2
+    return {
+      tag: idx + 1,
+      segments: segs,
+      x1: el.position, y1: -half, z1: h,
+      x2: el.position, y2:  half, z2: h,
+      radius_mm,
+    }
+  })
+
+  // Driver ist Element-Index 1 (Reflektor=0, Driver=1, Dir1=2, …)
+  const drvTag = 2
+
+  return {
+    name: `${r.numEle}-Element Yagi ${r.band.name} (${r.freq.toFixed(3)} MHz)`,
+    freq: r.freq,
+    ground: 'average',
+    height: h,
+    wires,
+    excitation: { wire_tag: drvTag, segment: Math.ceil(segs / 2) },
+  }
+}
+
+function imSimOeffnen() {
+  const m = buildYagiModel()
+  if (m) openInSim(router, m)
+}
 </script>
 
 <template>
@@ -149,6 +194,9 @@ const maxHalf = computed(() => result.value ? Math.max(...result.value.elements.
         <div class="ken"><div class="ken-val">{{ result.material === 'alu' ? 'Alurohr' : 'Draht' }}</div><div class="ken-lbl">Bauweise</div></div>
         <div class="ken"><div class="ken-val">{{ result.band.name }}</div><div class="ken-lbl">Band</div></div>
         <div class="ken"><div class="ken-val">{{ fmt(result.freq) }} MHz</div><div class="ken-lbl">Frequenz</div></div>
+      </div>
+      <div style="margin-top:12px; text-align:right">
+        <button class="btn-sim" @click="imSimOeffnen">📡 Im Sim öffnen</button>
       </div>
     </div>
 
