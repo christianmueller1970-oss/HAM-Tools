@@ -48,6 +48,7 @@ struct QSOEntryPanel: View {
     @EnvironmentObject var callbookSettings: CallbookSettings
     @EnvironmentObject var callbookManager: CallbookManager
     @EnvironmentObject var clusterVM: DXClusterViewModel
+    @EnvironmentObject var radio: RadioState
 
     @State private var entryMode: EntryMode = .dx
     @State private var lastFilledFromSpot: Date? = nil
@@ -72,8 +73,6 @@ struct QSOEntryPanel: View {
     @State private var call: String = ""
     @State private var timeOn: Date = Date()
     @State private var timeOff: Date? = nil
-    @State private var freqMHz: String = "14.200"
-    @State private var bandRaw: String = "20m"
     @State private var mode: String = "SSB"
     @State private var rstSent: String = "59"
     @State private var rstReceived: String = "59"
@@ -113,13 +112,13 @@ struct QSOEntryPanel: View {
 
     private var canLog: Bool {
         !call.trimmingCharacters(in: .whitespaces).isEmpty
-            && Double(freqMHz.replacingOccurrences(of: ",", with: ".")) != nil
+            && radio.frequencyMHz > 0
             && manager.currentLogID != nil
     }
 
     private var canSendSpot: Bool {
         !call.trimmingCharacters(in: .whitespaces).isEmpty
-            && Double(freqMHz.replacingOccurrences(of: ",", with: ".")) != nil
+            && radio.frequencyMHz > 0
     }
 
     var body: some View {
@@ -204,13 +203,7 @@ struct QSOEntryPanel: View {
     private func applyDraft(_ draft: QSODraft) {
         call = draft.call.uppercased()
         if let f = draft.frequencyMHz {
-            freqMHz = String(format: "%.3f", f)
-        }
-        if let b = draft.band, !b.isEmpty {
-            bandRaw = b
-        } else if let f = draft.frequencyMHz,
-                  let auto = HamBand.from(frequencyMHz: f) {
-            bandRaw = auto.rawValue
+            radio.frequencyMHz = f
         }
         if let m = draft.mode, !m.isEmpty {
             mode = m
@@ -307,8 +300,6 @@ struct QSOEntryPanel: View {
                     get: { timeOff ?? Date() },
                     set: { timeOff = $0 }
                 ), enabled: timeOff != nil)
-                fieldRow("MHz",     value: $freqMHz, monospaced: true) { _ in autoUpdateBand() }
-                bandPickerRow
                 modePickerRow
                 fieldRow("RST S",   value: $rstSent, monospaced: true)
                 fieldRow("RST R",   value: $rstReceived, monospaced: true)
@@ -568,31 +559,7 @@ struct QSOEntryPanel: View {
         }
     }
 
-    private var bandPickerRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text("Band")
-                .font(Self.fieldFont)
-                .foregroundStyle(theme.textSecondary)
-                .frame(width: Self.labelColumnWidth, alignment: .trailing)
-            Picker("Band", selection: $bandRaw) {
-                ForEach(HamBand.allCases) { b in
-                    Text(b.displayName).tag(b.rawValue)
-                }
-            }
-            .labelsHidden()
-            .controlSize(.small)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
     // MARK: - Logic
-
-    private func autoUpdateBand() {
-        if let f = Double(freqMHz.replacingOccurrences(of: ",", with: ".")),
-           let b = HamBand.from(frequencyMHz: f) {
-            bandRaw = b.rawValue
-        }
-    }
 
     private func formatUTC(_ date: Date) -> String {
         let f = DateFormatter()
@@ -606,9 +573,8 @@ struct QSOEntryPanel: View {
     /// (das DX-Spider-Protokoll erwartet kHz).
     private func sendSpotToCluster() {
         let trimmedCall = call.trimmingCharacters(in: .whitespaces).uppercased()
-        guard !trimmedCall.isEmpty,
-              let mhz = Double(freqMHz.replacingOccurrences(of: ",", with: ".")),
-              mhz > 0 else { return }
+        let mhz = radio.frequencyMHz
+        guard !trimmedCall.isEmpty, mhz > 0 else { return }
         let freqKHz = mhz * 1000.0
         let parts = [mode, notes].filter { !$0.isEmpty }
         let comment = parts.joined(separator: " ").trimmingCharacters(in: .whitespaces)
@@ -626,8 +592,9 @@ struct QSOEntryPanel: View {
     }
 
     private func performCommit() {
-        guard let logID = manager.currentLogID,
-              let f = Double(freqMHz.replacingOccurrences(of: ",", with: ".")) else { return }
+        guard let logID = manager.currentLogID else { return }
+        let f = radio.frequencyMHz
+        guard f > 0 else { return }
         let trimmedCall = call.trimmingCharacters(in: .whitespaces).uppercased()
         guard !trimmedCall.isEmpty else { return }
 
@@ -636,7 +603,7 @@ struct QSOEntryPanel: View {
             call: trimmedCall,
             datetime: timeOn,
             frequencyMHz: f,
-            band: bandRaw,
+            band: radio.band.isEmpty ? "—" : radio.band,
             mode: mode,
             rstSent: rstSent,
             rstReceived: rstReceived
@@ -670,9 +637,10 @@ struct QSOEntryPanel: View {
         guard !matches.isEmpty else { return nil }
 
         // 1) Exakter Band+Mode-Match im aktiven Log → klassischer Dupe
+        let currentBand = radio.band
         if let exact = matches.first(where: {
             $0.logID == manager.currentLogID
-                && $0.qso.band == bandRaw
+                && $0.qso.band == currentBand
                 && $0.qso.mode == mode
         }) {
             return DupeWarning(kind: .exactInLog, match: exact)

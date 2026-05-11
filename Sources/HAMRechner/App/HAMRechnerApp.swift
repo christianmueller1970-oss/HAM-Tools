@@ -11,6 +11,7 @@ struct HAMRechnerApp: App {
     @StateObject private var callbookSettings: CallbookSettings
     @StateObject private var callbookManager:  CallbookManager
     @StateObject private var memoryStore:      MemoryStore
+    @StateObject private var radioState:       RadioState = RadioState()
 
     init() {
         // Root zuerst — alle anderen Komponenten hängen davon ab.
@@ -45,6 +46,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(callbookSettings)
                 .environmentObject(callbookManager)
                 .environmentObject(memoryStore)
+                .environmentObject(radioState)
                 .frame(minWidth: 900, minHeight: 580)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
@@ -66,6 +68,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(callbookSettings)
                 .environmentObject(callbookManager)
                 .environmentObject(memoryStore)
+                .environmentObject(radioState)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
     }

@@ -4,6 +4,11 @@ import SwiftUI
 // Visuell schon im Look — Funktion folgt.
 struct RadioControlPanel: View {
     @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var radio: RadioState
+
+    @State private var freqText: String = ""
+    @FocusState private var freqFocused: Bool
+
     private var theme: AppTheme { themeManager.theme }
 
     var body: some View {
@@ -31,6 +36,26 @@ struct RadioControlPanel: View {
                 .stroke(theme.separator, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .onAppear { freqText = formatFreq(radio.frequencyMHz) }
+        .onChange(of: radio.frequencyMHz) { _, new in
+            // Externe Updates (z.B. künftig CAT) → Anzeige aktualisieren,
+            // außer der User tippt gerade rein.
+            if !freqFocused { freqText = formatFreq(new) }
+        }
+    }
+
+    private func formatFreq(_ mhz: Double) -> String {
+        String(format: "%.3f", mhz)
+    }
+    private func commitFreqText() {
+        let s = freqText.replacingOccurrences(of: ",", with: ".")
+        guard let v = Double(s), v > 0 else {
+            freqText = formatFreq(radio.frequencyMHz)
+            return
+        }
+        radio.frequencyMHz = v
+        radio.source = radio.catConnected ? .cat : .manual
+        freqText = formatFreq(v)
     }
 
     // MARK: Header
@@ -79,21 +104,40 @@ struct RadioControlPanel: View {
     // MARK: Frequenz-Anzeige
 
     private var frequencyDisplay: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .lastTextBaseline, spacing: 4) {
-                Text("—.———.——")
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 4) {
+                TextField("14.200", text: $freqText)
+                    .textFieldStyle(.plain)
                     .font(.system(size: 22, weight: .bold, design: .monospaced))
-                    .foregroundStyle(theme.textDim)
-                Spacer()
+                    .foregroundStyle(theme.textPrimary)
+                    .focused($freqFocused)
+                    .onSubmit { commitFreqText() }
+                    .onChange(of: freqFocused) { _, focused in
+                        if !focused { commitFreqText() }
+                    }
                 Text("MHz")
                     .font(.caption2)
                     .foregroundStyle(theme.textDim)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .frame(maxWidth: .infinity, alignment: .leading)
             .background(theme.bgLog)
             .clipShape(RoundedRectangle(cornerRadius: 5))
+
+            // Band + Quelle als kleine Pills darunter
+            HStack(spacing: 4) {
+                Text(radio.band.isEmpty ? "—" : radio.band)
+                    .font(.caption2.bold())
+                    .foregroundStyle(theme.accentBlue)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(theme.accentBlue.opacity(0.15))
+                    .clipShape(Capsule())
+                Spacer()
+                Text(radio.catConnected ? "CAT" : "manuell")
+                    .font(.caption2)
+                    .foregroundStyle(radio.catConnected ? theme.accentGreen : theme.textDim)
+            }
         }
     }
 
