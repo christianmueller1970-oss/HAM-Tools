@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Untere Tab-Bar im MacLoggerDX-Stil. Wechselt die Ansicht der
+// Untere Tab-Bar im Desktop-Logger-Stil. Wechselt die Ansicht der
 // Bottom-Section: Log-Tabelle, Karte, Bänder, Awards, …
 // In Phase 1 ist nur "Log" funktional, der Rest ist Platzhalter.
 enum LogbookBottomTab: String, CaseIterable, Identifiable {

@@ -198,9 +198,9 @@ Aktuell benötigt:
 
 ## UI-Referenz (Inspiration für volle Settings-Ausbaustufe)
 
-Vom User vorgeschlagene Referenz (RUMlogNG-Style, Screenshot 2026-05-12). Im
-MVP (5a) noch nicht abgedeckt, aber als Zielbild für 5c/spätere Polish-Phasen
-zu betrachten:
+Vom User vorgeschlagene Referenz (Screenshot 2026-05-12, klassisches
+Desktop-Logger-Layout). Im MVP (5a) noch nicht abgedeckt, aber als
+Zielbild für 5c/spätere Polish-Phasen zu betrachten:
 
 - **Hersteller + Typ als zwei-stufiger Picker** (Icom → IC-7300-Ctrl) statt
   flacher Profilliste. Hilft, wenn die Profilzahl wächst (Yaesu/Kenwood/Elecraft).

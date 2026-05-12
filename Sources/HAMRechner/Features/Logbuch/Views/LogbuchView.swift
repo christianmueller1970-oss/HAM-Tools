@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Logbuch-Vollbild im MacLoggerDX-Stil:
+// Logbuch-Vollbild im Desktop-Logger-Stil:
 //
 //  ┌────────── Top-Bar: Zurück | Active Log ▾ | UTC | Callsign ─────────┐
 //  ├─Radio────┬──────────QSO-Eingabe-Panel (3 Spalten)──────────────────┤

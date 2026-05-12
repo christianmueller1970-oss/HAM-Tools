@@ -10,7 +10,7 @@ Entwickelt von **Christian Mueller HB9HJI**
 
 ### Logbuch (NEU in V1.5)
 
-Vollständiges Logger-Modul im MacLoggerDX-Stil mit Multi-Log-Architektur, Online-Lookups und Cross-Modul-Integration.
+Vollständiges Logger-Modul im Desktop-Logger-Stil mit Multi-Log-Architektur, Online-Lookups und Cross-Modul-Integration.
 
 | Feature | Beschreibung |
 |---|---|

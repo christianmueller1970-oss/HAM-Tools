@@ -60,7 +60,7 @@ Komplette POTA-Integration vom Park-Lookup bis zum pota.app-konformen ADIF-Expor
 - LogEntryBridge ergänzt um `pendingPotaSpot` für POTA-spezifische Form-Prefills
 
 #### Dokumentation
-- **POTA_PLAN.md** dokumentiert Architektur, Phasen 4c-1 bis 4c-6, UI-Referenzen (POTA-Logger + RUMlog), Bundling-Strategie
+- **POTA_PLAN.md** dokumentiert Architektur, Phasen 4c-1 bis 4c-6, UI-Referenzen, Bundling-Strategie
 
 #### Offen für 1.6.x-Polish (Folge-Patches)
 - 4c-6 QSO-Map mit Park-Markern
@@ -97,7 +97,7 @@ Erstes funktionsfähiges Live-CAT-Modul für IC-7300 / IC-705 / IC-9700 (und 9 w
 
 #### Settings-UI (Einstellungen → CAT)
 - **Multi-Config-Manager** oben: Aktive Konfig-Picker + "Neu…" + "Löschen", Name-Edit
-- **Zwei-Stufen-Radio-Picker**: Hersteller → Modell (RUMlog-Style). Auto-Fill der Werkseinstellungen bei Modell-Wechsel, alle Felder weiterhin editierbar
+- **Zwei-Stufen-Radio-Picker**: Hersteller → Modell. Auto-Fill der Werkseinstellungen bei Modell-Wechsel, alle Felder weiterhin editierbar
 - **Vollständiger Serial-Editor**: Port (USB-Serial-Discovery via `/dev/cu.*` + Refresh-Button), Baudrate, Datenbits 7/8, Stopbits 1/2, Parität None/Odd/Even, Flusskontrolle None/Hardware/XONXOFF
 - **"Werkseinstellungen zurücksetzen"**-Button für Quick-Recovery aus verfiddelten Configs
 - **Polling-Intervall** als Slider 200-2000 ms
@@ -113,7 +113,7 @@ Erstes funktionsfähiges Live-CAT-Modul für IC-7300 / IC-705 / IC-9700 (und 9 w
 - `RadioState`-Instanz wird in `HAMRechnerApp` zentral erzeugt und mit `CATController` geteilt (single source of truth)
 
 #### Dokumentation
-- **`CAT_PLAN.md`** dokumentiert Architektur-Entscheidungen, Phasen-Plan (5a/5b/5c/5d), UI-Referenz (RUMlogNG-Screenshot als North-Star für spätere Polish-Phasen), Bundling-Strategie, Test-Strategie, Risiken
+- **`CAT_PLAN.md`** dokumentiert Architektur-Entscheidungen, Phasen-Plan (5a/5b/5c/5d), UI-Referenzen, Bundling-Strategie, Test-Strategie, Risiken
 - **`hamlog-update-system-spec.md.gdoc`** als Google-Doc-Referenz im Repo
 
 #### Bekannte Einschränkungen / nächste Schritte
@@ -129,7 +129,7 @@ Erstes funktionsfähiges Live-CAT-Modul für IC-7300 / IC-705 / IC-9700 (und 9 w
 
 ### Neu: Logbuch-Modul (Phase 1 + 2 + 3 + 4b)
 
-Komplettes Logger-Modul im MacLoggerDX-Stil, von Multi-Log-Architektur über Online-Lookups bis Cabrillo-Export. Über 30 Commits an einem Tag.
+Komplettes Logger-Modul im Desktop-Logger-Stil, von Multi-Log-Architektur über Online-Lookups bis Cabrillo-Export. Über 30 Commits an einem Tag.
 
 #### Datenarchitektur
 - **Multi-Log statt Mega-Log**: pro Logbuch eine eigene SQLite-Datei (`.htlog`), Typ-Auswahl beim Anlegen (Standard / Contest / POTA / SOTA, letztere drei vorbereitet für spätere Phasen)
@@ -137,7 +137,7 @@ Komplettes Logger-Modul im MacLoggerDX-Stil, von Multi-Log-Architektur über Onl
 - **SQLite direkt via C-API** — Command-Line-Toolchain hat keine SwiftDataMacros, also schlanker eigener Wrapper. Schema: `log_meta` + `qsos` + `schema_info` mit Indizes auf datetime/call/band.
 - **Persistenz aller UI-States** via `@AppStorage`: Tab, Filter, Awards-Sub-Tab, Heatmap-Minutes, Spots-Mode/Radius, Cluster-Source-Toggles, etc.
 
-#### Desktop-Layout (MacLoggerDX-inspiriert)
+#### Desktop-Layout
 - **Vollbild-Logbuch**: wenn aktiv, übernimmt das Modul das ganze Fenster mit eigener Sidebar/Toolbar
 - **Top-Bar**: Zurück-Button · Aktives-Log-Selector · Live-UTC-Uhr · Callsign · Settings-Zahnrad
 - **Entry-Sektion** (HSplitView): RadioControlPanel (195 px) · QSOEntryPanel · Propagation-Panel (240-360 px)

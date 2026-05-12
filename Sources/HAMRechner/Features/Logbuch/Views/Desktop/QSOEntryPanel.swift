@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Inline-QSO-Erfassungs-Panel im MacLoggerDX-Look. Drei Spalten mit
+// Inline-QSO-Erfassungs-Panel im Desktop-Logger-Look. Drei Spalten mit
 // allen relevanten QSO-Feldern. Funktion: bei "Log QSO" wird das aktive
 // QSO ins gerade geöffnete Log committed.
 // Treffer für die Dupe-Warnung. Wird via .alert(item:) angezeigt.

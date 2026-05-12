@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Action-Bar unter dem QSO-Eingabe-Panel im MacLoggerDX-Stil.
+// Action-Bar unter dem QSO-Eingabe-Panel im Desktop-Logger-Stil.
 struct LogActionBar: View {
     @EnvironmentObject var themeManager: ThemeManager
 

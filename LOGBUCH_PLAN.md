@@ -71,13 +71,12 @@ Architektur-Punkte gegenüber generischen Loggern.
 
 
 **Inspirationen / Referenz-Tools:**
-- [MacLoggerDX](https://www.dogparksoftware.com/MacLoggerDX.html) — der Klassiker
-  auf macOS, Multi-Radio, Live-Spot-Map, eingebaute Audio, sehr feature-reich
-- [Aether (DL2RUM)](https://www.dl2rum.de/) — moderne SwiftUI-App, schick,
-  iCloud-Sync, schöne Award-Visualisierungen
-- N1MM+, DXLog, WriteLog (Contest-Standards, Windows)
-- TR4W (Linux-Contest), TQSL (LoTW-Tool)
-- Cloudlog (selbstgehostet, Web)
+- Etablierte Mac-Desktop-Logger (Multi-Radio, Live-Spot-Map, eingebaute
+  Audio, sehr feature-reich)
+- Moderne SwiftUI-Logger-Apps (iCloud-Sync, schöne Award-Visualisierungen)
+- Klassische Windows-Contest-Logger (Standards für Exchange + Cabrillo)
+- TQSL als CLI-Backend für LoTW-Signing
+- Selbstgehostete Web-Logger
 
 ---
 
@@ -135,7 +134,7 @@ Architektur-Punkte gegenüber generischen Loggern.
   - LoTW-Status pro QSO im Log (sent / confirmed / nothing)
 - [ ] **eQSL**: Upload via XML + Inbox-Pull
 - [ ] **Club Log**: Real-time Upload + DXCC-Stats
-- [ ] **HRDLog** (klassischer Online-Service)
+- [ ] Weitere Online-Logbuch-Services nach Bedarf
 - [ ] **POTA-Upload** (pota.app API)
   - Activator-Log nach Aktivierung mit einem Klick einreichen
   - ADIF mit MY_SIG/MY_SIG_INFO direkt akzeptiert
