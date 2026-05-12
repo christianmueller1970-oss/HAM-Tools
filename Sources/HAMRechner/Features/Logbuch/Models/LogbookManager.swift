@@ -359,6 +359,11 @@ final class LogbookManager: ObservableObject {
         var byZone:    [Int: WAZAccumulator]    = [:]
         var byState:   [String: WASAccumulator] = [:]
         var totalQSOs = 0
+        var potaActivatorQSOs = 0
+        var potaHunterQSOs = 0
+        var potaP2P = 0
+        var potaActivatorParks: Set<String> = []
+        var potaHunterParks:    Set<String> = []
 
         for log in logs {
             let qsos: [QSO]
@@ -374,6 +379,21 @@ final class LogbookManager: ObservableObject {
             for qso in qsos {
                 let confirmed = qso.lotwConfirmed || qso.eqslConfirmed
                 let dt = qso.datetime
+
+                // POTA-Counts
+                let myParks = potaRefSet(qso.myPotaRef, qso.myPotaRefs)
+                let theirParks = potaRefSet(qso.theirPotaRef, nil)
+                if !myParks.isEmpty {
+                    potaActivatorQSOs += 1
+                    potaActivatorParks.formUnion(myParks)
+                }
+                if !theirParks.isEmpty {
+                    potaHunterQSOs += 1
+                    potaHunterParks.formUnion(theirParks)
+                }
+                if !myParks.isEmpty && !theirParks.isEmpty {
+                    potaP2P += 1
+                }
 
                 if let c = qso.country?.trimmingCharacters(in: .whitespaces),
                    !c.isEmpty {
@@ -419,8 +439,32 @@ final class LogbookManager: ObservableObject {
             wazConfirmed:  confirmedZones,
             wasWorked:     wasBreakdown.count,
             wasConfirmed:  confirmedStates,
-            totalQSOs:     totalQSOs
+            totalQSOs:     totalQSOs,
+            potaActivatorQSOs:  potaActivatorQSOs,
+            potaActivatorParks: potaActivatorParks.count,
+            potaHunterQSOs:     potaHunterQSOs,
+            potaHunterParks:    potaHunterParks.count,
+            potaP2P:            potaP2P
         )
+    }
+
+    /// Parst myPotaRef + myPotaRefs (oder theirPotaRef alleine) in eine
+    /// Set eindeutiger Park-Refs. Komma-Listen werden gesplittet.
+    private func potaRefSet(_ single: String?, _ multi: String?) -> Set<String> {
+        var out: Set<String> = []
+        if let s = single?.trimmingCharacters(in: .whitespaces), !s.isEmpty {
+            for r in s.split(separator: ",") {
+                let u = r.trimmingCharacters(in: .whitespaces).uppercased()
+                if !u.isEmpty { out.insert(u) }
+            }
+        }
+        if let m = multi?.trimmingCharacters(in: .whitespaces), !m.isEmpty {
+            for r in m.split(separator: ",") {
+                let u = r.trimmingCharacters(in: .whitespaces).uppercased()
+                if !u.isEmpty { out.insert(u) }
+            }
+        }
+        return out
     }
 
     // MARK: - Cross-Log-Suche
@@ -540,6 +584,14 @@ struct AwardCounts {
     var wasWorked: Int     = 0
     var wasConfirmed: Int  = 0
     var totalQSOs: Int     = 0
+
+    // POTA — lokal aggregiert über alle Logs. Wird mit den pota.app-Werten
+    // verglichen, um Upload-Lücken sichtbar zu machen.
+    var potaActivatorQSOs:  Int = 0    // QSOs mit myPotaRef gesetzt
+    var potaActivatorParks: Int = 0    // eindeutige Park-Refs (auch aus myPotaRefs)
+    var potaHunterQSOs:     Int = 0    // QSOs mit theirPotaRef gesetzt
+    var potaHunterParks:    Int = 0    // eindeutige fremde Park-Refs
+    var potaP2P:            Int = 0    // QSOs mit beiden Feldern gesetzt
 }
 
 // Detail-Eintrag pro DXCC-Country (für die Awards-Tab-Liste).

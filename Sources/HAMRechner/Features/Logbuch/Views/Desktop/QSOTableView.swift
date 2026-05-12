@@ -23,6 +23,11 @@ struct QSOTableView: View {
     // sein können (Lebens-Log).
     @State private var dupeQSOIDs: Set<UUID> = []
 
+    // QRZ-Retry läuft asynchron: in dieser Set merken wir QSO-IDs, für die
+    // gerade ein Lookup läuft, damit die Zeile einen Spinner statt des
+    // ?-Buttons zeigt.
+    @State private var lookupInFlight: Set<UUID> = []
+
     // Sortierung — initialer Default: Datum absteigend (neueste zuerst).
     @State private var sortOrder: [KeyPathComparator<QSO>] = [
         KeyPathComparator(\QSO.datetime, order: .reverse)
@@ -287,14 +292,21 @@ struct QSOTableView: View {
                 .defaultVisibility(.hidden)
             }
 
-            // QRZ-Status — grüner Haken wenn Call via Callbook aufgelöst wurde
-            // (Name ist gesetzt). Bei Fehlen: Klick auf das Fragezeichen
-            // triggert einen neuen Lookup-Versuch.
+            // QRZ-Status — grüner Haken wenn Call via Callbook irgendwas
+            // geliefert hat (Name oder Locator oder Country). Bei US-Calls
+            // ohne Namens-Eintrag bringt QRZ trotzdem Locator/Country —
+            // das gilt auch als "aufgelöst". Bei Fehlen: Klick auf das
+            // Fragezeichen triggert einen neuen Lookup-Versuch.
             TableColumn("QRZ") { (qso: QSO) in
-                if let name = qso.name, !name.isEmpty {
+                let resolved = !(qso.name ?? "").isEmpty
+                            || !(qso.locator ?? "").isEmpty
+                            || !(qso.country ?? "").isEmpty
+                if resolved {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
-                        .help(name)
+                        .help(qso.name ?? qso.locator ?? qso.country ?? "")
+                } else if lookupInFlight.contains(qso.id) {
+                    ProgressView().controlSize(.small)
                 } else {
                     Button { retryCallbookLookup(for: qso) } label: {
                         Image(systemName: "questionmark.circle")
@@ -358,22 +370,25 @@ struct QSOTableView: View {
 
     // MARK: - QRZ-Retry
 
+    /// Triggert einen frischen Callbook-Lookup für ein QSO. Im Gegensatz zur
+    /// vorherigen Implementation füllen wir ALLE leeren QSO-Felder über
+    /// applyFillingEmpty — Name, Locator, Country, Continent, QTH, Zones —
+    /// nicht nur `name`. So wirkt der Retry auch wenn QRZ z.B. nur Locator
+    /// liefert (typisch bei US-Calls ohne Namens-Eintrag).
     private func retryCallbookLookup(for qso: QSO) {
+        let qsoID = qso.id
+        lookupInFlight.insert(qsoID)
         Task {
-            guard let result = await callbookManager.lookup(call: qso.call,
-                                                            forceRefresh: true) else {
-                return
-            }
-            let combined = [result.firstName, result.lastName]
-                .compactMap { $0 }
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
-                .joined(separator: " ")
-            guard !combined.isEmpty else { return }
-            var updated = qso
-            updated.name = combined
+            let result = await callbookManager.lookup(call: qso.call,
+                                                      forceRefresh: true)
             await MainActor.run {
-                manager.updateQSO(updated)
+                lookupInFlight.remove(qsoID)
+                guard let r = result else { return }
+                var updated = qso
+                r.applyFillingEmpty(to: &updated)
+                if updated != qso {
+                    manager.updateQSO(updated)
+                }
             }
         }
     }

@@ -126,6 +126,14 @@ struct LogbuchView: View {
                 bottomTab = .log
             }
         }
+        .onChange(of: currentLogIsPOTA) { _, isPOTA in
+            // Awards-Sub-Tab folgt automatisch dem Log-Typ beim Wechsel —
+            // ähnlich wie der untere DXClusters-Tab schon auf POTA-Spots
+            // schaltet. User-manuelle Auswahl bleibt erhalten solange im
+            // selben Log; erst ein Typ-Wechsel (DX → POTA oder umgekehrt)
+            // setzt die Default-Sub-Tab.
+            awardsSubTab = isPOTA ? .pota : .dxcc
+        }
         .sheet(isPresented: $showNewLogSheet) {
             NewLogSheet(onCreate: { newLog in
                 manager.createLog(newLog)
@@ -500,6 +508,7 @@ struct LogbuchView: View {
         case .dxcc: return manager.awards.dxccWorked
         case .waz:  return manager.awards.wazWorked
         case .was:  return manager.awards.wasWorked
+        case .pota: return manager.awards.potaActivatorParks + manager.awards.potaHunterParks
         }
     }
 
@@ -512,6 +521,8 @@ struct LogbuchView: View {
             return "\(a.wazWorked) / 40 Zonen gearbeitet · \(a.wazConfirmed) bestätigt"
         case .was:
             return "\(a.wasWorked) / 50 States gearbeitet · \(a.wasConfirmed) bestätigt"
+        case .pota:
+            return "\(a.potaActivatorParks) Activator-Parks · \(a.potaHunterParks) Hunter-Parks · \(a.potaP2P) P2P"
         }
     }
 

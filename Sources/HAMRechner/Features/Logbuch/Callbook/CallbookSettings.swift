@@ -32,21 +32,33 @@ final class CallbookSettings: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        self.qrzUsername     = UserDefaults.standard.string(forKey: Self.qrzUsernameKey)    ?? ""
-        self.qrzPassword     = UserDefaults.standard.string(forKey: Self.qrzPasswordKey)    ?? ""
-        self.hamqthUsername  = UserDefaults.standard.string(forKey: Self.hamqthUsernameKey) ?? ""
-        self.hamqthPassword  = UserDefaults.standard.string(forKey: Self.hamqthPasswordKey) ?? ""
-        self.autoLookupOnTab = (UserDefaults.standard.object(forKey: Self.autoLookupKey) as? Bool) ?? true
-        let primaryRaw       = UserDefaults.standard.string(forKey: Self.primaryServiceKey) ?? "QRZ"
+        // Migration: einmalig aus den Legacy-UserDefaults-Domains in die
+        // Shared-Suite übernehmen. Beseitigt das wiederkehrende »Credentials
+        // sind wieder weg«-Problem zwischen SPM-Builds und Xcode-Builds.
+        // Siehe Shared/SharedDefaults.swift.
+        UserDefaults.migrateLegacyStringToShared(key: Self.qrzUsernameKey)
+        UserDefaults.migrateLegacyStringToShared(key: Self.qrzPasswordKey)
+        UserDefaults.migrateLegacyStringToShared(key: Self.hamqthUsernameKey)
+        UserDefaults.migrateLegacyStringToShared(key: Self.hamqthPasswordKey)
+        UserDefaults.migrateLegacyBoolToShared(key: Self.autoLookupKey)
+        UserDefaults.migrateLegacyStringToShared(key: Self.primaryServiceKey)
+
+        let store = UserDefaults.appShared
+        self.qrzUsername     = store.string(forKey: Self.qrzUsernameKey)    ?? ""
+        self.qrzPassword     = store.string(forKey: Self.qrzPasswordKey)    ?? ""
+        self.hamqthUsername  = store.string(forKey: Self.hamqthUsernameKey) ?? ""
+        self.hamqthPassword  = store.string(forKey: Self.hamqthPasswordKey) ?? ""
+        self.autoLookupOnTab = (store.object(forKey: Self.autoLookupKey) as? Bool) ?? true
+        let primaryRaw       = store.string(forKey: Self.primaryServiceKey) ?? "QRZ"
         self.primaryService  = ServiceID(rawValue: primaryRaw) ?? .qrz
 
         // Combine-basierte Persistenz — feuert zuverlässig bei jeder Änderung
-        $qrzUsername    .dropFirst().sink { UserDefaults.standard.set($0, forKey: Self.qrzUsernameKey)    }.store(in: &cancellables)
-        $qrzPassword    .dropFirst().sink { UserDefaults.standard.set($0, forKey: Self.qrzPasswordKey)    }.store(in: &cancellables)
-        $hamqthUsername .dropFirst().sink { UserDefaults.standard.set($0, forKey: Self.hamqthUsernameKey) }.store(in: &cancellables)
-        $hamqthPassword .dropFirst().sink { UserDefaults.standard.set($0, forKey: Self.hamqthPasswordKey) }.store(in: &cancellables)
-        $autoLookupOnTab.dropFirst().sink { UserDefaults.standard.set($0, forKey: Self.autoLookupKey)     }.store(in: &cancellables)
-        $primaryService .dropFirst().sink { UserDefaults.standard.set($0.rawValue, forKey: Self.primaryServiceKey) }.store(in: &cancellables)
+        $qrzUsername    .dropFirst().sink { store.set($0, forKey: Self.qrzUsernameKey)    }.store(in: &cancellables)
+        $qrzPassword    .dropFirst().sink { store.set($0, forKey: Self.qrzPasswordKey)    }.store(in: &cancellables)
+        $hamqthUsername .dropFirst().sink { store.set($0, forKey: Self.hamqthUsernameKey) }.store(in: &cancellables)
+        $hamqthPassword .dropFirst().sink { store.set($0, forKey: Self.hamqthPasswordKey) }.store(in: &cancellables)
+        $autoLookupOnTab.dropFirst().sink { store.set($0, forKey: Self.autoLookupKey)     }.store(in: &cancellables)
+        $primaryService .dropFirst().sink { store.set($0.rawValue, forKey: Self.primaryServiceKey) }.store(in: &cancellables)
     }
 
     var qrzIsConfigured: Bool {

@@ -17,6 +17,7 @@ struct HAMRechnerApp: App {
     @StateObject private var catController:    CATController
     @StateObject private var potaParkService:  PotaParkService
     @StateObject private var potaSpotsService: PotaSpotsService = PotaSpotsService()
+    @StateObject private var potaStatsService: PotaStatsService
 
     init() {
         // Swift-Package-Builds laufen ohne .app-Bundle; macOS würde sie ohne
@@ -66,6 +67,10 @@ struct HAMRechnerApp: App {
             // im UI angezeigt. Hier kann die App nicht crashen.
             fatalError("POTA-Park-Service konnte nicht initialisiert werden: \(error)")
         }
+
+        // POTA-Stats kann nicht throwen (Cache-Load schlägt nur still fehl).
+        _potaStatsService = StateObject(wrappedValue:
+            PotaStatsService(dataRoot: root))
     }
 
     var body: some Scene {
@@ -85,6 +90,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(catController)
                 .environmentObject(potaParkService)
                 .environmentObject(potaSpotsService)
+                .environmentObject(potaStatsService)
                 .frame(minWidth: 900, minHeight: 580)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
@@ -111,6 +117,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(catController)
                 .environmentObject(potaParkService)
                 .environmentObject(potaSpotsService)
+                .environmentObject(potaStatsService)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
     }

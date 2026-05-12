@@ -6,6 +6,7 @@ import SwiftUI
 struct AwardsTab: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
+    @EnvironmentObject var potaStats: PotaStatsService
     @Binding var subTab: AwardsSubTab
     @Binding var onlyUnconfirmed: Bool
 
@@ -13,6 +14,7 @@ struct AwardsTab: View {
         case dxcc = "DXCC"
         case waz  = "WAZ"
         case was  = "WAS"
+        case pota = "POTA"
         var id: String { rawValue }
     }
 
@@ -24,6 +26,7 @@ struct AwardsTab: View {
             case .dxcc: dxccView
             case .waz:  wazView
             case .was:  wasView
+            case .pota: potaView
             }
         }
         .background(theme.bgApp)
@@ -226,6 +229,214 @@ struct AwardsTab: View {
         let f = DateFormatter()
         f.timeZone = TimeZone(identifier: "UTC")
         f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: d)
+    }
+
+    // MARK: - POTA
+
+    @AppStorage("callsign") private var callsign: String = ""
+
+    private var potaView: some View {
+        let p = potaStats.profile
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                potaHeader
+                potaCardGrid(profile: p)
+                potaLocalDelta(profile: p)
+                if case .errored(let msg) = potaStats.status {
+                    Text("⚠ \(msg)")
+                        .font(.caption)
+                        .foregroundStyle(theme.accentOrange)
+                        .padding(.top, 4)
+                }
+            }
+            .padding(16)
+        }
+        .onAppear {
+            // Bei erstmaligem Öffnen oder nach 24 h einen Refresh anbieten.
+            if potaStats.profile == nil || potaStats.shouldOfferRefresh,
+               !callsign.isEmpty {
+                Task { await potaStats.refresh(callsign: callsign) }
+            }
+        }
+    }
+
+    private var potaHeader: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "tree.fill")
+                .font(.title2)
+                .foregroundStyle(theme.colorPOTA)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("POTA — pota.app")
+                    .font(.headline)
+                    .foregroundStyle(theme.textPrimary)
+                Text(potaStatusText)
+                    .font(.caption2)
+                    .foregroundStyle(theme.textSecondary)
+            }
+            Spacer()
+            Button {
+                Task { await potaStats.refresh(callsign: callsign) }
+            } label: {
+                HStack(spacing: 4) {
+                    if potaStats.status == .loading {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    Text(callsign.isEmpty ? "Kein Call gesetzt" : "Aktualisieren")
+                }
+                .font(.caption)
+            }
+            .disabled(callsign.isEmpty || potaStats.status == .loading)
+        }
+        .padding(12)
+        .background(theme.bgCard2)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var potaStatusText: String {
+        switch potaStats.status {
+        case .unknown:           return "Noch nicht abgerufen — klick Aktualisieren"
+        case .loading:           return "Lade …"
+        case .ready(let date):   return "Zuletzt aktualisiert: \(formatTimestamp(date))"
+        case .errored(let msg):  return "Fehler: \(msg)"
+        }
+    }
+
+    private func potaCardGrid(profile p: PotaProfile?) -> some View {
+        let stats = p?.stats
+        return LazyVGrid(columns: [
+            GridItem(.flexible()), GridItem(.flexible())
+        ], spacing: 10) {
+            potaStatCard(title: "Activator-Parks",
+                         value: stats?.activator?.parks,
+                         qsoValue: stats?.activator?.qsos,
+                         qsoLabel: "QSOs",
+                         icon: "tree.circle.fill")
+            potaStatCard(title: "Hunter-Parks",
+                         value: stats?.hunter?.parks,
+                         qsoValue: stats?.hunter?.qsos,
+                         qsoLabel: "QSOs",
+                         icon: "binoculars.fill")
+            potaStatCard(title: "Aktivierungen",
+                         value: stats?.activator?.activations,
+                         qsoValue: stats?.awards,
+                         qsoLabel: "Awards",
+                         icon: "flag.fill")
+            potaStatCard(title: "Park-to-Park",
+                         value: stats?.park_to_park?.parks,
+                         qsoValue: stats?.park_to_park?.qsos,
+                         qsoLabel: "QSOs",
+                         icon: "arrow.left.arrow.right")
+        }
+    }
+
+    private func potaStatCard(title: String, value: Int?,
+                              qsoValue: Int?, qsoLabel: String,
+                              icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .foregroundStyle(theme.colorPOTA)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.textSecondary)
+            }
+            Text(value.map { "\($0)" } ?? "—")
+                .font(.system(.title, design: .rounded).weight(.bold))
+                .foregroundStyle(theme.textPrimary)
+                .monospacedDigit()
+            if let q = qsoValue {
+                Text("\(q) \(qsoLabel)")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(theme.textDim)
+            } else {
+                Text("—").font(.caption2).foregroundStyle(theme.textDim)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.bgCard)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.separator, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// Vergleicht lokale POTA-QSO-Counts mit den pota.app-Werten und zeigt
+    /// die Differenz — typischerweise "noch nicht hochgeladen".
+    private func potaLocalDelta(profile p: PotaProfile?) -> some View {
+        let a = manager.awards
+        let remoteAct  = p?.stats?.activator?.qsos
+        let remoteHunt = p?.stats?.hunter?.qsos
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("Lokal vs. pota.app")
+                .font(.caption.bold())
+                .foregroundStyle(theme.textSecondary)
+            deltaRow(label: "Activator-QSOs",
+                     local: a.potaActivatorQSOs,
+                     remote: remoteAct)
+            deltaRow(label: "Hunter-QSOs",
+                     local: a.potaHunterQSOs,
+                     remote: remoteHunt)
+            deltaRow(label: "Activator-Parks",
+                     local: a.potaActivatorParks,
+                     remote: p?.stats?.activator?.parks)
+            deltaRow(label: "Hunter-Parks",
+                     local: a.potaHunterParks,
+                     remote: p?.stats?.hunter?.parks)
+            deltaRow(label: "P2P",
+                     local: a.potaP2P,
+                     remote: p?.stats?.park_to_park?.qsos)
+            Text("Lokal höher = noch nicht zu pota.app hochgeladen (Logbuch → ADIF-Export → pota.app/user/logs).")
+                .font(.caption2)
+                .foregroundStyle(theme.textDim)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.bgCard)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.separator, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func deltaRow(label: String, local: Int, remote: Int?) -> some View {
+        let delta = remote.map { local - $0 }
+        return HStack(spacing: 8) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(theme.textPrimary)
+                .frame(width: 140, alignment: .leading)
+            Text("lokal \(local)")
+                .font(.caption.monospaced())
+                .foregroundStyle(theme.textSecondary)
+                .frame(width: 90, alignment: .leading)
+            Text("pota.app \(remote.map { String($0) } ?? "—")")
+                .font(.caption.monospaced())
+                .foregroundStyle(theme.textSecondary)
+                .frame(width: 110, alignment: .leading)
+            if let d = delta {
+                Text(deltaSymbol(d))
+                    .font(.caption.monospaced().bold())
+                    .foregroundStyle(deltaColor(d))
+            }
+            Spacer()
+        }
+    }
+
+    private func deltaSymbol(_ d: Int) -> String {
+        if d == 0 { return "✓ sync" }
+        if d > 0  { return "+\(d) lokal" }
+        return "\(d) — pota.app führt"
+    }
+
+    private func deltaColor(_ d: Int) -> Color {
+        if d == 0 { return theme.accentGreen }
+        if d > 0  { return theme.accentOrange }
+        return theme.accentBlue
+    }
+
+    private func formatTimestamp(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm"
         return f.string(from: d)
     }
 }
