@@ -17,8 +17,18 @@ struct EinstellungenView: View {
                 .tabItem { Label("Darstellung", systemImage: "paintpalette") }
             AlertsTab()
                 .tabItem { Label("Alerts", systemImage: "bell.badge") }
+            CATTab()
+                .tabItem { Label("CAT", systemImage: "cable.connector") }
         }
         .frame(width: 580, height: 440)
+    }
+}
+
+// MARK: - CAT (Hamlib-Subprocess)
+
+private struct CATTab: View {
+    var body: some View {
+        CATSettingsView()
     }
 }
 

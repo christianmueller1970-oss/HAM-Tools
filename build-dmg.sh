@@ -31,6 +31,18 @@ if [ -d "$RELEASE_DIR/$BUNDLE_NAME" ]; then
   cp -R "$RELEASE_DIR/$BUNDLE_NAME" "$APP_DIR/Contents/Resources/"
 fi
 
+# CAT: rigctld (Hamlib-Subprocess) ins Bundle. Falls noch nicht gebaut,
+# Build-Pipeline anwerfen (Universal2, Ad-Hoc signiert — kann 5-10 Min dauern).
+RIGCTLD_SRC="vendor/hamlib/rigctld"
+if [ ! -f "$RIGCTLD_SRC" ]; then
+  echo "==> rigctld fehlt — baue Hamlib aus Source (scripts/build-hamlib.sh)..."
+  ./scripts/build-hamlib.sh
+fi
+echo "==> Kopiere rigctld in Contents/Helpers/..."
+mkdir -p "$APP_DIR/Contents/Helpers"
+cp "$RIGCTLD_SRC" "$APP_DIR/Contents/Helpers/rigctld"
+chmod +x "$APP_DIR/Contents/Helpers/rigctld"  # Drive frisst manchmal das Bit
+
 # AppIcon (falls vorhanden)
 if [ -f "AppIcon.icns" ]; then
   cp "AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"

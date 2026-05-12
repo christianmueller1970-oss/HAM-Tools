@@ -196,6 +196,39 @@ Aktuell benötigt:
 
 ---
 
+## UI-Referenz (Inspiration für volle Settings-Ausbaustufe)
+
+Vom User vorgeschlagene Referenz (RUMlogNG-Style, Screenshot 2026-05-12). Im
+MVP (5a) noch nicht abgedeckt, aber als Zielbild für 5c/spätere Polish-Phasen
+zu betrachten:
+
+- **Hersteller + Typ als zwei-stufiger Picker** (Icom → IC-7300-Ctrl) statt
+  flacher Profilliste. Hilft, wenn die Profilzahl wächst (Yaesu/Kenwood/Elecraft).
+- **Interface-Auswahl**: Seriel · TCP · Bluetooth LE. Aktuell nur Seriel via
+  rigctld. TCP-Hosts (z.B. Netzwerk-Rigs, FlexRadio) und BT LE-Pairing wären
+  künftige Erweiterungen — Hamlib unterstützt das, wir müssten nur den Picker
+  bauen und an `-r` weiterreichen.
+- **XVTR Offset** (Transverter-Frequenzversatz, für VHF/UHF/SHF mit Transverter).
+- **PTT-Routing-Picker**: "Für PTT nutze" — separate Wahl zwischen CAT-PTT,
+  DTR, RTS, Vox, oder "Nicht nutzen". Gehört konzeptionell zu Phase 5d.
+- **Transceiver-abhängig**: Mode-Mapping pro Sub-Mode (RTTY-Modus = RTTY oder
+  PKTUSB? PSK-Modus = USB-Data?). Filter / Sprachspeicher pro Radio.
+- **Icom Auto Discovery** (Icom hat CI-V Auto-Detect für angeschlossene Rigs).
+- **Volle Serial-Parameter**: Stop bits, Parity, Flusskontrolle (RTS/CTS,
+  DTR/DSR, DCD), "Leitung auf High" (RTS/DTR). Aktuell nur Baudrate exposed —
+  Defaults aus dem TRX-Profil decken 99% ab, aber Power-User wollen die
+  Optionen sehen.
+- **TX1/TX2-Tabs**: Zweites Radio parallel konfigurierbar (für Dual-Radio
+  SO2R-Workflows). Architektur-Implikation: CATController müsste mehrere
+  rigctld-Instanzen auf verschiedenen TCP-Ports verwalten.
+- **DxLab Suite Commander**: TCP-Bridge zu Windows-Software, irrelevant für uns.
+
+**Take-away für 5a-MVP**: Wir bleiben minimal (1 Radio, 1 Picker, Baudrate,
+Port), aber die TRX-Profile + Settings-Architektur sollten so geschnitten
+sein, dass die Erweiterung später kein Rewrite ist.
+
+---
+
 ## Out-of-Scope (kommt nicht in Phase 5)
 
 - PTT-Control (→ 5d)
