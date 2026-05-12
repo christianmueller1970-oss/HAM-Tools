@@ -12,7 +12,7 @@ final class LogbookDatabase {
     let fileURL: URL
     private let conn: SQLiteConnection
 
-    static let schemaVersion = 1
+    static let schemaVersion = 2
     static let fileExtension = "htlog"          // intern SQLite
 
     private(set) var log: Log
@@ -24,6 +24,7 @@ final class LogbookDatabase {
     init(opening fileURL: URL) throws {
         self.fileURL = fileURL
         self.conn = try SQLiteConnection(path: fileURL.path)
+        try LogbookDatabase.migrateIfNeeded(conn: conn)
         guard let loaded = try LogbookDatabase.readLogMeta(conn: conn) else {
             throw LogbookError.corruptFile(fileURL.lastPathComponent)
         }
@@ -111,6 +112,7 @@ final class LogbookDatabase {
             contestID TEXT,
             contestCategory TEXT,
             potaParkRef TEXT,
+            potaParkRefs TEXT,
             sotaSummitRef TEXT,
             role TEXT,
             notes TEXT,
@@ -173,12 +175,67 @@ final class LogbookDatabase {
         }
     }
 
+    // MARK: - Migration
+    //
+    // Wendet inkrementelle Schema-Migrationen auf bestehende .htlog-Dateien an.
+    // SQLite hat kein "ALTER TABLE ADD COLUMN IF NOT EXISTS", deshalb prüfen wir
+    // via PRAGMA table_info, ob die Spalte schon existiert. Die schema_info-
+    // Tabelle wird am Ende aktualisiert, damit wiederholte Aufrufe idempotent
+    // bleiben.
+    private static func migrateIfNeeded(conn: SQLiteConnection) throws {
+        let current = readSchemaVersion(conn: conn)
+        guard current < schemaVersion else { return }
+
+        // v1 → v2: Spalte log_meta.potaParkRefs für Multi-Park-Hopping
+        if current < 2 {
+            if !columnExists(conn: conn, table: "log_meta", column: "potaParkRefs") {
+                if !conn.exec("ALTER TABLE log_meta ADD COLUMN potaParkRefs TEXT;") {
+                    throw LogbookError.writeFailed(conn.lastErrorMessage)
+                }
+            }
+        }
+
+        // schema_info finale Version setzen (UPSERT)
+        let stmt = try conn.prepare("""
+            INSERT INTO schema_info(key, value) VALUES('schemaVersion', ?1)
+            ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+        """)
+        stmt.bind(1, String(schemaVersion))
+        guard stmt.step() == SQLITE_DONE else {
+            throw LogbookError.writeFailed(conn.lastErrorMessage)
+        }
+    }
+
+    private static func readSchemaVersion(conn: SQLiteConnection) -> Int {
+        guard let stmt = try? conn.prepare(
+            "SELECT value FROM schema_info WHERE key='schemaVersion';")
+        else { return 1 }
+        if stmt.step() == SQLITE_ROW,
+           let v = stmt.columnText(0),
+           let n = Int(v) { return n }
+        return 1
+    }
+
+    private static func columnExists(conn: SQLiteConnection,
+                                     table: String,
+                                     column: String) -> Bool {
+        // PRAGMA table_info(...) lässt sich nicht parametrisieren, daher
+        // Tabellennamen quoten. Wird nur intern aufgerufen, kein User-Input.
+        let quoted = table.replacingOccurrences(of: "\"", with: "\"\"")
+        guard let stmt = try? conn.prepare("PRAGMA table_info(\"\(quoted)\");")
+        else { return false }
+        while stmt.step() == SQLITE_ROW {
+            if stmt.columnText(1) == column { return true }
+        }
+        return false
+    }
+
     // MARK: - Log meta I/O
 
     private static func readLogMeta(conn: SQLiteConnection) throws -> Log? {
         let stmt = try conn.prepare("""
             SELECT id, name, type, startDate, endDate, contestID, contestCategory,
-                   potaParkRef, sotaSummitRef, role, notes, createdAt
+                   potaParkRef, potaParkRefs, sotaSummitRef, role, notes, createdAt
             FROM log_meta LIMIT 1;
         """)
         guard stmt.step() == SQLITE_ROW,
@@ -187,7 +244,7 @@ final class LogbookDatabase {
               let name = stmt.columnText(1),
               let typeRaw = stmt.columnText(2),
               let startTS = stmt.columnDouble(3),
-              let createdTS = stmt.columnDouble(11) else {
+              let createdTS = stmt.columnDouble(12) else {
             return nil
         }
         return Log(
@@ -199,9 +256,10 @@ final class LogbookDatabase {
             contestID: stmt.columnText(5),
             contestCategory: stmt.columnText(6),
             potaParkRef: stmt.columnText(7),
-            sotaSummitRef: stmt.columnText(8),
-            role: stmt.columnText(9),
-            notes: stmt.columnText(10),
+            potaParkRefs: stmt.columnText(8),
+            sotaSummitRef: stmt.columnText(9),
+            role: stmt.columnText(10),
+            notes: stmt.columnText(11),
             createdAt: Date(timeIntervalSince1970: createdTS)
         )
     }
@@ -209,8 +267,8 @@ final class LogbookDatabase {
     private func writeLogMeta(_ log: Log) throws {
         let stmt = try conn.prepare("""
             INSERT INTO log_meta(id, name, type, startDate, endDate, contestID,
-                contestCategory, potaParkRef, sotaSummitRef, role, notes, createdAt)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                contestCategory, potaParkRef, potaParkRefs, sotaSummitRef, role, notes, createdAt)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 type=excluded.type,
@@ -219,6 +277,7 @@ final class LogbookDatabase {
                 contestID=excluded.contestID,
                 contestCategory=excluded.contestCategory,
                 potaParkRef=excluded.potaParkRef,
+                potaParkRefs=excluded.potaParkRefs,
                 sotaSummitRef=excluded.sotaSummitRef,
                 role=excluded.role,
                 notes=excluded.notes;
@@ -231,10 +290,11 @@ final class LogbookDatabase {
         stmt.bind(6, log.contestID)
         stmt.bind(7, log.contestCategory)
         stmt.bind(8, log.potaParkRef)
-        stmt.bind(9, log.sotaSummitRef)
-        stmt.bind(10, log.role)
-        stmt.bind(11, log.notes)
-        stmt.bind(12, date: log.createdAt)
+        stmt.bind(9, log.potaParkRefs)
+        stmt.bind(10, log.sotaSummitRef)
+        stmt.bind(11, log.role)
+        stmt.bind(12, log.notes)
+        stmt.bind(13, date: log.createdAt)
         guard stmt.step() == SQLITE_DONE else {
             throw LogbookError.writeFailed(conn.lastErrorMessage)
         }

@@ -29,6 +29,13 @@ struct POTAEntryForm: View {
     @State private var lookupInFlight: Bool = false
     @State private var lookupTask: Task<Void, Never>?
 
+    // Dupe-Hinweis. POTA-Regel: gleicher Call auf gleichem Band im aktiven
+    // Log = Dupe (Mode irrelevant — POTA-Spec zählt pro Band, nicht pro Mode).
+    // Wird NICHT blockierend angezeigt: das QSO wird trotzdem gespeichert,
+    // die Tabelle markiert solche QSOs rot, das Form zeigt einen orangen
+    // Banner statt grünem "gespeichert".
+    @State private var lastSaveWasDupe: Bool = false
+
     @FocusState private var focusedField: Field?
 
     enum Field { case call, theirPark, rstS, rstR, power, comments }
@@ -49,7 +56,7 @@ struct POTAEntryForm: View {
             if let conf = lastSavedConfirmation {
                 Text(conf)
                     .font(.caption)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(lastSaveWasDupe ? .orange : .green)
             }
         }
         .padding(12)
@@ -71,7 +78,11 @@ struct POTAEntryForm: View {
     private var sessionBar: some View {
         let log = currentLog
         let role = log?.role ?? "—"
-        let myPark = log?.potaParkRef ?? "—"
+        // Multi-Park-Hopping: zeige die Komma-Liste; ohne Hopping nur den einen Park.
+        let myParkLabel: String = {
+            if let multi = log?.potaParkRefs, !multi.isEmpty { return multi }
+            return log?.potaParkRef ?? "—"
+        }()
         let freq = radio.frequencyMHz > 0
             ? String(format: "%.5f MHz", radio.frequencyMHz)
             : "—"
@@ -83,7 +94,7 @@ struct POTAEntryForm: View {
             statusPill(icon: "waveform", text: radio.mode)
             statusPill(icon: "bolt", text: powerW.isEmpty ? "0 W" : "\(powerW) W")
             statusPill(icon: "person", text: log?.name ?? "—")
-            statusPill(icon: "tree", text: "\(role) · \(myPark)",
+            statusPill(icon: "tree", text: "\(role) · \(myParkLabel)",
                        color: role == "Activator" ? .green : .blue)
         }
         .padding(8)
@@ -233,11 +244,28 @@ struct POTAEntryForm: View {
 
     // MARK: - Save
 
+    /// POTA-Dupe-Logik: gleicher Call auf gleichem Band im aktiven Log.
+    /// Mode wird bewusst ignoriert — POTA-Regeln zählen pro Band/Tag,
+    /// nicht pro Band+Mode wie bei DXCC. Nicht blockierend: liefert nur
+    /// Info ob der nächste Save ein Dupe wäre.
+    private func isDupeNow() -> Bool {
+        let trimmedCall = call.trimmingCharacters(in: .whitespaces).uppercased()
+        guard !trimmedCall.isEmpty else { return false }
+        let currentBand = radio.band
+        guard !currentBand.isEmpty, currentBand != "—" else { return false }
+        return manager.findQSOs(forCall: trimmedCall).contains {
+            $0.logID == manager.currentLogID && $0.qso.band == currentBand
+        }
+    }
+
     private func saveQSO() {
         guard let logID = manager.currentLogID,
               let log = currentLog else { return }
         let trimmedCall = call.trimmingCharacters(in: .whitespaces).uppercased()
         guard !trimmedCall.isEmpty, radio.frequencyMHz > 0 else { return }
+
+        let dupe = isDupeNow()
+        lastSaveWasDupe = dupe
 
         var qso = QSO(
             logID: logID,
@@ -269,23 +297,26 @@ struct POTAEntryForm: View {
         }
 
         // POTA-Felder:
-        // - myPotaRef: aus dem Log (Activator)
-        // - theirPotaRef: aus diesem QSO. Mehrere durch Komma → myPotaRefs/
-        //   theirPotaRef trägt das primäre, Hopping ggf. zusätzlich.
-        qso.myPotaRef = log.potaParkRef
-        let trimmedThirs = theirPark.trimmingCharacters(in: .whitespaces)
-        if !trimmedThirs.isEmpty {
-            let refs = trimmedThirs.split(separator: ",")
-                .map { $0.trimmingCharacters(in: .whitespaces) }
+        // - myPotaRef:  primärer Park aus dem Log (Activator)
+        // - myPotaRefs: nur gesetzt wenn das Log Multi-Park-Hopping macht;
+        //               Komma-Liste aller Parks (inkl. primärem).
+        // - theirPotaRef: vom QSO eingegebene Gegen-Park-Ref(s); bei P2P-Multi
+        //               als Komma-Liste laut POTA-ADIF-Spec direkt in dem
+        //               einen Feld (kein eigenes theirPotaRefs nötig).
+        qso.myPotaRef  = log.potaParkRef
+        qso.myPotaRefs = log.potaParkRefs        // nil bei Single-Park-Logs
+        let trimmedTheirs = theirPark.trimmingCharacters(in: .whitespaces)
+        if !trimmedTheirs.isEmpty {
+            let refs = trimmedTheirs.split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces).uppercased() }
                 .filter { !$0.isEmpty }
-            qso.theirPotaRef = refs.first
-            if refs.count > 1 {
-                qso.myPotaRefs = refs.joined(separator: ",")
-            }
+            qso.theirPotaRef = refs.isEmpty ? nil : refs.joined(separator: ",")
         }
 
         manager.addQSO(qso)
-        lastSavedConfirmation = "✓ QSO gespeichert: \(trimmedCall)"
+        lastSavedConfirmation = dupe
+            ? "⚠ Dupe gespeichert: \(trimmedCall) bereits auf \(qso.band) im Log"
+            : "✓ QSO gespeichert: \(trimmedCall)"
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             if lastSavedConfirmation?.contains(trimmedCall) == true {
                 lastSavedConfirmation = nil

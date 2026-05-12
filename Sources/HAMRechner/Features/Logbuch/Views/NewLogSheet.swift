@@ -10,6 +10,7 @@ struct NewLogSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var onCreate: (Log) -> Void
+    var onSelectPOTA: () -> Void = {}   // POTA hat eigenen Wizard mit Park-Picker
 
     @State private var name: String = ""
     @State private var selectedType: LogType = .standard
@@ -36,7 +37,14 @@ struct NewLogSheet: View {
                           spacing: 10) {
                     ForEach(LogType.allCases) { type in
                         LogTypeCard(type: type, selected: selectedType == type) {
-                            if type.isAvailable { selectedType = type }
+                            if type == .pota {
+                                // POTA hat eigenen Wizard (Park-Picker, Hopping).
+                                // Parent dismissed dieses Sheet und öffnet NewPOTALogSheet.
+                                onSelectPOTA()
+                                dismiss()
+                            } else if type.isAvailable {
+                                selectedType = type
+                            }
                         }
                     }
                 }

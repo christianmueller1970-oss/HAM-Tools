@@ -30,6 +30,7 @@ struct LogbuchView: View {
     let onBackToHome: () -> Void
 
     @State private var showNewLogSheet: Bool = false
+    @State private var showNewPOTASheet: Bool = false
     @State private var showLogsPopover: Bool = false
 
     // Alle Tab-State-Werte sind persistent über AppStorage — Wunsch des
@@ -126,11 +127,22 @@ struct LogbuchView: View {
             }
         }
         .sheet(isPresented: $showNewLogSheet) {
-            NewLogSheet { newLog in
+            NewLogSheet(onCreate: { newLog in
                 manager.createLog(newLog)
-            }
+            }, onSelectPOTA: {
+                // POTA-Wizard kommt nach dismiss des generischen Sheets.
+                // Kleines Delay damit SwiftUI das erste Sheet sauber abbaut,
+                // bevor das neue präsentiert wird.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    showNewPOTASheet = true
+                }
+            })
             .environmentObject(themeManager)
             .environmentObject(settings)
+        }
+        .sheet(isPresented: $showNewPOTASheet) {
+            NewPOTALogSheet()
+                .environmentObject(themeManager)
         }
         .sheet(isPresented: $showNewMemorySheet) {
             NewMemorySheet(existing: nil)

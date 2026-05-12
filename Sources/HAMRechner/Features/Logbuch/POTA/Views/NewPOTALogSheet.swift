@@ -19,10 +19,33 @@ struct NewPOTALogSheet: View {
     @State private var role: POTARole = .activator
     @State private var myParkQuery: String = ""
     @State private var myParkSelected: Park?
+    @State private var hoppingInput: String = ""    // Komma-Liste weiterer Parks
     @State private var sessionName: String = ""
     @State private var suggestions: [Park] = []
     @State private var creating: Bool = false
     @State private var errorText: String?
+
+    // Parst die Hopping-Eingabe in eine Liste eindeutiger Park-Refs.
+    // Validierung gegen die Park-DB ist optional (Hinweis im UI).
+    private var hoppingRefs: [String] {
+        hoppingInput.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces).uppercased() }
+            .filter { !$0.isEmpty }
+    }
+
+    // Alle Parks dieses Logs in Reihenfolge: primärer Park zuerst, danach
+    // Hopping-Parks. Duplikate werden entfernt.
+    private var allParkRefs: [String] {
+        var seen: Set<String> = []
+        var out: [String] = []
+        if let primary = myParkSelected?.reference.uppercased() {
+            if seen.insert(primary).inserted { out.append(primary) }
+        }
+        for r in hoppingRefs where seen.insert(r).inserted {
+            out.append(r)
+        }
+        return out
+    }
 
     private var existingPOTALogs: [Log] {
         manager.logs
@@ -49,7 +72,7 @@ struct NewPOTALogSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 480, height: existingPOTALogs.isEmpty ? 380 : 460)
+        .frame(width: 480, height: existingPOTALogs.isEmpty ? 460 : 540)
         .onAppear {
             // Wenn es bestehende POTA-Logs gibt: Default = "Öffnen" anzeigen.
             mode = existingPOTALogs.isEmpty ? .new : .open
@@ -163,6 +186,9 @@ struct NewPOTALogSheet: View {
                             .foregroundStyle(.orange)
                     }
                 }
+                if myParkSelected != nil {
+                    hoppingParksSection
+                }
             } else {
                 Text("Im Hunter-Modus brauchst du keinen eigenen Park. Du loggst Kontakte zu Activatoren — Their Park trägst du beim QSO ein.")
                     .font(.caption)
@@ -194,6 +220,53 @@ struct NewPOTALogSheet: View {
                     .disabled(!canCreate || creating)
             }
         }
+    }
+
+    // Hopping-Parks: Komma-getrennte Liste. Keine Autocomplete, weil der User
+    // bei Hopping die Refs in der Regel schon kennt — Validierung gegen die
+    // Park-DB nur als grüner Haken / oranges Warn-Icon.
+    private var hoppingParksSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Text("Weitere Parks (Hopping)")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                Text("optional, Komma-getrennt")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            TextField("z.B. K-5678, HB-0042", text: $hoppingInput)
+                .textFieldStyle(.roundedBorder)
+                .onChange(of: hoppingInput) { _, n in
+                    let up = n.uppercased()
+                    if up != n { hoppingInput = up }
+                }
+            if !hoppingRefs.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(hoppingRefs, id: \.self) { ref in
+                        hoppingRefBadge(ref)
+                    }
+                }
+            }
+        }
+    }
+
+    private func hoppingRefBadge(_ ref: String) -> some View {
+        let known = pota.park(forReference: ref) != nil
+        return HStack(spacing: 3) {
+            Image(systemName: known ? "checkmark.circle.fill" : "questionmark.circle")
+                .font(.caption2)
+                .foregroundStyle(known ? .green : .orange)
+            Text(ref)
+                .font(.caption.monospaced())
+        }
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .background((known ? Color.green : Color.orange).opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .help(known
+              ? (pota.park(forReference: ref)?.name ?? ref)
+              : "Park nicht in der DB gefunden — wird trotzdem gespeichert")
     }
 
     private var canCreate: Bool {
@@ -282,6 +355,12 @@ struct NewPOTALogSheet: View {
         )
         log.role = role.rawValue
         log.potaParkRef = role == .activator ? myParkSelected?.reference : nil
+        // Multi-Park-Hopping nur setzen, wenn echt > 1 Park gewählt wurde.
+        // Single-Park-Aktivierungen lassen potaParkRefs = nil, damit
+        // bestehende Lesepfade (Sidebar, ADIF) unverändert weiterlaufen.
+        if role == .activator, allParkRefs.count > 1 {
+            log.potaParkRefs = allParkRefs.joined(separator: ",")
+        }
 
         manager.createLog(log)
         if manager.currentLogID == log.id {

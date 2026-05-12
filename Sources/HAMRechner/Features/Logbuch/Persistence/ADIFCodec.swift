@@ -83,11 +83,14 @@ enum ADIFCodec {
         if let v = q.bearingDeg  { s += field("ANT_AZ", String(format: "%.0f", v)) }
 
         // POTA — sowohl spezifische als auch generische SIG-Felder schreiben
-        // (verschiedene Logger lesen das unterschiedlich)
-        if let v = q.myPotaRef, !v.isEmpty {
+        // (verschiedene Logger lesen das unterschiedlich).
+        // Multi-Park-Hopping: myPotaRefs (Komma-Liste) wird, wenn gesetzt,
+        // bevorzugt — entspricht POTA-ADIF-Spec für MY_POTA_REF mit Komma.
+        let myPota = (q.myPotaRefs?.isEmpty == false ? q.myPotaRefs : q.myPotaRef) ?? ""
+        if !myPota.isEmpty {
             s += field("MY_SIG", "POTA")
-            s += field("MY_SIG_INFO", v)
-            s += field("MY_POTA_REF", v)
+            s += field("MY_SIG_INFO", myPota)
+            s += field("MY_POTA_REF", myPota)
             // pota.app empfiehlt MY_GRIDSQUARE — übernimm Locator aus App-
             // Settings (Stations-Tab → qthLocator).
             if let myGrid = UserDefaults.standard.string(forKey: "qthLocator")?
@@ -245,9 +248,18 @@ enum ADIFCodec {
         q.distanceKm     = fields["DISTANCE"].flatMap(Double.init)
         q.bearingDeg     = fields["ANT_AZ"].flatMap(Double.init)
 
-        // POTA/SOTA — Spezial-Felder bevorzugen, sonst aus SIG-Tag
-        q.myPotaRef = fields["MY_POTA_REF"]
-                   ?? (fields["MY_SIG"] == "POTA" ? fields["MY_SIG_INFO"] : nil)
+        // POTA/SOTA — Spezial-Felder bevorzugen, sonst aus SIG-Tag.
+        // Bei Komma-Liste (Multi-Park-Hopping): myPotaRef = erster Park,
+        // myPotaRefs = volle Liste. POTA-ADIF spec erlaubt Komma in MY_POTA_REF.
+        let myPotaRaw = fields["MY_POTA_REF"]
+                     ?? (fields["MY_SIG"] == "POTA" ? fields["MY_SIG_INFO"] : nil)
+        if let raw = myPotaRaw, !raw.isEmpty {
+            let refs = raw.split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            q.myPotaRef  = refs.first
+            q.myPotaRefs = refs.count > 1 ? refs.joined(separator: ",") : nil
+        }
         q.theirPotaRef = fields["POTA_REF"]
                      ?? (fields["SIG"] == "POTA" ? fields["SIG_INFO"] : nil)
         q.mySotaRef = fields["MY_SOTA_REF"]

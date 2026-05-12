@@ -17,6 +17,12 @@ struct QSOTableView: View {
 
     @State private var editingQSO: QSO?
 
+    // POTA-Dupe-Markierung: QSO-IDs, die mit einem anderen QSO im gleichen
+    // Log (selber Call, selbes Band) kollidieren. In nicht-POTA-Logs ist die
+    // Set leer, weil dort Call+Band-Dupes legitime Wiederholungen über Jahre
+    // sein können (Lebens-Log).
+    @State private var dupeQSOIDs: Set<UUID> = []
+
     // Sortierung — initialer Default: Datum absteigend (neueste zuerst).
     @State private var sortOrder: [KeyPathComparator<QSO>] = [
         KeyPathComparator(\QSO.datetime, order: .reverse)
@@ -69,8 +75,32 @@ struct QSOTableView: View {
                 .environmentObject(themeManager)
                 .environmentObject(manager)
         }
-        .onAppear(perform: loadCustomization)
+        .onAppear {
+            loadCustomization()
+            recomputeDupes()
+        }
         .onChange(of: columnCustomization) { _, _ in saveCustomization() }
+        .onChange(of: manager.currentQSOs) { _, _ in recomputeDupes() }
+        .onChange(of: manager.currentLogID) { _, _ in recomputeDupes() }
+    }
+
+    /// Berechnet die Menge der Dupe-QSO-IDs im aktiven POTA-Log neu.
+    /// Outside POTA-Logs bleibt die Menge leer.
+    private func recomputeDupes() {
+        guard currentLog?.type == .pota else {
+            if !dupeQSOIDs.isEmpty { dupeQSOIDs = [] }
+            return
+        }
+        var groups: [String: [UUID]] = [:]
+        for q in manager.currentQSOs {
+            let key = "\(q.call.uppercased())|\(q.band)"
+            groups[key, default: []].append(q.id)
+        }
+        var result: Set<UUID> = []
+        for (_, ids) in groups where ids.count > 1 {
+            for id in ids { result.insert(id) }
+        }
+        if dupeQSOIDs != result { dupeQSOIDs = result }
     }
 
     private func emptyMessage(_ title: String, _ subtitle: String) -> some View {
@@ -365,6 +395,8 @@ struct QSOTableView: View {
     // MARK: - Color coding
 
     private func uploadColor(for qso: QSO) -> Color {
+        // POTA-Dupe gewinnt über Upload-Farben: roter Vermerk hat Vorrang.
+        if dupeQSOIDs.contains(qso.id) { return .red }
         if qso.lotwConfirmed || qso.eqslConfirmed { return theme.accentGreen }
         if qso.lotwSent || qso.eqslSent || qso.clublogSent { return theme.accentYellow }
         return theme.textPrimary
