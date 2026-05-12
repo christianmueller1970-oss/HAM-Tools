@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -x ./sync-claude-memory.sh ]; then ./sync-claude-memory.sh pull >/dev/null 2>&1 || printf '%s' '{\"systemMessage\":\"[WARN] Memory-Sync (sync-claude-memory.sh pull) fehlgeschlagen - Session läuft weiter.\"}'; else printf '%s' '{\"systemMessage\":\"[WARN] sync-claude-memory.sh fehlt oder nicht ausführbar - Memory-Sync übersprungen.\"}'; fi",
+            "timeout": 30,
+            "statusMessage": "Memory-Sync (pull)"
+          }
+        ]
+      }
+    ]
+  }
+}
