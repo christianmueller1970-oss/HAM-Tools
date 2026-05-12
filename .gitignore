@@ -39,3 +39,8 @@ web-vue/.vite/
 # Claude Code: Memory-Backup wird via Google Drive synct, nicht via Git
 claude-memory-backup/
 .claude/settings.local.json
+
+# CAT-Anbindung: rigctld-Binary wird reproduzierbar via scripts/build-hamlib.sh
+# erzeugt (Universal2, Hamlib-Source-Build). Nicht ins Git, da 22 MB + Drive-
+# Mode-Bit-Problem. Build automatisch im build-dmg.sh falls fehlend.
+vendor/hamlib/rigctld
