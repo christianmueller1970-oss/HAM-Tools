@@ -5,6 +5,61 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.6.0] — 2026-05-12
+
+### Neu: CAT-Anbindung (Phase 5a)
+
+Erstes funktionsfähiges Live-CAT-Modul für IC-7300 / IC-705 / IC-9700 (und 9 weitere Profile vorbereitet) via Hamlib-Subprocess. Frequenz und Mode kommen live vom Funkgerät in die App und werden in `RadioState` gespiegelt.
+
+#### Hamlib-Build-Pipeline
+- **`scripts/build-hamlib.sh`** — reproducible Build von Hamlib 4.7.1 als Universal2 (arm64 + x86_64), statisch, `--without-libusb`, Ad-Hoc codesigned mit Hardened Runtime
+- Resultat: `vendor/hamlib/rigctld` 22 MB, **truly self-contained** (nur `libSystem` + `libedit` als macOS-Dylibs), keine Third-Party-Dependencies
+- `build-dmg.sh` baut Hamlib automatisch falls fehlend und packt `rigctld` in `Contents/Helpers/` des App-Bundles
+- Smoke-Test gegen Dummy-Rig grün
+
+#### CAT-Architektur (Sources/HAMRechner/Features/CAT/)
+- **`TRXProfile`** + `trx-profiles.json`: Brand/Model/Hamlib-Rig-Number + Werkseinstellungen (Baud, DataBits, StopBits, Parity, Handshake) für 13 Rigs:
+  - **Hamlib** Dummy (Test ohne Hardware)
+  - **Icom** IC-7300 / IC-705 / IC-9700
+  - **Yaesu** FT-991 / FT-857 / FT-817
+  - **Kenwood** TS-2000 / TS-590S / TS-480
+  - **Elecraft** K3 / KX2 / KX3
+- **`CATConfig`**: benannte User-Konfiguration mit allen Verbindungs-Parametern. Mehrere Configs speicherbar (z.B. "Home-IC7300", "Portable-IC705"), beliebig umschaltbar
+- **`CATSettings`**: Multi-Config-Store, UserDefaults-persistiert, analog zu ClusterSettingsStore
+- **`RigctldProcess`**: Lifecycle des `rigctld`-Subprocess. Bundle-Lookup mit Dev-Fallback auf `vendor/hamlib/rigctld`, ENV-Override, defensiv chmod+x (Google-Drive frisst Exec-Bits). Serial-Parameter via `-C "data_bits=..,stop_bits=..,serial_parity=..,serial_handshake=.."` an rigctld
+- **`RigctldClient`**: TCP-Client zu localhost:4532 via URLSessionStreamTask, line-based Protocol für `f`/`m`-Commands. Phase 5b wird `F`/`M` ergänzen
+- **`CATController`**: Orchestrator. Connect-Retry-Loop (30 × 150 ms = 4.5 s) für rigctld-Bind-Race, stopInternal-vor-start gegen Orphan-rigctld-Prozesse. Status `disconnected/starting/connected/errored`, Poll-Loop (default 500 ms) spiegelt Frequenz und Mode in `RadioState`. Mode-Mapping Hamlib → UI (USB/LSB → SSB, PKTUSB → DATA, …)
+
+#### Settings-UI (Einstellungen → CAT)
+- **Multi-Config-Manager** oben: Aktive Konfig-Picker + "Neu…" + "Löschen", Name-Edit
+- **Zwei-Stufen-Radio-Picker**: Hersteller → Modell (RUMlog-Style). Auto-Fill der Werkseinstellungen bei Modell-Wechsel, alle Felder weiterhin editierbar
+- **Vollständiger Serial-Editor**: Port (USB-Serial-Discovery via `/dev/cu.*` + Refresh-Button), Baudrate, Datenbits 7/8, Stopbits 1/2, Parität None/Odd/Even, Flusskontrolle None/Hardware/XONXOFF
+- **"Werkseinstellungen zurücksetzen"**-Button für Quick-Recovery aus verfiddelten Configs
+- **Polling-Intervall** als Slider 200-2000 ms
+- **Diagnose-Section** zeigt zuletzt empfangene Frequenz/Mode, bei Fehler auch rigctld-stderr (kopierbar)
+- Settings-Fenster resize-fähig (ideal 640 × 860, min 580 × 480), damit alle Sections ohne Scrollen Platz haben
+
+#### Frontend-Integration
+- **Klickbarer `CATStatusBadge`** in der Sidebar unten — One-Click-Toggle für schnelles Reconnect nach Fehlern, ohne Settings öffnen zu müssen
+- **`RadioControlPanel`** Updates:
+  - TRX-Selector zeigt aktive Konfiguration + Radio-Modell bei aktivem CAT (grünes Antennen-Icon), "Kein Radio aktiv" bei Off
+  - Frequenz-Anzeige im **Ham-Style MHz.kHz.10Hz** (z.B. `7.164.39 MHz`), Parser akzeptiert sowohl Klassik `7.16439` als auch Ham-Style
+  - CAT-Updates spiegeln immer in Display, auch wenn TextField fokussiert ist (CAT ist Wahrheit); Focus wird beim Aktivwerden automatisch freigegeben
+- `RadioState`-Instanz wird in `HAMRechnerApp` zentral erzeugt und mit `CATController` geteilt (single source of truth)
+
+#### Dokumentation
+- **`CAT_PLAN.md`** dokumentiert Architektur-Entscheidungen, Phasen-Plan (5a/5b/5c/5d), UI-Referenz (RUMlogNG-Screenshot als North-Star für spätere Polish-Phasen), Bundling-Strategie, Test-Strategie, Risiken
+- **`hamlog-update-system-spec.md.gdoc`** als Google-Doc-Referenz im Repo
+
+#### Bekannte Einschränkungen / nächste Schritte
+- Phase 5b: Write-Pfad (Set-Frequenz/Mode aus App ans Radio, "Set Radio to Spot" aus DX-Cluster)
+- Phase 5c: Reconnect-Watchdog, automatische USB-Yank-Erkennung
+- Phase 5d: PTT-Control (für künftige Digi-Mode-Integration)
+- Ad-Hoc-Codesigning für Dev; für öffentliche Verteilung kommt Developer-ID + Notarization
+- `swift build` aus dem Drive-synced Projektordner kann hängen — Workaround: `--build-path /tmp/hamtools-build` (Empfehlung für `run.sh`/`build-dmg.sh` in Folge-Commit)
+
+---
+
 ## [1.5.0] — 2026-05-11
 
 ### Neu: Logbuch-Modul (Phase 1 + 2 + 3 + 4b)

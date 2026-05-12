@@ -200,12 +200,22 @@ struct SidebarView: View {
             .background(theme.bgPanel)
 
             Divider()
+            catToggleRow
             settingsButton
         }
         .background(theme.bgPanel)
         .navigationTitle("HAM-Tools")
         .navigationSubtitle("HB9HJI Funkwelt")
         .navigationSplitViewColumnWidth(min: 220, ideal: 230, max: 320)
+    }
+
+    private var catToggleRow: some View {
+        HStack {
+            CATStatusBadge(isClickable: true)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
     }
 
     private var settingsButton: some View {

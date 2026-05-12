@@ -1,22 +1,28 @@
 import SwiftUI
 
-// Settings-Tab für CAT. Radio-Profil, Serial-Port, Baudrate, Poll-Intervall,
-// Start/Stop, Status-Anzeige. Discovery der Serial-Ports bei jedem Refresh.
+// CAT-Settings-Tab. Multi-Config-Modell mit Hersteller/Modell-Picker,
+// Auto-Fill der Werkseinstellungen, voller Serial-Parameter-Editor,
+// Start/Stop-Button. Werte sind live editierbar nach dem Auto-Fill.
 struct CATSettingsView: View {
     @EnvironmentObject var settings: CATSettings
     @EnvironmentObject var cat: CATController
 
     @State private var availablePorts: [String] = []
-    @State private var profiles: [TRXProfile] = []
+    @State private var selectedBrand: String = ""
+    @State private var newConfigName: String = ""
+    @State private var showNewConfigSheet: Bool = false
 
-    private static let supportedBauds: [Int] = [4800, 9600, 19200, 38400, 57600, 115200]
+    private static let supportedBauds:    [Int]              = [1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200]
+    private static let supportedDataBits: [Int]              = [7, 8]
+    private static let supportedStopBits: [Int]              = [1, 2]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 statusSection
+                configManagementSection
                 profileSection
-                connectionSection
+                serialSection
                 pollSection
                 diagnosticsSection
             }
@@ -24,7 +30,10 @@ struct CATSettingsView: View {
         }
         .onAppear {
             refreshPorts()
-            refreshProfiles()
+            syncBrandFromActiveProfile()
+        }
+        .sheet(isPresented: $showNewConfigSheet) {
+            newConfigSheet
         }
     }
 
@@ -56,137 +65,378 @@ struct CATSettingsView: View {
         }
     }
 
-    private var profileSection: some View {
-        GroupBox("Radio-Profil") {
-            Picker("Modell", selection: profileBinding) {
-                Text("— bitte wählen —").tag(String?.none)
-                ForEach(profiles) { p in
-                    Text(p.name).tag(Optional(p.id))
+    private var configManagementSection: some View {
+        GroupBox("Konfiguration") {
+            HStack {
+                Picker("Aktive Konfig", selection: activeConfigIDBinding) {
+                    ForEach(settings.configs) { cfg in
+                        Text(cfg.name).tag(Optional(cfg.id))
+                    }
                 }
-            }
-            .pickerStyle(.menu)
-            .frame(maxWidth: .infinity, alignment: .leading)
+                .pickerStyle(.menu)
 
-            if let selected = profiles.first(where: { $0.id == settings.selectedProfileID }) {
-                Text("Hamlib-Rig-Nr.: \(selected.hamlibRigNumber) · Default-Baud: \(selected.defaultBaud)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 2)
+                Button("Neu…") {
+                    newConfigName = ""
+                    showNewConfigSheet = true
+                }
+                Button("Löschen") {
+                    if let id = settings.activeConfigID {
+                        settings.removeConfig(id: id)
+                        syncBrandFromActiveProfile()
+                    }
+                }
+                .disabled(settings.configs.count <= 1)
+            }
+
+            if let cfg = settings.activeConfig {
+                TextField("Name", text: nameBinding(for: cfg))
+                    .textFieldStyle(.roundedBorder)
+                    .padding(.top, 4)
             }
         }
     }
 
-    private var connectionSection: some View {
-        let selected = profiles.first(where: { $0.id == settings.selectedProfileID })
-        let needsPort = selected?.needsSerialPort ?? true
+    private var profileSection: some View {
+        let brands = TRXProfileLoader.shared.brands
 
-        return GroupBox("Verbindung") {
-            if needsPort {
+        return GroupBox("Radio") {
+            HStack {
+                Picker("Hersteller", selection: brandPickerBinding) {
+                    ForEach(brands, id: \.self) { b in
+                        Text(b).tag(b)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: 200)
+
+                Picker("Modell", selection: modelPickerBinding) {
+                    ForEach(TRXProfileLoader.shared.profiles(forBrand: selectedBrand)) { p in
+                        Text(p.model).tag(p.id)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            if let selected = TRXProfileLoader.shared.profile(forID: settings.activeConfig?.profileID ?? "") {
                 HStack {
-                    Picker("Serial-Port", selection: portBinding) {
+                    Text("Hamlib-Rig-Nr.: \(selected.hamlibRigNumber)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Werkseinstellungen zurücksetzen") {
+                        settings.applyProfileDefaultsToActive(selected)
+                    }
+                    .controlSize(.small)
+                }
+                .padding(.top, 2)
+            }
+        }
+    }
+
+    private var serialSection: some View {
+        let activeProfile = TRXProfileLoader.shared.profile(forID: settings.activeConfig?.profileID ?? "")
+        let needsPort = activeProfile?.needsSerialPort ?? false
+
+        return GroupBox("Serielle Schnittstelle") {
+            if !needsPort {
+                Text("Aktuelles Profil benötigt keinen Serial-Port (Dummy).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack {
+                    Picker("Port", selection: serialPortBinding) {
                         Text("— wählen —").tag(String?.none)
                         ForEach(availablePorts, id: \.self) { p in
                             Text(p).tag(Optional(p))
                         }
                     }
                     .pickerStyle(.menu)
-
                     Button("Refresh") { refreshPorts() }
                 }
 
-                Picker("Baudrate", selection: $settings.baudRate) {
-                    ForEach(Self.supportedBauds, id: \.self) { b in
-                        Text("\(b)").tag(b)
-                    }
-                }
-                .pickerStyle(.menu)
-                .padding(.top, 4)
-
                 if availablePorts.isEmpty {
-                    Text("Keine USB-Serial-Ports gefunden (kein Radio angeschlossen oder Treiber fehlt).")
+                    Text("Keine USB-Serial-Ports gefunden.")
                         .font(.caption)
                         .foregroundStyle(.orange)
                         .padding(.top, 2)
                 }
-            } else {
-                Text("Dummy-Rig benötigt keinen Serial-Port. Hamlib simuliert ein Funkgerät auf 145.000 MHz / FM.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack {
+                    Picker("Baudrate", selection: baudBinding) {
+                        ForEach(Self.supportedBauds, id: \.self) { b in
+                            Text("\(b)").tag(b)
+                        }
+                    }
+                    Picker("Datenbits", selection: dataBitsBinding) {
+                        ForEach(Self.supportedDataBits, id: \.self) { b in
+                            Text("\(b)").tag(b)
+                        }
+                    }
+                    .frame(maxWidth: 140)
+                }
+                .padding(.top, 4)
+
+                HStack {
+                    Picker("Stopbits", selection: stopBitsBinding) {
+                        ForEach(Self.supportedStopBits, id: \.self) { b in
+                            Text("\(b)").tag(b)
+                        }
+                    }
+                    .frame(maxWidth: 140)
+                    Picker("Parität", selection: parityBinding) {
+                        ForEach(SerialParity.allCases) { p in
+                            Text(p.displayName).tag(p)
+                        }
+                    }
+                }
+                .padding(.top, 4)
+
+                Picker("Flusskontrolle", selection: handshakeBinding) {
+                    ForEach(SerialHandshake.allCases) { h in
+                        Text(h.displayName).tag(h)
+                    }
+                }
+                .padding(.top, 4)
             }
         }
     }
 
     private var pollSection: some View {
         GroupBox("Polling") {
-            HStack {
-                Text("Intervall: \(settings.pollIntervalMillis) ms")
-                Spacer()
-                Slider(value: pollMsBinding, in: 200...2000, step: 100)
-                    .frame(width: 220)
+            if let cfg = settings.activeConfig {
+                HStack {
+                    Text("Intervall: \(cfg.pollIntervalMillis) ms")
+                    Spacer()
+                    Slider(value: pollMsBinding, in: 200...2000, step: 100)
+                        .frame(width: 220)
+                }
+                Text("Wie oft Frequenz/Mode vom Radio gelesen werden.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            Text("Wie oft Frequenz/Mode vom Radio gelesen werden. Höher = weniger USB-Last.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
     }
 
     private var diagnosticsSection: some View {
         GroupBox("Diagnose") {
-            if cat.lastPolledHz > 0 {
-                Text("Zuletzt empfangen: \(String(format: "%.6f", Double(cat.lastPolledHz) / 1_000_000.0)) MHz, Mode \(cat.lastPolledMode.isEmpty ? "—" : cat.lastPolledMode)")
-                    .font(.caption.monospaced())
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Text("Noch keine Daten empfangen.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 6) {
+                if cat.lastPolledHz > 0 {
+                    Text("Zuletzt empfangen: \(String(format: "%.6f", Double(cat.lastPolledHz) / 1_000_000.0)) MHz, Mode \(cat.lastPolledMode.isEmpty ? "—" : cat.lastPolledMode)")
+                        .font(.caption.monospaced())
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Text("Noch keine Daten empfangen.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                // Letzte Fehlermeldung redundant zur Status-Section anzeigen,
+                // damit sie auch sichtbar ist wenn weit nach unten gescrollt.
+                if case .errored(let msg) = cat.status {
+                    Divider()
+                    Text("⚠ Fehler beim letzten Verbindungsversuch:")
+                        .font(.caption.bold())
+                        .foregroundStyle(.red)
+                    Text(msg)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                }
             }
         }
     }
 
-    // MARK: - Bindings + Helpers
-
-    private var canStart: Bool {
-        guard let id = settings.selectedProfileID,
-              let p = profiles.first(where: { $0.id == id }) else { return false }
-        if !p.needsSerialPort { return true }
-        return settings.serialPort != nil && !(settings.serialPort?.isEmpty ?? true)
+    private var newConfigSheet: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Neue Konfiguration")
+                .font(.headline)
+            TextField("Name (z.B. Home-IC7300)", text: $newConfigName)
+                .textFieldStyle(.roundedBorder)
+            HStack {
+                Button("Abbrechen") { showNewConfigSheet = false }
+                Spacer()
+                Button("Anlegen") {
+                    let n = newConfigName.trimmingCharacters(in: .whitespaces)
+                    guard !n.isEmpty else { return }
+                    // Neue Konfig: Defaults von aktuellem aktiven Profil übernehmen,
+                    // damit nicht ganz leer.
+                    let template = settings.activeConfig
+                    let newCfg = CATConfig(
+                        name: n,
+                        profileID: template?.profileID ?? "hamlib-dummy",
+                        serialPort: nil,
+                        baudRate: template?.baudRate ?? 9600,
+                        dataBits: template?.dataBits ?? 8,
+                        stopBits: template?.stopBits ?? 1,
+                        parity: template?.parity ?? .none,
+                        handshake: template?.handshake ?? .none,
+                        pollIntervalMillis: template?.pollIntervalMillis ?? 500
+                    )
+                    settings.addConfig(newCfg)
+                    syncBrandFromActiveProfile()
+                    showNewConfigSheet = false
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(newConfigName.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 360)
     }
 
-    private var profileBinding: Binding<String?> {
+    // MARK: - Bindings
+
+    private var canStart: Bool {
+        guard let cfg = settings.activeConfig,
+              let p = TRXProfileLoader.shared.profile(forID: cfg.profileID) else { return false }
+        if !p.needsSerialPort { return true }
+        return cfg.serialPort != nil && !(cfg.serialPort?.isEmpty ?? true)
+    }
+
+    private var activeConfigIDBinding: Binding<UUID?> {
         Binding(
-            get: { settings.selectedProfileID },
+            get: { settings.activeConfigID },
             set: { newID in
-                settings.selectedProfileID = newID
-                if let id = newID,
-                   let p = profiles.first(where: { $0.id == id }) {
-                    settings.baudRate = p.defaultBaud
+                settings.activeConfigID = newID
+                syncBrandFromActiveProfile()
+            }
+        )
+    }
+
+    private func nameBinding(for cfg: CATConfig) -> Binding<String> {
+        Binding(
+            get: { settings.activeConfig?.name ?? "" },
+            set: { v in
+                guard var c = settings.activeConfig else { return }
+                c.name = v
+                settings.activeConfig = c
+            }
+        )
+    }
+
+    // Hersteller-Picker: Setter wird NUR bei User-Action aufgerufen, NICHT
+    // bei programmatischer Sync via syncBrandFromActiveProfile. Damit ist
+    // Auto-Fill (erstes Modell der neuen Marke laden) sauber an die User-
+    // Interaktion gekoppelt und überschreibt keine bestehenden Konfigs beim
+    // Öffnen der Settings.
+    private var brandPickerBinding: Binding<String> {
+        Binding(
+            get: { selectedBrand },
+            set: { newBrand in
+                selectedBrand = newBrand
+                if let first = TRXProfileLoader.shared.profiles(forBrand: newBrand).first {
+                    settings.applyProfileDefaultsToActive(first)
                 }
             }
         )
     }
 
-    private var portBinding: Binding<String?> {
+    // Modell-Picker: Setter wird NUR bei User-Action aufgerufen. Wendet
+    // die Werkseinstellungen des gewählten Modells auf die aktive Konfig an.
+    // Bei Config-Wechsel über "Aktive Konfig"-Dropdown läuft der Setter
+    // NICHT — die UI updated nur über den Getter.
+    private var modelPickerBinding: Binding<String> {
         Binding(
-            get: { settings.serialPort },
-            set: { settings.serialPort = $0 }
+            get: { settings.activeConfig?.profileID ?? "" },
+            set: { newID in
+                if let p = TRXProfileLoader.shared.profile(forID: newID) {
+                    settings.applyProfileDefaultsToActive(p)
+                }
+            }
+        )
+    }
+
+    private var serialPortBinding: Binding<String?> {
+        Binding(
+            get: { settings.activeConfig?.serialPort },
+            set: { v in
+                guard var c = settings.activeConfig else { return }
+                c.serialPort = v
+                settings.activeConfig = c
+            }
+        )
+    }
+
+    private var baudBinding: Binding<Int> {
+        Binding(
+            get: { settings.activeConfig?.baudRate ?? 9600 },
+            set: { v in
+                guard var c = settings.activeConfig else { return }
+                c.baudRate = v
+                settings.activeConfig = c
+            }
+        )
+    }
+
+    private var dataBitsBinding: Binding<Int> {
+        Binding(
+            get: { settings.activeConfig?.dataBits ?? 8 },
+            set: { v in
+                guard var c = settings.activeConfig else { return }
+                c.dataBits = v
+                settings.activeConfig = c
+            }
+        )
+    }
+
+    private var stopBitsBinding: Binding<Int> {
+        Binding(
+            get: { settings.activeConfig?.stopBits ?? 1 },
+            set: { v in
+                guard var c = settings.activeConfig else { return }
+                c.stopBits = v
+                settings.activeConfig = c
+            }
+        )
+    }
+
+    private var parityBinding: Binding<SerialParity> {
+        Binding(
+            get: { settings.activeConfig?.parity ?? .none },
+            set: { v in
+                guard var c = settings.activeConfig else { return }
+                c.parity = v
+                settings.activeConfig = c
+            }
+        )
+    }
+
+    private var handshakeBinding: Binding<SerialHandshake> {
+        Binding(
+            get: { settings.activeConfig?.handshake ?? .none },
+            set: { v in
+                guard var c = settings.activeConfig else { return }
+                c.handshake = v
+                settings.activeConfig = c
+            }
         )
     }
 
     private var pollMsBinding: Binding<Double> {
         Binding(
-            get: { Double(settings.pollIntervalMillis) },
-            set: { settings.pollIntervalMillis = Int($0) }
+            get: { Double(settings.activeConfig?.pollIntervalMillis ?? 500) },
+            set: { v in
+                guard var c = settings.activeConfig else { return }
+                c.pollIntervalMillis = Int(v)
+                settings.activeConfig = c
+            }
         )
     }
+
+    // MARK: - Helpers
 
     private func refreshPorts() {
         availablePorts = SerialPortDiscovery.availablePorts()
     }
 
-    private func refreshProfiles() {
-        profiles = TRXProfileLoader.shared.profiles
+    private func syncBrandFromActiveProfile() {
+        guard let cfg = settings.activeConfig,
+              let p = TRXProfileLoader.shared.profile(forID: cfg.profileID) else {
+            selectedBrand = TRXProfileLoader.shared.brands.first ?? ""
+            return
+        }
+        selectedBrand = p.brand
     }
 }

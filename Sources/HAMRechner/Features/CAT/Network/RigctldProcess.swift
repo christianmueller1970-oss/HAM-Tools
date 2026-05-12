@@ -2,7 +2,8 @@ import Foundation
 
 // Verwaltet den rigctld-Subprocess: Lookup im App-Bundle (Production) oder
 // Dev-Pfad (vendor/hamlib/rigctld), defensiv chmod +x (Google-Drive frisst das),
-// Start mit korrekten Argumenten, Capture von stderr, Stop.
+// Start mit korrekten Argumenten (inkl. Serial-Parametern via -C), Capture
+// von stderr, Stop.
 final class RigctldProcess {
     private var process: Process?
     private var stderrPipe: Pipe?
@@ -13,17 +14,31 @@ final class RigctldProcess {
         process?.isRunning ?? false
     }
 
-    func start(profile: TRXProfile, serialPort: String?, baudRate: Int,
+    func start(profile: TRXProfile,
+               config: CATConfig,
                tcpPort: Int = 4532) throws {
         let binaryURL = try Self.locateBinary()
         try Self.ensureExecutable(at: binaryURL)
 
         let p = Process()
         p.executableURL = binaryURL
+
         var args = ["-m", String(profile.hamlibRigNumber)]
-        if let port = serialPort, !port.isEmpty {
-            args += ["-r", port, "-s", String(baudRate)]
+
+        if profile.needsSerialPort,
+           let port = config.serialPort, !port.isEmpty {
+            args += ["-r", port,
+                     "-s", String(config.baudRate)]
+
+            // Serial-Parameter via -C (rigctld set_conf)
+            let confValue =
+                "data_bits=\(config.dataBits)" +
+                ",stop_bits=\(config.stopBits)" +
+                ",serial_parity=\(config.parity.rawValue)" +
+                ",serial_handshake=\(config.handshake.rawValue)"
+            args += ["-C", confValue]
         }
+
         args += ["-t", String(tcpPort)]
         p.arguments = args
 
@@ -32,12 +47,10 @@ final class RigctldProcess {
         p.standardOutput = Pipe()    // verwerfen
         stderrPipe = errPipe
 
-        // stderr-Reader im Hintergrund (für Diagnose).
         errPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             if data.isEmpty { return }
             if let s = String(data: data, encoding: .utf8) {
-                // Begrenzen, damit kein OOM bei chatty rigctld.
                 self?.lastStderr.append(s)
                 if let self, self.lastStderr.count > 8000 {
                     self.lastStderr = String(self.lastStderr.suffix(4000))
@@ -66,19 +79,16 @@ final class RigctldProcess {
     static func locateBinary() throws -> URL {
         var searched: [String] = []
 
-        // 1) Im App-Bundle (Production-Layout)
         let bundleURL = Bundle.main.bundleURL
             .appendingPathComponent("Contents/Helpers/rigctld")
         searched.append(bundleURL.path)
         if FileManager.default.isExecutableFile(atPath: bundleURL.path) {
             return bundleURL
         }
-        // Existiert vielleicht aber nicht ausführbar (Drive-Mode-Bit) → erlauben
         if FileManager.default.fileExists(atPath: bundleURL.path) {
             return bundleURL
         }
 
-        // 2) Override via Environment (Dev-Bequemlichkeit)
         if let envPath = ProcessInfo.processInfo.environment["HAMLOG_RIGCTLD_PATH"] {
             searched.append(envPath)
             if FileManager.default.fileExists(atPath: envPath) {
@@ -86,7 +96,6 @@ final class RigctldProcess {
             }
         }
 
-        // 3) Dev-Pfad: vendor/hamlib/rigctld relativ zum aktuellen Workdir
         let cwd = FileManager.default.currentDirectoryPath
         let devPath = cwd + "/vendor/hamlib/rigctld"
         searched.append(devPath)
@@ -100,7 +109,6 @@ final class RigctldProcess {
     static func ensureExecutable(at url: URL) throws {
         let path = url.path
         if FileManager.default.isExecutableFile(atPath: path) { return }
-        // chmod +x — defensiv, da Google Drive das Bit frisst.
         let attrs: [FileAttributeKey: Any] = [.posixPermissions: 0o755]
         try FileManager.default.setAttributes(attrs, ofItemAtPath: path)
     }

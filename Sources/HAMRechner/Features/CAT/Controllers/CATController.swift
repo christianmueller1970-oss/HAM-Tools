@@ -1,9 +1,9 @@
 import Foundation
 import Combine
 
-// Orchestrator für CAT-Anbindung: startet rigctld, verbindet TCP, pollt
-// Frequenz/Mode und spiegelt sie in RadioState. Phase 5a: nur Read.
-// Reconnect-Logik / Watchdog kommt in Phase 5c.
+// Orchestrator für CAT-Anbindung. Holt sich die aktive Konfiguration aus
+// CATSettings, startet rigctld, verbindet TCP, pollt Frequenz/Mode und
+// spiegelt sie in RadioState. Phase 5a: nur Read.
 @MainActor
 final class CATController: ObservableObject {
     enum Status: Equatable {
@@ -15,8 +15,6 @@ final class CATController: ObservableObject {
 
     @Published private(set) var status: Status = .disconnected
     @Published private(set) var lastError: String?
-
-    // Diagnostik für CATSettingsView
     @Published private(set) var lastPolledHz: Int64 = 0
     @Published private(set) var lastPolledMode: String = ""
 
@@ -27,8 +25,6 @@ final class CATController: ObservableObject {
     private let radioState: RadioState
     private let settings: CATSettings
 
-    // localhost-Port für rigctld. Festwert reicht für MVP — falls künftig
-    // mehrere Instanzen, hier dynamisch wählen.
     private let tcpPort = 4532
 
     init(radioState: RadioState, settings: CATSettings) {
@@ -37,7 +33,6 @@ final class CATController: ObservableObject {
     }
 
     deinit {
-        // Bei App-Shutdown sauber abräumen.
         pollTask?.cancel()
         client.disconnect()
         process.stop()
@@ -45,47 +40,54 @@ final class CATController: ObservableObject {
 
     // MARK: - Lifecycle
 
+    func toggle() async {
+        if case .connected = status {
+            stop()
+        } else if case .starting = status {
+            stop()
+        } else {
+            await start()
+        }
+    }
+
     func start() async {
-        guard let profileID = settings.selectedProfileID,
-              let profile = TRXProfileLoader.shared.profile(forID: profileID) else {
+        // Falls vorheriger Lauf nicht sauber gestoppt wurde (z.B. User klickt
+        // Start zweimal ohne Stop dazwischen, oder Config gewechselt): vorhandenen
+        // Prozess + Client abräumen, sonst hängt ein Orphan-rigctld auf Port 4532.
+        stopInternal()
+
+        guard let cfg = settings.activeConfig else {
+            setError(CATError.noProfileSelected)
+            return
+        }
+        guard let profile = TRXProfileLoader.shared.profile(forID: cfg.profileID) else {
             setError(CATError.noProfileSelected)
             return
         }
 
-        let port: String?
         if profile.needsSerialPort {
-            guard let p = settings.serialPort, !p.isEmpty else {
+            guard let p = cfg.serialPort, !p.isEmpty else {
                 setError(CATError.noPortSelected)
                 return
             }
-            port = p
-        } else {
-            port = nil   // Dummy-Rig braucht keinen Port
+            _ = p
         }
 
         status = .starting
         lastError = nil
 
         do {
-            try process.start(profile: profile,
-                              serialPort: port,
-                              baudRate: settings.baudRate,
-                              tcpPort: tcpPort)
+            try process.start(profile: profile, config: cfg, tcpPort: tcpPort)
         } catch {
             setError(error)
             return
         }
 
-        // Connect-Retry-Loop: jede 150 ms versuchen, bis 4.5 s. rigctld
-        // braucht je nach Last unterschiedlich lange, bis der TCP-Listener
-        // offen ist. Wenn nach max. Versuchen immer noch fehlschlägt, geben
-        // wir auf und reichen den letzten Fehler + rigctld-stderr durch.
-        let maxAttempts = 30      // 30 * 150 ms = 4.5 s
+        let maxAttempts = 30
         var lastConnectError: Error?
         var firstHz: Int64?
 
         for attempt in 1...maxAttempts {
-            // Prozess noch lebendig?
             if !process.isRunning {
                 setError(CATError.rigctldExitedUnexpectedly(
                     code: -1,
@@ -98,7 +100,7 @@ final class CATController: ObservableObject {
             client.connect(host: "127.0.0.1", port: tcpPort)
             do {
                 firstHz = try await client.getFrequencyHz()
-                break  // Erfolg
+                break
             } catch {
                 lastConnectError = error
                 client.disconnect()
@@ -133,7 +135,7 @@ final class CATController: ObservableObject {
     func stop() {
         stopInternal()
         if case .errored = status {
-            // Errored-Zustand erhalten, damit User die Fehlermeldung sieht.
+            // Errored-Zustand erhalten
         } else {
             status = .disconnected
         }
@@ -155,6 +157,8 @@ final class CATController: ObservableObject {
     // MARK: - Poll Loop
 
     private func startPollLoop() {
+        guard let cfg = settings.activeConfig else { return }
+        let intervalMs = cfg.pollIntervalMillis
         pollTask = Task { [weak self] in
             guard let self else { return }
             while !Task.isCancelled {
@@ -167,8 +171,7 @@ final class CATController: ObservableObject {
                     self.stopInternal()
                     break
                 }
-                let interval = UInt64(self.settings.pollIntervalMillis) * 1_000_000
-                try? await Task.sleep(nanoseconds: interval)
+                try? await Task.sleep(nanoseconds: UInt64(intervalMs) * 1_000_000)
             }
         }
     }
@@ -201,8 +204,6 @@ final class CATController: ObservableObject {
         default:                  return hamlib
         }
     }
-
-    // MARK: - Error-Hilfe
 
     private func setError(_ error: Error) {
         let msg = (error as? CATError)?.errorDescription ?? error.localizedDescription

@@ -20,7 +20,8 @@ struct EinstellungenView: View {
             CATTab()
                 .tabItem { Label("CAT", systemImage: "cable.connector") }
         }
-        .frame(width: 580, height: 440)
+        .frame(minWidth: 580, idealWidth: 640,
+               minHeight: 480, idealHeight: 860)
     }
 }
 

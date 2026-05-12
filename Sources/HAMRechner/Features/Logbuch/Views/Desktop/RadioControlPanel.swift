@@ -5,6 +5,8 @@ import SwiftUI
 struct RadioControlPanel: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var radio: RadioState
+    @EnvironmentObject var catSettings: CATSettings
+    @EnvironmentObject var cat: CATController
 
     @State private var freqText: String = ""
     @FocusState private var freqFocused: Bool
@@ -38,24 +40,58 @@ struct RadioControlPanel: View {
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .onAppear { freqText = formatFreq(radio.frequencyMHz) }
         .onChange(of: radio.frequencyMHz) { _, new in
-            // Externe Updates (z.B. künftig CAT) → Anzeige aktualisieren,
-            // außer der User tippt gerade rein.
-            if !freqFocused { freqText = formatFreq(new) }
+            // Externe Updates (CAT-Poll oder andere). Bei aktivem CAT
+            // IMMER aktualisieren — der CAT-Poll ist die Wahrheit, nicht
+            // der TextField. Nur bei manuellem Modus respektieren wir den
+            // Focus, damit der User in Ruhe tippen kann.
+            if radio.catConnected || !freqFocused {
+                freqText = formatFreq(new)
+            }
+        }
+        .onChange(of: radio.catConnected) { _, isOn in
+            // Wenn CAT aktiv wird und der TextField den Focus hat,
+            // Focus rausnehmen, damit auch Tastatur-Eingaben nicht in
+            // einen schreibgeschützten Eingabebereich gehen.
+            if isOn { freqFocused = false }
         }
     }
 
+    // Ham-Style Frequenz-Format: MHz.kHz.10Hz mit Punkt-Separatoren.
+    // Beispiel: 7.164.390 Hz → "7.164.39"
     private func formatFreq(_ mhz: Double) -> String {
-        String(format: "%.3f", mhz)
+        let totalHz = Int64((mhz * 1_000_000).rounded())
+        let mhzPart = totalHz / 1_000_000
+        let khzPart = (totalHz % 1_000_000) / 1_000
+        let tenHz   = (totalHz % 1_000) / 10
+        return String(format: "%d.%03d.%02d", mhzPart, khzPart, tenHz)
     }
     private func commitFreqText() {
-        let s = freqText.replacingOccurrences(of: ",", with: ".")
-        guard let v = Double(s), v > 0 else {
+        guard let v = parseFreqText(freqText), v > 0 else {
             freqText = formatFreq(radio.frequencyMHz)
             return
         }
         radio.frequencyMHz = v
         radio.source = radio.catConnected ? .cat : .manual
         freqText = formatFreq(v)
+    }
+
+    // Akzeptiert sowohl klassische Eingabe ("7.164", "7,164", "7.16439")
+    // als auch das Ham-Style-Format mit doppeltem Punkt ("7.164.39").
+    private func parseFreqText(_ raw: String) -> Double? {
+        let cleaned = raw.replacingOccurrences(of: ",", with: ".")
+            .trimmingCharacters(in: .whitespaces)
+        let parts = cleaned.split(separator: ".")
+        switch parts.count {
+        case 1, 2:
+            return Double(cleaned)
+        case 3:
+            guard let mhz = Int(parts[0]),
+                  let khz = Int(parts[1]),
+                  let tenHz = Int(parts[2]) else { return nil }
+            return Double(mhz) + Double(khz) / 1_000.0 + Double(tenHz) / 100_000.0
+        default:
+            return nil
+        }
     }
 
     // MARK: Header
@@ -82,13 +118,28 @@ struct RadioControlPanel: View {
     // MARK: TRX-Picker
 
     private var trxSelector: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "circle.dashed")
+        let isOn = radio.catConnected
+        let cfgName = catSettings.activeConfig?.name ?? ""
+        let modelName = TRXProfileLoader.shared
+            .profile(forID: catSettings.activeConfig?.profileID ?? "")?
+            .displayName ?? ""
+        let displayText: String = {
+            if isOn {
+                if !cfgName.isEmpty && cfgName != modelName {
+                    return "\(cfgName) · \(modelName)"
+                }
+                return modelName.isEmpty ? "CAT aktiv" : modelName
+            }
+            return "Kein Radio aktiv"
+        }()
+        return HStack(spacing: 6) {
+            Image(systemName: isOn ? "antenna.radiowaves.left.and.right" : "circle.dashed")
                 .font(.caption2)
-                .foregroundStyle(theme.textDim)
-            Text("Kein Radio aktiv")
+                .foregroundStyle(isOn ? Color.green : theme.textDim)
+            Text(displayText)
                 .font(.caption2)
                 .foregroundStyle(theme.textSecondary)
+                .lineLimit(1)
             Spacer()
             Image(systemName: "chevron.up.chevron.down")
                 .font(.caption2)
@@ -106,21 +157,23 @@ struct RadioControlPanel: View {
     private var frequencyDisplay: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 4) {
-                TextField("14.200", text: $freqText)
+                TextField("14.200.00", text: $freqText)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 22, weight: .bold, design: .monospaced))
+                    .font(.system(size: 20, weight: .bold, design: .monospaced))
                     .foregroundStyle(theme.textPrimary)
                     .focused($freqFocused)
                     .onSubmit { commitFreqText() }
                     .onChange(of: freqFocused) { _, focused in
                         if !focused { commitFreqText() }
                     }
+                    .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("MHz")
                     .font(.caption2)
                     .foregroundStyle(theme.textDim)
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.vertical, 8)
             .background(theme.bgLog)
             .clipShape(RoundedRectangle(cornerRadius: 5))
 
