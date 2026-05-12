@@ -188,16 +188,45 @@ extension Color {
 final class ThemeManager: ObservableObject {
     @Published var theme: AppTheme = .hamClassic
 
+    // Theme-Auswahl liegt in einer stabilen Suite, damit sie über alle Build-
+    // Varianten hinweg dieselbe bleibt. Hintergrund: UserDefaults.standard hängt
+    // am Bundle-Identifier; ein Swift-Package-Build (kein Bundle-ID) fällt auf
+    // den Executable-Namen zurück, ein Xcode-Build benutzt seine Bundle-ID.
+    // Damit landen Dev-Build, Release-Build und CLI-Build sonst in getrennten
+    // Plist-Domains und »vergessen« die Auswahl beim Wechsel zwischen ihnen.
+    private static let suiteName = "com.hb9hji.hamrechner.shared"
+    private static let themeKey  = "appTheme"
+    private static let defaults: UserDefaults =
+        UserDefaults(suiteName: suiteName) ?? .standard
+
     init() {
-        let raw = UserDefaults.standard.string(forKey: "appTheme") ?? AppTheme.hamClassic.rawValue
+        Self.migrateLegacyThemeIfNeeded()
+        let raw = Self.defaults.string(forKey: Self.themeKey)
+            ?? AppTheme.hamClassic.rawValue
         let t = AppTheme(rawValue: raw) ?? .hamClassic
         theme = t
         applyNSAppearance(t)
     }
 
+    /// Einmalige Migration: wenn in der Shared-Suite noch nichts steht, aus
+    /// den Build-spezifischen Legacy-Domains übernehmen. Reihenfolge bevorzugt
+    /// den zuletzt-benutzten Build (UserDefaults.standard).
+    private static func migrateLegacyThemeIfNeeded() {
+        guard defaults.string(forKey: themeKey) == nil else { return }
+        let legacyDomains = [
+            UserDefaults.standard,
+            UserDefaults(suiteName: "com.hb9hji.hamrechner.dev") ?? .standard,
+            UserDefaults(suiteName: "com.hb9hji.hamrechner")     ?? .standard,
+            UserDefaults(suiteName: "HAMRechner")                ?? .standard
+        ]
+        if let value = legacyDomains.compactMap({ $0.string(forKey: themeKey) }).first {
+            defaults.set(value, forKey: themeKey)
+        }
+    }
+
     func setTheme(_ newTheme: AppTheme) {
         theme = newTheme
-        UserDefaults.standard.set(newTheme.rawValue, forKey: "appTheme")
+        Self.defaults.set(newTheme.rawValue, forKey: Self.themeKey)
         applyNSAppearance(newTheme)
     }
 

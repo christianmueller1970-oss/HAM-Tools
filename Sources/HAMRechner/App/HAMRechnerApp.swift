@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 @main
 struct HAMRechnerApp: App {
@@ -18,6 +19,13 @@ struct HAMRechnerApp: App {
     @StateObject private var potaSpotsService: PotaSpotsService = PotaSpotsService()
 
     init() {
+        // Swift-Package-Builds laufen ohne .app-Bundle; macOS würde sie ohne
+        // expliziten Activation-Policy-Hint als »Accessory«/CLI behandeln und
+        // die Tastatur-Eingaben gingen ans Terminal statt an die App. Beim
+        // regulären Xcode-Bundle ist das ein no-op.
+        NSApplication.shared.setActivationPolicy(.regular)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+
         // Root zuerst — alle anderen Komponenten hängen davon ab.
         let root = AppDataRoot()
         _dataRoot = StateObject(wrappedValue: root)

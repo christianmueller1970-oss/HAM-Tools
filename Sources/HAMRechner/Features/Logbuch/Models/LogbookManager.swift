@@ -27,6 +27,13 @@ final class LogbookManager: ObservableObject {
 
     private let lastOpenLogKey = "logbook.lastOpenLogID"
 
+    // Pro Log-Typ wird das zuletzt offene Log gemerkt, damit die Entry-
+    // Mode-Tabs (DX / POTA) beim Wechseln auf das passende Log springen
+    // können statt im POTA-Log zu kleben.
+    private static func lastOpenKey(for type: LogType) -> String {
+        "logbook.lastOpenLogID.\(type.rawValue)"
+    }
+
     init(settings: LogbookSettings, dataRoot: AppDataRoot) {
         self.settings = settings
         self.dataRoot = dataRoot
@@ -64,9 +71,29 @@ final class LogbookManager: ObservableObject {
             self.currentLogID = log.id
             self.currentQSOs = db.qsos
             UserDefaults.standard.set(log.id.uuidString, forKey: lastOpenLogKey)
+            UserDefaults.standard.set(log.id.uuidString,
+                                      forKey: Self.lastOpenKey(for: log.type))
         } catch {
             print("openLog failed: \(error.localizedDescription)")
         }
+    }
+
+    /// Wechselt aufs zuletzt offene Log dieses Typs. Fallback: das neueste
+    /// Log dieses Typs. Wenn gar keins existiert, passiert nichts (Caller
+    /// kann dann z.B. den »Neue Session«-Sheet öffnen).
+    @discardableResult
+    func switchToLastLog(of type: LogType) -> Bool {
+        if let raw = UserDefaults.standard.string(forKey: Self.lastOpenKey(for: type)),
+           let id = UUID(uuidString: raw),
+           let log = logs.first(where: { $0.id == id && $0.type == type }) {
+            openLog(log)
+            return true
+        }
+        if let log = logs.first(where: { $0.type == type }) {
+            openLog(log)
+            return true
+        }
+        return false
     }
 
     func closeLog() {
@@ -108,6 +135,10 @@ final class LogbookManager: ObservableObject {
             currentLogID = nil
             currentQSOs = []
             UserDefaults.standard.removeObject(forKey: lastOpenLogKey)
+        }
+        if UserDefaults.standard.string(forKey: Self.lastOpenKey(for: log.type))
+            == log.id.uuidString {
+            UserDefaults.standard.removeObject(forKey: Self.lastOpenKey(for: log.type))
         }
         try? FileManager.default.removeItem(at: url)
         try? FileManager.default.removeItem(at: url.appendingPathExtension("wal"))

@@ -50,7 +50,10 @@ struct QSOEntryPanel: View {
     @EnvironmentObject var clusterVM: DXClusterViewModel
     @EnvironmentObject var radio: RadioState
 
-    @State private var entryMode: EntryMode = .dx
+    // entryMode wird aus dem aktiven Log abgeleitet, damit der DX/POTA-
+    // Tab oben *und* der DX-Cluster-Tab unten immer dieselbe Welt zeigen.
+    // Klick auf DX/POTA wechselt das aktive Log (siehe modeTab).
+    private var entryMode: EntryMode { isPOTALogActive ? .pota : .dx }
     @State private var lastFilledFromSpot: Date? = nil
     @State private var lastFilledFromCallbook: Date? = nil
     @State private var pendingDupe: DupeWarning? = nil
@@ -135,12 +138,9 @@ struct QSOEntryPanel: View {
         VStack(spacing: 0) {
             modeTabs
             Divider().background(theme.separator)
-            if entryMode == .pota && isPOTALogActive {
+            if isPOTALogActive {
                 // Schlanke POTA-Form ersetzt das DX-Grid + ActionBar
                 POTAEntryForm()
-            } else if entryMode == .pota && !isPOTALogActive {
-                // POTA-Tab geklickt aber aktives Log ist kein POTA-Log
-                potaNoSessionHint
             } else {
                 if lastFilledFromSpot != nil {
                     spotBanner
@@ -247,38 +247,6 @@ struct QSOEntryPanel: View {
         lastFilledFromSpot = Date()
     }
 
-    // MARK: - POTA-Tab ohne aktives POTA-Log
-
-    private var potaNoSessionHint: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "tree.fill")
-                .font(.system(size: 36))
-                .foregroundStyle(.green)
-            Text("Kein POTA-Log aktiv")
-                .font(.headline)
-            Text("Lege eine neue POTA-Session an, um QSOs POTA-konform zu loggen (mit Park-Referenz, Aktivierungs-Counter und korrekten ADIF-Feldern für den pota.app-Upload).")
-                .font(.callout)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 30)
-            Button {
-                showNewPOTASheet = true
-            } label: {
-                Label("Neue POTA-Session anlegen", systemImage: "plus.circle.fill")
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 4)
-            }
-            .buttonStyle(.borderedProminent)
-            HStack {
-                Button("Zurück zu DX") { entryMode = .dx }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(30)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
     // MARK: - Header mit DX | Contest-Tabs
 
     private var modeTabs: some View {
@@ -304,11 +272,26 @@ struct QSOEntryPanel: View {
     private func modeTab(_ m: EntryMode, label: String, enabled: Bool = true) -> some View {
         Button {
             guard enabled else { return }
-            entryMode = m
-            // POTA-Tab: wenn aktives Log noch kein POTA-Log ist, Sheet öffnen
-            // um eine neue Session anzulegen. Existierendes Log bleibt unberührt.
-            if m == .pota && !isPOTALogActive {
-                showNewPOTASheet = true
+            switch m {
+            case .dx:
+                // POTA → Standard: zurück zum zuletzt offenen DX/Standard-Log.
+                // Damit fällt auch der DX-Cluster-Tab unten vom POTA-Spots-Feed
+                // automatisch wieder auf den normalen DX-Cluster zurück.
+                if isPOTALogActive {
+                    manager.switchToLastLog(of: .standard)
+                }
+            case .pota:
+                // DX → POTA: zuletzt offene POTA-Session öffnen. Wenn noch
+                // keine existiert, »Neue POTA-Session«-Sheet anbieten.
+                if !isPOTALogActive {
+                    if manager.logs.contains(where: { $0.type == .pota }) {
+                        manager.switchToLastLog(of: .pota)
+                    } else {
+                        showNewPOTASheet = true
+                    }
+                }
+            case .contest:
+                break   // disabled, Phase 4
             }
         } label: {
             Text(label)
