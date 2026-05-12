@@ -24,6 +24,18 @@ final class RadioState: ObservableObject {
     // Mode: vorerst nur als String, wird von QSO-Form gespiegelt.
     @Published var mode: String = "SSB"
 
+    // Live-Werte aus dem Funkgerät (gepflegt von CATController bei aktivem CAT).
+    @Published var signalStrengthRelDB: Int = -54  // dB relativ zu S9. S0 ≈ -54, S9 = 0, S9+30 = +30.
+    @Published var activeVFO: String = "VFOA"      // "VFOA" / "VFOB" / "MEM"
+    @Published var splitOn: Bool = false
+    @Published var splitTxVfo: String = "VFOB"
+
+    // Aktueller Hamlib-Mode (vor Mode-Mapping zu UI/ADIF). Wird vom
+    // RadioControlPanel-Mode-Picker gelesen, damit USB/LSB/CW/PKTUSB etc.
+    // unterschieden werden können (gegenüber dem "SSB"/"CW"/"DATA" in mode).
+    @Published var hamlibMode: String = "USB"
+    @Published var passbandHz: Int = 0
+
     // Persistierung der letzten Frequenz, damit Restart einen sinnvollen
     // Wert bringt statt 14.200 Default.
     private let lastFreqKey = "radio.lastFrequencyMHz"

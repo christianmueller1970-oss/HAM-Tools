@@ -161,22 +161,48 @@ final class CATController: ObservableObject {
         let intervalMs = cfg.pollIntervalMillis
         pollTask = Task { [weak self] in
             guard let self else { return }
+            // Periodische Felder die nicht jede Runde gelesen werden müssen,
+            // werden über einen Counter ausgedünnt (signal/vfo/split).
+            var tick = 0
             while !Task.isCancelled {
                 do {
                     let hz = try await self.client.getFrequencyHz()
                     let mode = try await self.client.getMode()
-                    self.applyPoll(hz: hz, hamlibMode: mode.mode)
+
+                    // Signal jede Runde (für flüssiges S-Meter).
+                    let signal = (try? await self.client.getSignalStrengthRelDB()) ?? self.radioState.signalStrengthRelDB
+
+                    // VFO + Split alle paar Ticks (weniger zeitkritisch).
+                    var newVfo: String? = nil
+                    var newSplit: (Bool, String)? = nil
+                    if tick % 4 == 0 {
+                        newVfo = try? await self.client.getVFO()
+                        newSplit = try? await self.client.getSplit()
+                    }
+
+                    self.applyPoll(hz: hz,
+                                   hamlibMode: mode.mode,
+                                   passbandHz: mode.passbandHz,
+                                   signalRelDB: signal,
+                                   vfo: newVfo,
+                                   split: newSplit)
                 } catch {
                     self.setError(error)
                     self.stopInternal()
                     break
                 }
+                tick += 1
                 try? await Task.sleep(nanoseconds: UInt64(intervalMs) * 1_000_000)
             }
         }
     }
 
-    private func applyPoll(hz: Int64, hamlibMode: String) {
+    private func applyPoll(hz: Int64,
+                           hamlibMode: String,
+                           passbandHz: Int,
+                           signalRelDB: Int,
+                           vfo: String?,
+                           split: (Bool, String)?) {
         lastPolledHz = hz
         lastPolledMode = hamlibMode
 
@@ -188,6 +214,49 @@ final class CATController: ObservableObject {
         if radioState.mode != uiMode {
             radioState.mode = uiMode
         }
+        if radioState.hamlibMode != hamlibMode {
+            radioState.hamlibMode = hamlibMode
+        }
+        if radioState.passbandHz != passbandHz {
+            radioState.passbandHz = passbandHz
+        }
+        if radioState.signalStrengthRelDB != signalRelDB {
+            radioState.signalStrengthRelDB = signalRelDB
+        }
+        if let v = vfo, radioState.activeVFO != v {
+            radioState.activeVFO = v
+        }
+        if let s = split {
+            if radioState.splitOn != s.0 { radioState.splitOn = s.0 }
+            if radioState.splitTxVfo != s.1 { radioState.splitTxVfo = s.1 }
+        }
+    }
+
+    // MARK: - Write-API (Phase 5b)
+
+    func setFrequencyMHz(_ mhz: Double) async {
+        guard case .connected = status else { return }
+        let hz = Int64((mhz * 1_000_000).rounded())
+        do { try await client.setFrequencyHz(hz) }
+        catch { setError(error) }
+    }
+
+    func setHamlibMode(_ mode: String, passbandHz: Int = 0) async {
+        guard case .connected = status else { return }
+        do { try await client.setMode(mode, passbandHz: passbandHz) }
+        catch { setError(error) }
+    }
+
+    func setVFO(_ vfo: String) async {
+        guard case .connected = status else { return }
+        do { try await client.setVFO(vfo) }
+        catch { setError(error) }
+    }
+
+    func setSplit(on: Bool, txVfo: String = "VFOB") async {
+        guard case .connected = status else { return }
+        do { try await client.setSplit(on: on, txVfo: txVfo) }
+        catch { setError(error) }
     }
 
     // MARK: - Mode-Mapping (Hamlib → UI/ADIF-ish)

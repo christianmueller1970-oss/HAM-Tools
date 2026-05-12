@@ -30,7 +30,7 @@ final class RigctldClient: @unchecked Sendable {
         buffer = Data()
     }
 
-    // MARK: - High-Level
+    // MARK: - High-Level Read
 
     func getFrequencyHz() async throws -> Int64 {
         let lines = try await sendCommand("f", expectingLines: 1)
@@ -45,6 +45,65 @@ final class RigctldClient: @unchecked Sendable {
         let mode = lines[0]
         let pb = Int(lines[1]) ?? 0
         return (mode, pb)
+    }
+
+    // Signal-Stärke in dB RELATIV zu S9. S9 = 0, S0 ≈ -54, S9+10 = +10, etc.
+    // Hamlib-Doku: RIG_LEVEL_STRENGTH liefert integer in dB rel S9.
+    // Einige rigctld-Versionen liefern Float — daher tolerant parsen.
+    func getSignalStrengthRelDB() async throws -> Int {
+        let lines = try await sendCommand("l STRENGTH", expectingLines: 1)
+        let raw = lines[0].trimmingCharacters(in: .whitespaces)
+        if let i = Int(raw) { return i }
+        if let d = Double(raw) { return Int(d.rounded()) }
+        throw CATError.protocolError(message: "Signal-Stärke nicht parsebar: '\(raw)'")
+    }
+
+    // Aktiver VFO: "VFOA" / "VFOB" / "MEM" / ... — Hamlib-Konvention.
+    func getVFO() async throws -> String {
+        let lines = try await sendCommand("v", expectingLines: 1)
+        return lines[0]
+    }
+
+    // Split-Status: 0 = aus, 1 = an. Liefert dazu den TX-VFO.
+    func getSplit() async throws -> (on: Bool, txVfo: String) {
+        let lines = try await sendCommand("s", expectingLines: 2)
+        let on = (Int(lines[0]) ?? 0) != 0
+        return (on, lines[1])
+    }
+
+    // MARK: - High-Level Write (Phase 5b)
+
+    func setFrequencyHz(_ hz: Int64) async throws {
+        let lines = try await sendCommand("F \(hz)", expectingLines: 1)
+        try Self.checkRPRT(lines[0], context: "setFrequency")
+    }
+
+    // passbandHz=0 → Hamlib übernimmt Default für den Mode.
+    func setMode(_ mode: String, passbandHz: Int = 0) async throws {
+        let lines = try await sendCommand("M \(mode) \(passbandHz)", expectingLines: 1)
+        try Self.checkRPRT(lines[0], context: "setMode")
+    }
+
+    func setVFO(_ vfo: String) async throws {
+        let lines = try await sendCommand("V \(vfo)", expectingLines: 1)
+        try Self.checkRPRT(lines[0], context: "setVFO")
+    }
+
+    func setSplit(on: Bool, txVfo: String) async throws {
+        let lines = try await sendCommand("S \(on ? 1 : 0) \(txVfo)", expectingLines: 1)
+        try Self.checkRPRT(lines[0], context: "setSplit")
+    }
+
+    private static func checkRPRT(_ line: String, context: String) throws {
+        // Antwort-Format: "RPRT 0" (ok) oder "RPRT -<errcode>".
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        if trimmed == "RPRT 0" { return }
+        if trimmed.hasPrefix("RPRT") {
+            throw CATError.protocolError(message: "\(context) abgelehnt: \(trimmed)")
+        }
+        // Manche rigctld-Versionen liefern bei Erfolg eine leere Zeile.
+        if trimmed.isEmpty { return }
+        throw CATError.protocolError(message: "\(context): unerwartete Antwort '\(trimmed)'")
     }
 
     // MARK: - Low-Level Send + Receive
