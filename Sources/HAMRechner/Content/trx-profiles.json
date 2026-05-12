@@ -1,12 +1,23 @@
 [
   {
+    "id": "hamlib-dummy",
+    "name": "Dummy-Rig (Test ohne Hardware)",
+    "hamlibRigNumber": 1,
+    "defaultBaud": 9600,
+    "supportsFreq": true,
+    "supportsMode": true,
+    "supportsPTT": true,
+    "needsSerialPort": false
+  },
+  {
     "id": "icom-ic7300",
     "name": "Icom IC-7300",
     "hamlibRigNumber": 3073,
     "defaultBaud": 19200,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "needsSerialPort": true
   },
   {
     "id": "icom-ic705",
@@ -15,7 +26,8 @@
     "defaultBaud": 115200,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "needsSerialPort": true
   },
   {
     "id": "icom-ic9700",
@@ -24,6 +36,7 @@
     "defaultBaud": 115200,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "needsSerialPort": true
   }
 ]

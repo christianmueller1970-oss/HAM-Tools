@@ -4,11 +4,12 @@ import Foundation
 struct TRXProfile: Codable, Identifiable, Hashable {
     let id: String                // z.B. "icom-ic7300"
     let name: String              // z.B. "Icom IC-7300"
-    let hamlibRigNumber: Int      // 3073 / 3081 / 3085 ...
+    let hamlibRigNumber: Int      // 3073 / 3081 / 3085 / 1 (Dummy) ...
     let defaultBaud: Int          // 19200 / 115200 / ...
     let supportsFreq: Bool
     let supportsMode: Bool
     let supportsPTT: Bool         // Phase 5d
+    let needsSerialPort: Bool     // false für Dummy (Hamlib -m 1)
 }
 
 @MainActor

@@ -13,19 +13,19 @@ final class RigctldProcess {
         process?.isRunning ?? false
     }
 
-    func start(profile: TRXProfile, serialPort: String, baudRate: Int,
+    func start(profile: TRXProfile, serialPort: String?, baudRate: Int,
                tcpPort: Int = 4532) throws {
         let binaryURL = try Self.locateBinary()
         try Self.ensureExecutable(at: binaryURL)
 
         let p = Process()
         p.executableURL = binaryURL
-        p.arguments = [
-            "-m", String(profile.hamlibRigNumber),
-            "-r", serialPort,
-            "-s", String(baudRate),
-            "-t", String(tcpPort),
-        ]
+        var args = ["-m", String(profile.hamlibRigNumber)]
+        if let port = serialPort, !port.isEmpty {
+            args += ["-r", port, "-s", String(baudRate)]
+        }
+        args += ["-t", String(tcpPort)]
+        p.arguments = args
 
         let errPipe = Pipe()
         p.standardError = errPipe

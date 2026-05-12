@@ -77,32 +77,42 @@ struct CATSettingsView: View {
     }
 
     private var connectionSection: some View {
-        GroupBox("Verbindung") {
-            HStack {
-                Picker("Serial-Port", selection: portBinding) {
-                    Text("— wählen —").tag(String?.none)
-                    ForEach(availablePorts, id: \.self) { p in
-                        Text(p).tag(Optional(p))
+        let selected = profiles.first(where: { $0.id == settings.selectedProfileID })
+        let needsPort = selected?.needsSerialPort ?? true
+
+        return GroupBox("Verbindung") {
+            if needsPort {
+                HStack {
+                    Picker("Serial-Port", selection: portBinding) {
+                        Text("— wählen —").tag(String?.none)
+                        ForEach(availablePorts, id: \.self) { p in
+                            Text(p).tag(Optional(p))
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    Button("Refresh") { refreshPorts() }
+                }
+
+                Picker("Baudrate", selection: $settings.baudRate) {
+                    ForEach(Self.supportedBauds, id: \.self) { b in
+                        Text("\(b)").tag(b)
                     }
                 }
                 .pickerStyle(.menu)
+                .padding(.top, 4)
 
-                Button("Refresh") { refreshPorts() }
-            }
-
-            Picker("Baudrate", selection: $settings.baudRate) {
-                ForEach(Self.supportedBauds, id: \.self) { b in
-                    Text("\(b)").tag(b)
+                if availablePorts.isEmpty {
+                    Text("Keine USB-Serial-Ports gefunden (kein Radio angeschlossen oder Treiber fehlt).")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .padding(.top, 2)
                 }
-            }
-            .pickerStyle(.menu)
-            .padding(.top, 4)
-
-            if availablePorts.isEmpty {
-                Text("Keine USB-Serial-Ports gefunden (kein Radio angeschlossen oder Treiber fehlt).")
+            } else {
+                Text("Dummy-Rig benötigt keinen Serial-Port. Hamlib simuliert ein Funkgerät auf 145.000 MHz / FM.")
                     .font(.caption)
-                    .foregroundStyle(.orange)
-                    .padding(.top, 2)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
@@ -139,9 +149,10 @@ struct CATSettingsView: View {
     // MARK: - Bindings + Helpers
 
     private var canStart: Bool {
-        settings.selectedProfileID != nil &&
-        settings.serialPort != nil &&
-        !(settings.serialPort?.isEmpty ?? true)
+        guard let id = settings.selectedProfileID,
+              let p = profiles.first(where: { $0.id == id }) else { return false }
+        if !p.needsSerialPort { return true }
+        return settings.serialPort != nil && !(settings.serialPort?.isEmpty ?? true)
     }
 
     private var profileBinding: Binding<String?> {

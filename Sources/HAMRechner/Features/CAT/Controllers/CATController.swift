@@ -51,9 +51,16 @@ final class CATController: ObservableObject {
             setError(CATError.noProfileSelected)
             return
         }
-        guard let port = settings.serialPort, !port.isEmpty else {
-            setError(CATError.noPortSelected)
-            return
+
+        let port: String?
+        if profile.needsSerialPort {
+            guard let p = settings.serialPort, !p.isEmpty else {
+                setError(CATError.noPortSelected)
+                return
+            }
+            port = p
+        } else {
+            port = nil   // Dummy-Rig braucht keinen Port
         }
 
         status = .starting
@@ -69,25 +76,50 @@ final class CATController: ObservableObject {
             return
         }
 
-        // Warte 500 ms — rigctld braucht etwas, bis der TCP-Listener offen ist.
-        // Bei zu früh: connect schlägt mit "Connection refused" fehl.
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        // Connect-Retry-Loop: jede 150 ms versuchen, bis 4.5 s. rigctld
+        // braucht je nach Last unterschiedlich lange, bis der TCP-Listener
+        // offen ist. Wenn nach max. Versuchen immer noch fehlschlägt, geben
+        // wir auf und reichen den letzten Fehler + rigctld-stderr durch.
+        let maxAttempts = 30      // 30 * 150 ms = 4.5 s
+        var lastConnectError: Error?
+        var firstHz: Int64?
 
-        if process.isRunning == false {
-            setError(CATError.rigctldExitedUnexpectedly(code: -1,
-                                                       stderr: process.lastStderr))
-            return
+        for attempt in 1...maxAttempts {
+            // Prozess noch lebendig?
+            if !process.isRunning {
+                setError(CATError.rigctldExitedUnexpectedly(
+                    code: -1,
+                    stderr: process.lastStderr.isEmpty ? "(kein stderr)" : process.lastStderr))
+                return
+            }
+
+            try? await Task.sleep(nanoseconds: 150_000_000)
+
+            client.connect(host: "127.0.0.1", port: tcpPort)
+            do {
+                firstHz = try await client.getFrequencyHz()
+                break  // Erfolg
+            } catch {
+                lastConnectError = error
+                client.disconnect()
+                if attempt == maxAttempts {
+                    let stderrSnippet = process.lastStderr.isEmpty
+                        ? ""
+                        : " · rigctld stderr: " + process.lastStderr.prefix(200)
+                    let combinedMsg =
+                        ((error as? CATError)?.errorDescription ?? error.localizedDescription)
+                        + stderrSnippet
+                    setError(CATError.protocolError(message: combinedMsg))
+                    stopInternal()
+                    return
+                }
+            }
         }
 
-        client.connect(host: "127.0.0.1", port: tcpPort)
-
-        // Erster Probe-Call: Frequenz lesen. Wenn das nicht klappt, ist
-        // die Strecke kaputt (falsche Baudrate, falscher Port, USB-Kabel los…).
-        do {
-            let hz = try await client.getFrequencyHz()
+        if let hz = firstHz {
             lastPolledHz = hz
-        } catch {
-            setError(error)
+        } else if let err = lastConnectError {
+            setError(err)
             stopInternal()
             return
         }
