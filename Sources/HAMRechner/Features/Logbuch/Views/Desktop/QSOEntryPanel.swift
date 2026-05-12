@@ -54,6 +54,16 @@ struct QSOEntryPanel: View {
     @State private var lastFilledFromSpot: Date? = nil
     @State private var lastFilledFromCallbook: Date? = nil
     @State private var pendingDupe: DupeWarning? = nil
+    @State private var showNewPOTASheet: Bool = false
+
+    // Aktive Log-Variante (Log-Objekt, nicht nur ID) für Render-Entscheidungen
+    private var activeLog: Log? {
+        guard let id = manager.currentLogID else { return nil }
+        return manager.logs.first(where: { $0.id == id })
+    }
+    private var isPOTALogActive: Bool {
+        activeLog?.type == .pota
+    }
 
     // Callbook-Lookup-Resultat: Bild-URL + QRZ-Link für die Header-Anzeige
     @State private var callbookImageURL: String? = nil
@@ -103,7 +113,7 @@ struct QSOEntryPanel: View {
     @State private var url: String = ""
     @State private var dxDe: String = ""
 
-    enum EntryMode: String { case dx = "DX", contest = "Contest" }
+    enum EntryMode: String { case dx = "DX", contest = "Contest", pota = "POTA" }
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -125,23 +135,34 @@ struct QSOEntryPanel: View {
         VStack(spacing: 0) {
             modeTabs
             Divider().background(theme.separator)
-            if lastFilledFromSpot != nil {
-                spotBanner
+            if entryMode == .pota && isPOTALogActive {
+                // Schlanke POTA-Form ersetzt das DX-Grid + ActionBar
+                POTAEntryForm()
+            } else if entryMode == .pota && !isPOTALogActive {
+                // POTA-Tab geklickt aber aktives Log ist kein POTA-Log
+                potaNoSessionHint
+            } else {
+                if lastFilledFromSpot != nil {
+                    spotBanner
+                    Divider().background(theme.separator)
+                }
+                entryGrid
+                    .padding(10)
                 Divider().background(theme.separator)
+                LogActionBar(
+                    canLog: canLog,
+                    canSendSpot: canSendSpot,
+                    currentCall: call,
+                    onLogQSO: commitQSO,
+                    onSendSpot: sendSpotToCluster,
+                    onClear: resetForm,
+                    onTimeOn: { timeOn = Date() },
+                    onTimeOff: { timeOff = Date() }
+                )
             }
-            entryGrid
-                .padding(10)
-            Divider().background(theme.separator)
-            LogActionBar(
-                canLog: canLog,
-                canSendSpot: canSendSpot,
-                currentCall: call,
-                onLogQSO: commitQSO,
-                onSendSpot: sendSpotToCluster,
-                onClear: resetForm,
-                onTimeOn: { timeOn = Date() },
-                onTimeOff: { timeOff = Date() }
-            )
+        }
+        .sheet(isPresented: $showNewPOTASheet) {
+            NewPOTALogSheet()
         }
         .background(theme.bgCard)
         .overlay(
@@ -226,12 +247,45 @@ struct QSOEntryPanel: View {
         lastFilledFromSpot = Date()
     }
 
+    // MARK: - POTA-Tab ohne aktives POTA-Log
+
+    private var potaNoSessionHint: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "tree.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(.green)
+            Text("Kein POTA-Log aktiv")
+                .font(.headline)
+            Text("Lege eine neue POTA-Session an, um QSOs POTA-konform zu loggen (mit Park-Referenz, Aktivierungs-Counter und korrekten ADIF-Feldern für den pota.app-Upload).")
+                .font(.callout)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 30)
+            Button {
+                showNewPOTASheet = true
+            } label: {
+                Label("Neue POTA-Session anlegen", systemImage: "plus.circle.fill")
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+            }
+            .buttonStyle(.borderedProminent)
+            HStack {
+                Button("Zurück zu DX") { entryMode = .dx }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(30)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
     // MARK: - Header mit DX | Contest-Tabs
 
     private var modeTabs: some View {
         HStack(spacing: 4) {
             modeTab(.dx, label: "DX")
             modeTab(.contest, label: "Contest", enabled: false)
+            modeTab(.pota, label: "POTA")
             Spacer()
             if !canLog {
                 HStack(spacing: 4) {
@@ -249,7 +303,13 @@ struct QSOEntryPanel: View {
 
     private func modeTab(_ m: EntryMode, label: String, enabled: Bool = true) -> some View {
         Button {
-            if enabled { entryMode = m }
+            guard enabled else { return }
+            entryMode = m
+            // POTA-Tab: wenn aktives Log noch kein POTA-Log ist, Sheet öffnen
+            // um eine neue Session anzulegen. Existierendes Log bleibt unberührt.
+            if m == .pota && !isPOTALogActive {
+                showNewPOTASheet = true
+            }
         } label: {
             Text(label)
                 .font(.caption.bold())

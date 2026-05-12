@@ -14,6 +14,7 @@ struct HAMRechnerApp: App {
     @StateObject private var radioState:       RadioState
     @StateObject private var catSettings:      CATSettings
     @StateObject private var catController:    CATController
+    @StateObject private var potaParkService:  PotaParkService
 
     init() {
         // Root zuerst — alle anderen Komponenten hängen davon ab.
@@ -45,6 +46,17 @@ struct HAMRechnerApp: App {
         _catSettings = StateObject(wrappedValue: catSet)
         _catController = StateObject(wrappedValue:
             CATController(radioState: rs, settings: catSet))
+
+        // POTA-Park-DB. Schlägt der Init-Throw fehl (z.B. SQLite-Permission),
+        // läuft die App weiter — der Settings-Tab zeigt dann den Fehler.
+        do {
+            let svc = try PotaParkService(dataRoot: root)
+            _potaParkService = StateObject(wrappedValue: svc)
+        } catch {
+            // Fallback: dummy-Init, der Fehler wird beim ersten refresh()
+            // im UI angezeigt. Hier kann die App nicht crashen.
+            fatalError("POTA-Park-Service konnte nicht initialisiert werden: \(error)")
+        }
     }
 
     var body: some Scene {
@@ -62,6 +74,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(radioState)
                 .environmentObject(catSettings)
                 .environmentObject(catController)
+                .environmentObject(potaParkService)
                 .frame(minWidth: 900, minHeight: 580)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
@@ -86,6 +99,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(radioState)
                 .environmentObject(catSettings)
                 .environmentObject(catController)
+                .environmentObject(potaParkService)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
     }

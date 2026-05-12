@@ -6,6 +6,8 @@ import SwiftUI
 struct QSOTableView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
+    @EnvironmentObject var potaService: PotaParkService
+    @EnvironmentObject var callbookManager: CallbookManager
 
     @Binding var filterCall: String
     @Binding var filterBand: String
@@ -120,6 +122,7 @@ struct QSOTableView: View {
                 }
                 .width(min: 100, ideal: 140)
                 .customizationID("name")
+                .defaultVisibility(.hidden)
 
                 TableColumn("Country / Locator") { (qso: QSO) in
                     VStack(alignment: .leading, spacing: 1) {
@@ -135,6 +138,7 @@ struct QSOTableView: View {
                 }
                 .width(min: 90, ideal: 120)
                 .customizationID("countryLocator")
+                .defaultVisibility(.hidden)
 
                 TableColumn("Freq / Band", value: \QSO.frequencyMHz) { (qso: QSO) in
                     VStack(alignment: .leading, spacing: 1) {
@@ -180,6 +184,26 @@ struct QSOTableView: View {
                 }
                 .width(min: 100, ideal: 160)
                 .customizationID("qslStatus")
+                .defaultVisibility(.hidden)
+            }
+
+            // POTA-relevante Spalten — default sichtbar.
+            Group {
+                TableColumn("State") { (qso: QSO) in
+                    Text(stateForQSO(qso))
+                        .font(.caption)
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 60, ideal: 80)
+                .customizationID("state")
+
+                TableColumn("Their Park") { (qso: QSO) in
+                    Text(qso.theirPotaRef ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 80, ideal: 100)
+                .customizationID("theirPark")
             }
 
             // Zusätzliche Spalten — default ausgeblendet, per Rechtsklick
@@ -233,6 +257,26 @@ struct QSOTableView: View {
                 .defaultVisibility(.hidden)
             }
 
+            // QRZ-Status — grüner Haken wenn Call via Callbook aufgelöst wurde
+            // (Name ist gesetzt). Bei Fehlen: Klick auf das Fragezeichen
+            // triggert einen neuen Lookup-Versuch.
+            TableColumn("QRZ") { (qso: QSO) in
+                if let name = qso.name, !name.isEmpty {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .help(name)
+                } else {
+                    Button { retryCallbookLookup(for: qso) } label: {
+                        Image(systemName: "questionmark.circle")
+                            .foregroundStyle(.orange)
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Callbook-Lookup nochmal versuchen")
+                }
+            }
+            .width(min: 32, ideal: 40)
+            .customizationID("qrzStatus")
+
             // Aktionen-Spalte — nicht customizable (immer ganz rechts)
             TableColumn("") { qso in
                 HStack(spacing: 4) {
@@ -259,6 +303,49 @@ struct QSOTableView: View {
         }
         .scrollContentBackground(.hidden)
         .background(theme.bgApp)
+    }
+
+    // MARK: - State aus POTA-Park-DB
+    //
+    // Hamlib-CSV speichert in locationDesc "US-ME" / "DA-NW" / "CH-AG,CH-ZG".
+    // Wir extrahieren den State (Teil nach dem Bindestrich) und joinen
+    // Mehrfach-Refs mit Komma. Bei Parks ohne locationDesc → leer.
+    private func stateForQSO(_ qso: QSO) -> String {
+        guard let parkRef = qso.theirPotaRef, !parkRef.isEmpty,
+              let park = potaService.park(forReference: parkRef),
+              let loc = park.locationDesc, !loc.isEmpty
+        else { return "" }
+        let parts = loc.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+        let states: [String] = parts.map { part in
+            if let dash = part.firstIndex(of: "-") {
+                return String(part[part.index(after: dash)...])
+            }
+            return part
+        }
+        return states.joined(separator: ",")
+    }
+
+    // MARK: - QRZ-Retry
+
+    private func retryCallbookLookup(for qso: QSO) {
+        Task {
+            guard let result = await callbookManager.lookup(call: qso.call,
+                                                            forceRefresh: true) else {
+                return
+            }
+            let combined = [result.firstName, result.lastName]
+                .compactMap { $0 }
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            guard !combined.isEmpty else { return }
+            var updated = qso
+            updated.name = combined
+            await MainActor.run {
+                manager.updateQSO(updated)
+            }
+        }
     }
 
     // MARK: - Persistenz der Spalten-Anpassung

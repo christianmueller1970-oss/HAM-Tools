@@ -201,6 +201,7 @@ private struct CallbookTab: View {
 private struct DatenTab: View {
     @EnvironmentObject var dataRoot: AppDataRoot
     @EnvironmentObject var manager:  LogbookManager
+    @EnvironmentObject var pota:     PotaParkService
 
     var body: some View {
         ScrollView {
@@ -252,10 +253,97 @@ private struct DatenTab: View {
                     }
                     .padding(4)
                 }
+
+                potaParksGroup
             }
             .padding(16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - POTA Parks DB
+
+    private var potaParksGroup: some View {
+        GroupBox("POTA-Park-Datenbank") {
+            VStack(alignment: .leading, spacing: 8) {
+                statusLine
+                HStack {
+                    Button(pota.isLoaded ? "Aktualisieren" : "Jetzt laden") {
+                        Task { await pota.refresh() }
+                    }
+                    .disabled(isBusy)
+                    if pota.shouldOfferRefresh && pota.isLoaded {
+                        Text("ältere Daten — Update empfohlen")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    Spacer()
+                }
+                if let err = pota.lastError, case .errored = pota.status {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .textSelection(.enabled)
+                }
+                Text("Park-Liste aus pota.app/all_parks_ext.csv (~15 MB). Wird in \(dataRoot.cacheDir.path)/parks.sqlite gespeichert.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(4)
+        }
+    }
+
+    private var statusLine: some View {
+        HStack(spacing: 8) {
+            Image(systemName: statusIcon).foregroundStyle(statusColor)
+            Text(statusText)
+                .font(.callout)
+            Spacer()
+        }
+    }
+
+    private var isBusy: Bool {
+        switch pota.status {
+        case .downloading, .parsing: return true
+        default: return false
+        }
+    }
+
+    private var statusIcon: String {
+        switch pota.status {
+        case .unknown:     return "questionmark.circle"
+        case .downloading: return "arrow.down.circle"
+        case .parsing:     return "gear.circle"
+        case .ready:       return "checkmark.circle.fill"
+        case .errored:     return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var statusColor: Color {
+        switch pota.status {
+        case .unknown:     return .gray
+        case .downloading, .parsing: return .blue
+        case .ready:       return .green
+        case .errored:     return .red
+        }
+    }
+
+    private var statusText: String {
+        switch pota.status {
+        case .unknown:           return "Noch keine Daten geladen"
+        case .downloading:       return "Lade von pota.app …"
+        case .parsing:           return "Verarbeite CSV …"
+        case .ready(let date, let count):
+            let cnt = "\(count) Parks"
+            if let d = date {
+                let df = DateFormatter()
+                df.dateStyle = .medium
+                df.timeStyle = .short
+                return "\(cnt) · Stand: \(df.string(from: d))"
+            }
+            return cnt
+        case .errored(let m):    return "Fehler: \(m)"
+        }
     }
 
     private func subdirRow(_ name: String, _ desc: String, url: URL) -> some View {

@@ -14,12 +14,17 @@ enum ADIFCodec {
     // MARK: - Export
 
     static func encode(qsos: [QSO], logName: String) -> String {
-        var out = "ADIF Export von HAM-Tools — Log: \(logName)\n"
-        out += "Generiert: \(currentISOTimestamp())\n"
-        out += field("ADIF_VER", "3.1.5")
+        // ADIF-Header: laut Spec ist alles vor dem ersten Tag bzw. <EOH>
+        // Header-Text. Manche strikte Parser akzeptieren aber kein Free-Text
+        // vor dem ersten Tag. Wir bleiben deshalb minimal und schreiben den
+        // beschreibenden Kommentar als ADIF-konformen Kommentar-Header
+        // (alles vor dem ersten "<" ist erlaubt, aber wir verzichten ganz
+        // drauf für maximale Kompatibilität).
+        var out = field("ADIF_VER", "3.1.5")
         out += field("PROGRAMID", "HAM-Tools")
         out += field("PROGRAMVERSION", appVersion)
         out += field("CREATED_TIMESTAMP", adifTimestamp(Date()))
+        out += field("APP_HAMTOOLS_LOGNAME", logName)
         out += "<EOH>\n\n"
 
         for qso in qsos {
@@ -35,6 +40,10 @@ enum ADIFCodec {
         s += field("CALL", q.call)
         s += field("QSO_DATE", dateField(q.datetime))
         s += field("TIME_ON", timeField(q.datetime))
+        // pota.app + viele Logger erwarten DATE_OFF/TIME_OFF auch wenn das
+        // QSO nur einen Zeitstempel hat — wir spiegeln TIME_ON in OFF.
+        s += field("QSO_DATE_OFF", dateField(q.datetime))
+        s += field("TIME_OFF", timeField(q.datetime))
         s += field("BAND", q.band)
         s += field("FREQ", String(format: "%.6f", q.frequencyMHz))
         s += field("MODE", q.mode)
@@ -50,8 +59,22 @@ enum ADIFCodec {
         if let v = q.cqZone      { s += field("CQZ", String(v)) }
         if let v = q.ituZone     { s += field("ITUZ", String(v)) }
         if let v = q.comment     { s += field("COMMENT", v) }
-        if let v = q.operatorCall{ s += field("OPERATOR", v) }
-        if let v = q.stationCall { s += field("STATION_CALLSIGN", v) }
+        // OPERATOR + STATION_CALLSIGN: pota.app + LoTW erwarten beide.
+        // Fallback auf App-Settings (Stations-Tab → callsign) falls das
+        // QSO selber keinen Wert hat (z.B. vor dem Phase-4c-Fix gespeicherte
+        // Records).
+        let settingsCall = UserDefaults.standard.string(forKey: "callsign")?
+            .trimmingCharacters(in: .whitespaces).uppercased()
+        if let v = q.operatorCall, !v.isEmpty {
+            s += field("OPERATOR", v)
+        } else if let v = settingsCall, !v.isEmpty {
+            s += field("OPERATOR", v)
+        }
+        if let v = q.stationCall, !v.isEmpty {
+            s += field("STATION_CALLSIGN", v)
+        } else if let v = settingsCall, !v.isEmpty {
+            s += field("STATION_CALLSIGN", v)
+        }
         if let v = q.powerW      { s += field("TX_PWR", String(format: "%g", v)) }
         if let v = q.antenna     { s += field("ANTENNA", v) }
         if let v = q.contest     { s += field("CONTEST_ID", v) }
@@ -65,6 +88,12 @@ enum ADIFCodec {
             s += field("MY_SIG", "POTA")
             s += field("MY_SIG_INFO", v)
             s += field("MY_POTA_REF", v)
+            // pota.app empfiehlt MY_GRIDSQUARE — übernimm Locator aus App-
+            // Settings (Stations-Tab → qthLocator).
+            if let myGrid = UserDefaults.standard.string(forKey: "qthLocator")?
+                .trimmingCharacters(in: .whitespaces), !myGrid.isEmpty {
+                s += field("MY_GRIDSQUARE", myGrid)
+            }
         }
         if let v = q.theirPotaRef, !v.isEmpty {
             s += field("SIG", "POTA")
@@ -79,11 +108,13 @@ enum ADIFCodec {
             s += field("SOTA_REF", v)
         }
 
-        // QSL-Status
-        s += field("LOTW_QSL_SENT", q.lotwSent ? "Y" : "N")
-        s += field("LOTW_QSL_RCVD", q.lotwConfirmed ? "Y" : "N")
-        s += field("EQSL_QSL_SENT", q.eqslSent ? "Y" : "N")
-        s += field("EQSL_QSL_RCVD", q.eqslConfirmed ? "Y" : "N")
+        // QSL-Status — nur schreiben wenn tatsächlich gesendet/bestätigt.
+        // "N" für jeden Eintrag pumpt das ADIF unnötig auf und manche
+        // Aufnahmedienste (pota.app, eQSL) ignorieren oder warnen darüber.
+        if q.lotwSent      { s += field("LOTW_QSL_SENT", "Y") }
+        if q.lotwConfirmed { s += field("LOTW_QSL_RCVD", "Y") }
+        if q.eqslSent      { s += field("EQSL_QSL_SENT", "Y") }
+        if q.eqslConfirmed { s += field("EQSL_QSL_RCVD", "Y") }
         if let d = q.qslSentDate     { s += field("QSLSDATE", dateField(d)) }
         if let v = q.qslSentVia      { s += field("QSL_SENT_VIA", v) }
         if let d = q.qslReceivedDate { s += field("QSLRDATE", dateField(d)) }
