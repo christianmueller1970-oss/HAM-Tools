@@ -35,3 +35,7 @@ AppIcon.iconset/
 web-vue/dist/
 web-vue/node_modules/
 web-vue/.vite/
+
+# Claude Code: Memory-Backup wird via Google Drive synct, nicht via Git
+claude-memory-backup/
+.claude/settings.local.json
