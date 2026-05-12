@@ -27,6 +27,7 @@ struct WeltkarteView: View {
     let theme: AppTheme
 
     @AppStorage("qthLocator") private var qthLocator = "JN47PN"
+    @AppStorage("map.style")  private var selectedMapStyle: MapStyleChoice = .standard
 
     @State private var selectedSpot:     DXSpot? = nil
     @State private var showSpotterLines  = false
@@ -99,7 +100,7 @@ struct WeltkarteView: View {
                 }
             }
         }
-        .mapStyle(.standard(elevation: .flat))
+        .appMapStyle(selectedMapStyle)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

@@ -13,6 +13,7 @@ struct HistoryTab: View {
     @AppStorage("logbook.history.mode")  private var modeFilter       = "Alle"
     @AppStorage("logbook.history.band")  private var bandFilter       = "Alle"
     @AppStorage("logbook.history.days")  private var daysFilter: Int  = 365
+    @AppStorage("map.style")             private var selectedMapStyle: MapStyleChoice = .standard
 
     @State private var selectedQSO: QSO? = nil
     @State private var cameraPosition: MapCameraPosition = HistoryTab.initialCameraPosition()
@@ -91,7 +92,7 @@ struct HistoryTab: View {
                 }
             }
         }
-        .mapStyle(.standard(elevation: .flat))
+        .appMapStyle(selectedMapStyle)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

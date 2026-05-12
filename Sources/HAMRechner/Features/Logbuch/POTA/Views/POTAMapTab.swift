@@ -19,6 +19,7 @@ struct POTAMapTab: View {
 
     @AppStorage("logbook.potaMap.qsoLines") private var showQsoLines: Bool = true
     @AppStorage("logbook.potaMap.band")     private var bandFilter         = "Alle"
+    @AppStorage("map.style")                private var selectedMapStyle: MapStyleChoice = .standard
 
     @State private var selectedQSO: QSO? = nil
     @State private var cameraPosition: MapCameraPosition = .region(
@@ -227,7 +228,7 @@ struct POTAMapTab: View {
                 }
             }
         }
-        .mapStyle(.standard(elevation: .flat))
+        .appMapStyle(selectedMapStyle)
         .overlay(alignment: .bottomLeading) {
             if let q = selectedQSO {
                 infoPopup(for: q).padding(12)

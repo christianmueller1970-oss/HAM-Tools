@@ -613,6 +613,7 @@ private struct NodeEditSheet: View {
 
 private struct DarstellungTab: View {
     @EnvironmentObject var themeManager: ThemeManager
+    @AppStorage("map.style") private var selectedMapStyle: MapStyleChoice = .standard
 
     var body: some View {
         Form {
@@ -646,9 +647,41 @@ private struct DarstellungTab: View {
                     .padding(.vertical, 4)
                 }
             }
+            Section("Kartenstil") {
+                ForEach(MapStyleChoice.allCases) { s in
+                    HStack(spacing: 12) {
+                        Image(systemName: mapIcon(s))
+                            .font(.title3)
+                            .foregroundStyle(.blue)
+                            .frame(width: 28)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(s.displayName).font(.body)
+                            Text(s.subtitle).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if selectedMapStyle == s {
+                            Image(systemName: "checkmark.circle.fill").foregroundStyle(.blue)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { selectedMapStyle = s }
+                    .padding(.vertical, 4)
+                }
+                Text("Gilt für POTA-Map, History-Map und DX-Cluster-Weltkarte. Wir nutzen aktuell Apple MapKit; weitere Quellen wie OpenStreetMap oder OpenTopoMap sind als Folge-Ausbau geplant.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private func mapIcon(_ s: MapStyleChoice) -> String {
+        switch s {
+        case .standard: return "map"
+        case .hybrid:   return "globe.europe.africa"
+        case .imagery:  return "globe.americas.fill"
+        }
     }
 
     private func themeSubtitle(_ t: AppTheme) -> String {
