@@ -2,11 +2,15 @@
 set -e
 cd "$(dirname "$0")"
 
-swift build
+# Build-Output auf lokales Volume legen — Google Drive friert das .build/-Verzeichnis
+# regelmäßig ein ("Drive-Stuck"), wenn swift build dort Intermediates schreibt.
+BUILD_PATH="/tmp/hamtools-build"
 
-APP=".build/debug/HAMRechner.app"
+swift build --build-path "$BUILD_PATH"
+
+APP="$BUILD_PATH/debug/HAMRechner.app"
 mkdir -p "$APP/Contents/MacOS"
-cp .build/debug/HAMRechner "$APP/Contents/MacOS/HAMRechner"
+cp "$BUILD_PATH/debug/HAMRechner" "$APP/Contents/MacOS/HAMRechner"
 
 cat > "$APP/Contents/Info.plist" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>

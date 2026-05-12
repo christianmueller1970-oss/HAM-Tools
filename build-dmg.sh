@@ -11,10 +11,14 @@ VOL_NAME="HAM-Tools"           # DMG-Volume-Name
 VERSION="${1:-1.6.1}"
 DMG_NAME="${VOL_NAME}-${VERSION}.dmg"
 
-echo "==> Release-Build (swift build -c release)..."
-swift build -c release
+# Build-Output auf lokales Volume legen — Google Drive friert das .build/-Verzeichnis
+# regelmäßig ein ("Drive-Stuck"), wenn swift build dort Intermediates schreibt.
+BUILD_PATH="/tmp/hamtools-build"
 
-RELEASE_DIR=".build/release"
+echo "==> Release-Build (swift build -c release)..."
+swift build -c release --build-path "$BUILD_PATH"
+
+RELEASE_DIR="$BUILD_PATH/release"
 APP_DIR="${RELEASE_DIR}/${DISPLAY_NAME}.app"
 
 echo "==> Baue App-Bundle..."
@@ -85,7 +89,7 @@ codesign --force --deep --sign - --options runtime "$APP_DIR" 2>&1 | grep -v "re
 codesign --verify --deep --strict "$APP_DIR" && echo "    Signatur OK" || echo "    ⚠ Signatur-Verifikation fehlgeschlagen (App startet aber trotzdem)"
 
 echo "==> Erstelle DMG: ${DMG_NAME}..."
-DMG_TMP=".build/dmg-tmp"
+DMG_TMP="$BUILD_PATH/dmg-tmp"
 rm -f "$DMG_NAME"
 rm -rf "$DMG_TMP"
 mkdir "$DMG_TMP"
