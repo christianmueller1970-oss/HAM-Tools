@@ -5,6 +5,71 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.6.1] — 2026-05-12
+
+### Neu: POTA-Modul (Phase 4c)
+
+Komplette POTA-Integration vom Park-Lookup bis zum pota.app-konformen ADIF-Export. Live mit IC-705 getestet, P2P-QSOs erfolgreich geloggt und Export gegen valide Referenz (HAMRS DA-0005) verifiziert.
+
+#### Park-Datenbank
+- **PotaParkService** lädt `all_parks_ext.csv` (~91'000 Parks, ~9 MB) von pota.app und schreibt es in `~/Documents/HAM-Tools/Cache/parks.sqlite`
+- Byte-basierter CSV-Parser mit korrekter Behandlung von CRLF-Zeilenenden + escaped quotes (`""`) — 2'256 escaped-quote-Stellen im echten Datensatz erfolgreich verarbeitet
+- Settings → Daten → "POTA-Park-Datenbank" mit Status-Anzeige, "Jetzt laden" / "Aktualisieren"-Button, 14-Tage-Refresh-Empfehlung
+- Lookup-API: `park(reference:)` für Detail, `search(prefix:)` für Autocomplete
+
+#### POTA-Session-Anlegen
+- **NewPOTALogSheet**: Wizard mit Segmented-Picker "Bestehende öffnen / Neue anlegen"
+  - "Öffnen": Liste aller bisherigen POTA-Logs mit Name, Park-Ref, QSO-Count, Datum → Klick öffnet
+  - "Anlegen": Activator/Hunter-Toggle, bei Activator Park-Autocomplete-Picker mit Live-Suche, Session-Name-Auto-Gen
+- POTA-Tab im QSO-Form klickt das Sheet auf, wenn kein POTA-Log aktiv ist
+
+#### POTA-Entry-Form
+- **POTAEntryForm**: schlanke Logging-Maske analog Referenz-Bild aus dem POTA-Logger
+- Top-Status-Bar: Live-UTC, Frequenz/Band (aus CAT), Mode, Power, Session-Name, eigener Park
+- Felder: Their Call, RST/S, RST/R, Their Park (comma-separated für P2P-Hopping), Power, Comments, Notes
+- **QRZ-Lookup** mit 600 ms Debounce: bei Eingabe wird Name aus Callbook geladen und grün unter dem Call-Feld angezeigt (nicht zwingend ins Log gespeichert, aber als "Hi John!"-Hilfe)
+- **10-QSO-Counter** im Activator-Modus: rot < 10, grün ≥ 10 mit "Aktivierung gültig"-Badge
+- Save speichert automatisch myPotaRef, theirPotaRef, OPERATOR + STATION_CALLSIGN aus Settings, Name aus QRZ
+
+#### POTA-Spots Live-Feed
+- **PotaSpotsService** pollt `api.pota.app/spot/activator` alle 60 Sek (read-only, kein Upload), tolerant gegen Server-Format-Drift
+- **PotaSpotsView**: Card-Grid statt Liste, analog Referenz-Bild
+  - Pro Card: Activator @ Park-Ref, Zeit-ago, Frequenz + Mode, locationDesc, Park-Name, Spotter, Comments, Source ("RBN" / "Manual" / etc.)
+  - Filter-Bar: Time/Freq-Sort, Band, Mode, Ref-Prefix-Suche
+  - "QSY bei Copy"-Toggle: bei aktivem CAT springt der TRX auf die Spot-Frequenz beim Klick auf Copy
+- **Copy-Button** füllt Their Call + Their Park automatisch ins POTA-Form via LogEntryBridge
+- Bei POTA-Logs ersetzt PotaSpotsView den klassischen DXCluster-Tab unten — bei Non-POTA-Logs bleibt der DX-Cluster wie gehabt (komplett unabhängige Services, keine Interferenz)
+
+#### QSO-Tabelle
+- Spalten **Name**, **Country/Locator**, **QSL-Status** default versteckt (per Rechtsklick im Header wieder einblendbar)
+- Neue **State**-Spalte: liest aus POTA-Park-DB via `park.locationDesc` → "CH-AG" → "AG"
+- Neue **Their Park**-Spalte: theirPotaRef
+- Neue **QRZ-Status**-Spalte am Ende: grüner Haken wenn Callbook-Name vorhanden, oranges Fragezeichen sonst — Klick darauf forciert Re-Lookup und speichert den gefundenen Namen
+
+#### ADIF-Export (POTA-konform)
+- **QSO_DATE_OFF + TIME_OFF** immer geschrieben (= ON falls keine separate End-Zeit)
+- **MY_GRIDSQUARE** aus App-Settings (`qthLocator`) wenn `MY_POTA_REF` gesetzt
+- **OPERATOR + STATION_CALLSIGN** aus QSO-Feld oder Fallback auf App-Settings.callsign — pota.app verweigert Upload ohne diese Felder
+- LOTW/EQSL-QSL-Status-Felder nur noch geschrieben wenn `Y` (war vorher immer `N` in jeder Zeile, unnötig)
+- **Pre-Header-Text raus**: `<ADIF_VER>` jetzt erster Tag (strikt-konform für LoTW / Club Log / eQSL). Log-Name als `APP_HAMTOOLS_LOGNAME` im Header erhalten.
+- Verifikation: 4 QSOs aus POTA-CH-0001-Session gegen valide HAMRS-Referenz (DA-0005, eigener Activator-Log vom Februar 2024) Feld-für-Feld geprüft
+
+#### Frontend
+- **POTA-Tab** neben DX/Contest im QSO-Entry-Panel
+- POTA-Modus rendert POTAEntryForm statt DX-Grid und PotaSpotsView statt DXCluster
+- LogEntryBridge ergänzt um `pendingPotaSpot` für POTA-spezifische Form-Prefills
+
+#### Dokumentation
+- **POTA_PLAN.md** dokumentiert Architektur, Phasen 4c-1 bis 4c-6, UI-Referenzen (POTA-Logger + RUMlog), Bundling-Strategie
+
+#### Offen für 1.6.x-Polish (Folge-Patches)
+- 4c-6 QSO-Map mit Park-Markern
+- Multi-Park-Hopping vollständig durchziehen (`MY_POTA_REF` mit Komma-Liste, ADIF-Splitting)
+- POTA-Upload-API direkt aus der App (Phase 6, zusammen mit LoTW/eQSL)
+- POTA-Aktivierungs-Statistiken im Awards-Tab
+
+---
+
 ## [1.6.0] — 2026-05-12
 
 ### Neu: CAT-Anbindung (Phase 5a)

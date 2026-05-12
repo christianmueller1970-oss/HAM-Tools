@@ -10,6 +10,7 @@ struct POTAEntryForm: View {
     @EnvironmentObject var manager:      LogbookManager
     @EnvironmentObject var pota:         PotaParkService
     @EnvironmentObject var callbook:     CallbookManager
+    @EnvironmentObject var logBridge:    LogEntryBridge
 
     @State private var call: String = ""
     @State private var theirPark: String = ""
@@ -53,6 +54,9 @@ struct POTAEntryForm: View {
         }
         .padding(12)
         .onAppear { call = ""; timeOn = Date() }
+        .onChange(of: logBridge.pendingPotaSpot) { _, spot in
+            if let s = spot { applySpot(s); logBridge.pendingPotaSpot = nil }
+        }
         .onReceive(utcTimer) { _ in
             timeTicker = Date()
             // Time-On läuft mit, bis User loggt — dann wird beim Save fest.
@@ -289,6 +293,15 @@ struct POTAEntryForm: View {
         }
         resetForm(keepLastConfirmation: true)
         focusedField = .call
+    }
+
+    // Vom POTA-Spots-Tab via LogEntryBridge eingespielter Spot füllt das
+    // Form vor: Their Call + Their Park. RST und Power bleiben Defaults.
+    private func applySpot(_ s: POTASpot) {
+        call = s.activator.uppercased()
+        theirPark = s.reference
+        // Sofortiger Lookup für den Namen-Hinweis (debounce dauert sonst zu lang)
+        scheduleLookup(for: call)
     }
 
     private func resetForm(keepLastConfirmation: Bool = false) {

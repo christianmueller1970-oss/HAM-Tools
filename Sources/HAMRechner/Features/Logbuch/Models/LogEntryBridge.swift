@@ -13,6 +13,11 @@ final class LogEntryBridge: ObservableObject {
     @Published var pendingDraft: QSODraft? = nil
     @Published var navigationRequest: UUID? = nil
 
+    // POTA-spezifisch: eigener Slot, weil das POTA-Form anders aufgebaut
+    // ist (eigene @State-Felder) als das DX-Form.
+    @Published var pendingPotaSpot: POTASpot? = nil
+
+
     static let shared = LogEntryBridge()
     private init() {}
 

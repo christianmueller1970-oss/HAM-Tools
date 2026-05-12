@@ -15,6 +15,7 @@ struct HAMRechnerApp: App {
     @StateObject private var catSettings:      CATSettings
     @StateObject private var catController:    CATController
     @StateObject private var potaParkService:  PotaParkService
+    @StateObject private var potaSpotsService: PotaSpotsService = PotaSpotsService()
 
     init() {
         // Root zuerst — alle anderen Komponenten hängen davon ab.
@@ -75,6 +76,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(catSettings)
                 .environmentObject(catController)
                 .environmentObject(potaParkService)
+                .environmentObject(potaSpotsService)
                 .frame(minWidth: 900, minHeight: 580)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
@@ -100,6 +102,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(catSettings)
                 .environmentObject(catController)
                 .environmentObject(potaParkService)
+                .environmentObject(potaSpotsService)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
     }

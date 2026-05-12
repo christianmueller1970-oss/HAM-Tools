@@ -19,6 +19,14 @@ struct LogbuchView: View {
     @EnvironmentObject var logBridge: LogEntryBridge
     @EnvironmentObject var clusterVM: DXClusterViewModel
 
+    // Hilfs-Property: true wenn das aktuelle Log eine POTA-Session ist.
+    // Steuert das Routing des DX-Cluster-Tabs auf den POTA-Spots-Feed.
+    private var currentLogIsPOTA: Bool {
+        guard let id = manager.currentLogID,
+              let log = manager.logs.first(where: { $0.id == id }) else { return false }
+        return log.type == .pota
+    }
+
     let onBackToHome: () -> Void
 
     @State private var showNewLogSheet: Bool = false
@@ -160,7 +168,15 @@ struct LogbuchView: View {
                 filteredCount: filteredLogCount
             )
         case .dxClusters:
-            ClusterContextBar()
+            if currentLogIsPOTA {
+                TabContextBarShell {
+                    Text("POTA-Spots — Live von pota.app, kein DX-Cluster")
+                        .font(.caption)
+                        .foregroundStyle(theme.textDim)
+                }
+            } else {
+                ClusterContextBar()
+            }
         case .awards:
             awardsContextBar
         case .map, .bands:
@@ -506,7 +522,13 @@ struct LogbuchView: View {
                          filterCountry: $filterCountry,
                          selectedQSOs: $selectedQSOs)
         case .dxClusters:
-            LogbookClusterTab()
+            if currentLogIsPOTA {
+                PotaSpotsView { spot in
+                    logBridge.pendingPotaSpot = spot
+                }
+            } else {
+                LogbookClusterTab()
+            }
         case .awards:
             AwardsTab(subTab: $awardsSubTab,
                       onlyUnconfirmed: $awardsOnlyUnconfirmed)
