@@ -13,6 +13,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
     case memories    = "Memories"
     case qsl         = "QSL"
     case history     = "History"
+    case potaMap     = "POTA-Map"
     case labels      = "Labels"
 
     var id: String { rawValue }
@@ -28,13 +29,15 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
         case .memories:   return "star"
         case .qsl:        return "envelope"
         case .history:    return "clock"
+        case .potaMap:    return "tree.circle"
         case .labels:     return "tag"
         }
     }
 
     var isAvailable: Bool {
         switch self {
-        case .log, .dxClusters, .awards, .map, .bands, .history, .memories: return true
+        case .log, .dxClusters, .awards, .map, .bands,
+             .history, .memories, .potaMap:                                 return true
         default:                                                            return false
         }
     }

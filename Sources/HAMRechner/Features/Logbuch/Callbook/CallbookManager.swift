@@ -83,6 +83,13 @@ final class CallbookManager: ObservableObject {
         inFlightCalls.contains(call.uppercased())
     }
 
+    /// Synchroner Read auf den In-Memory-Cache. Liefert das gecachte Resultat,
+    /// auch wenn es älter als TTL ist — TTL betrifft nur das Re-Fetching.
+    /// Nützlich für reine Display-Use-Cases (z.B. POTA-Map-Pins).
+    func cachedResult(forCall call: String) -> CallbookResult? {
+        cache[call.trimmingCharacters(in: .whitespaces).uppercased()]?.result
+    }
+
     func clearCache() {
         cache.removeAll()
         saveCache()

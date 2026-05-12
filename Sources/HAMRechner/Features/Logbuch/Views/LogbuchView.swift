@@ -541,6 +541,8 @@ struct LogbuchView: View {
         case .memories:
             MemoriesTab(searchText: $memoriesSearch,
                         showOnlyUpcomingSkeds: $memoriesUpcomingOnly)
+        case .potaMap:
+            POTAMapTab()
         default:
             comingSoon(bottomTab)
         }
