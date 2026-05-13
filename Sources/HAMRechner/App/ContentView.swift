@@ -112,10 +112,12 @@ struct ContentView: View {
     @EnvironmentObject var clusterStore:   ClusterSettingsStore
     @EnvironmentObject var logbookManager: LogbookManager
     @EnvironmentObject var licenseService: LicenseService
+    @EnvironmentObject var updateChecker:  UpdateChecker
     @StateObject private var dxClusterVM = DXClusterViewModel()
     @StateObject private var simBridge   = AntennaSimBridge.shared
     @StateObject private var logBridge   = LogEntryBridge.shared
     @State private var selectedCalculator: Calculator? = .logbuch
+    @State private var pendingUpdatePayload: UpdateManifestPayload?
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -142,6 +144,19 @@ struct ContentView: View {
             let lic = licenseService
             logbookManager.licenseAllowsMoreQSOs = { lic.canLogMoreQSOs }
             logbookManager.onQSOLogged           = { lic.registerLoggedQSO() }
+
+            // Update-Check beim Start (max 1×/24h).
+            updateChecker.autoCheckIfDue()
+        }
+        .onChange(of: updateChecker.state) { _, new in
+            if case .updateAvailable(let payload) = new {
+                pendingUpdatePayload = payload
+            }
+        }
+        .sheet(item: $pendingUpdatePayload) { payload in
+            UpdateAlertView(payload: payload)
+                .environmentObject(updateChecker)
+                .environmentObject(licenseService)
         }
         .onChange(of: simBridge.navigationRequest) {
             if simBridge.navigationRequest != nil {

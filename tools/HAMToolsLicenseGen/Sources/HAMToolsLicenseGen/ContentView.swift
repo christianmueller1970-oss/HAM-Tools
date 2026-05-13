@@ -22,6 +22,13 @@ struct ContentView: View {
         return f.string(from: d)
     }
 
+    @State private var activeTab: Tab = .license
+    enum Tab: String, Identifiable, CaseIterable {
+        case license  = "Lizenz"
+        case manifest = "Update-Manifest"
+        var id: String { rawValue }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("HAM-Tools — License Generator")
@@ -29,12 +36,22 @@ struct ContentView: View {
 
             keypairSection
             Divider()
-            licenseFormSection
-            Divider()
-            outputSection
+            Picker("", selection: $activeTab) {
+                ForEach(Tab.allCases) { Text($0.rawValue).tag($0) }
+            }
+            .pickerStyle(.segmented)
+
+            switch activeTab {
+            case .license:
+                licenseFormSection
+                Divider()
+                outputSection
+            case .manifest:
+                ManifestSection(pair: $pair)
+            }
         }
         .padding(20)
-        .frame(minWidth: 640, idealWidth: 720, minHeight: 620, idealHeight: 720)
+        .frame(minWidth: 640, idealWidth: 720, minHeight: 720, idealHeight: 820)
         .onAppear { pair = KeyStore.load() }
     }
 

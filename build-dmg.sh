@@ -135,3 +135,31 @@ rm -rf "$DMG_TMP"
 
 echo "==> Fertig:"
 ls -lh "$DMG_NAME"
+
+# Update-Manifest-Reminder. Die updates.json wird im License-Generator-Helper
+# (tools/HAMToolsLicenseGen) signiert — Voll-Automatisierung wäre overkill,
+# weil der User die Release-Notes manuell tippen soll. Siehe tools/README-server.md.
+cat <<EOF
+
+────────────────────────────────────────────────────────────────────
+Nächste Schritte fürs Auto-Update der Beta-Tester:
+
+1) DMG hochladen:
+     scp $DMG_NAME hb9hji@toolbox.funkwelt.net:/var/www/toolbox/app/dmg/
+
+2) Im License-Generator (cd tools/HAMToolsLicenseGen && swift run)
+   den Tab »Update-Manifest« öffnen, ausfüllen:
+     Version:       $VERSION
+     Build-Datum:   $(date +%Y-%m-%d)
+     DMG-URL:       https://toolbox.funkwelt.net/app/dmg/$DMG_NAME
+     Release-Notes: (was sich geändert hat)
+
+3) »updates.json erzeugen« → »In Datei sichern…«
+
+4) Datei hochladen:
+     scp updates.json hb9hji@toolbox.funkwelt.net:/var/www/toolbox/app/
+
+   Alle Beta-Tester sehen das Update beim nächsten App-Start (oder
+   manuell via ⌘⌥U).
+────────────────────────────────────────────────────────────────────
+EOF

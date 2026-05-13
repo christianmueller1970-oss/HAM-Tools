@@ -20,6 +20,7 @@ struct HAMRechnerApp: App {
     @StateObject private var potaStatsService: PotaStatsService
     @StateObject private var contestService:   ContestService = ContestService()
     @StateObject private var licenseService:   LicenseService = LicenseService()
+    @StateObject private var updateChecker:    UpdateChecker  = UpdateChecker()
 
     init() {
         // Swift-Package-Builds laufen ohne .app-Bundle; macOS würde sie ohne
@@ -95,6 +96,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(potaStatsService)
                 .environmentObject(contestService)
                 .environmentObject(licenseService)
+                .environmentObject(updateChecker)
                 .frame(minWidth: 900, minHeight: 580)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
@@ -103,6 +105,12 @@ struct HAMRechnerApp: App {
         .defaultSize(width: 1280, height: 760)
         .commands {
             CommandGroup(replacing: .newItem) {}
+            CommandGroup(after: .appInfo) {
+                Button("Auf Updates prüfen…") {
+                    updateChecker.checkNow()
+                }
+                .keyboardShortcut("u", modifiers: [.command, .option])
+            }
         }
 
         Settings {
@@ -124,6 +132,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(potaStatsService)
                 .environmentObject(contestService)
                 .environmentObject(licenseService)
+                .environmentObject(updateChecker)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
     }
