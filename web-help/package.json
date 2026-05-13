@@ -1,0 +1,15 @@
+{
+  "name": "ham-tools-help",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "HAM-Tools — Anleitungen, FAQ, Tipps (VitePress)",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.5.0"
+  }
+}

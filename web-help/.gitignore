@@ -1,0 +1,6 @@
+# VitePress build output
+.vitepress/dist/
+.vitepress/cache/
+
+# Node modules — werden mit npm install neu erzeugt
+node_modules/

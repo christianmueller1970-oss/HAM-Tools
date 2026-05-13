@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Sitemap-Pfad — wird beim VitePress-Build automatisch generiert.
+Sitemap: https://toolbox.funkwelt.net/help/sitemap.xml
