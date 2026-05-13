@@ -11,6 +11,7 @@ struct NewLogSheet: View {
 
     var onCreate: (Log) -> Void
     var onSelectPOTA: () -> Void = {}   // POTA hat eigenen Wizard mit Park-Picker
+    var onSelectContest: () -> Void = {} // Contest hat eigenen Wizard mit Template-Picker
 
     @State private var name: String = ""
     @State private var selectedType: LogType = .standard
@@ -39,8 +40,11 @@ struct NewLogSheet: View {
                         LogTypeCard(type: type, selected: selectedType == type) {
                             if type == .pota {
                                 // POTA hat eigenen Wizard (Park-Picker, Hopping).
-                                // Parent dismissed dieses Sheet und öffnet NewPOTALogSheet.
                                 onSelectPOTA()
+                                dismiss()
+                            } else if type == .contest {
+                                // Contest hat eigenen Wizard (Template-Picker, Cabrillo-Categories).
+                                onSelectContest()
                                 dismiss()
                             } else if type.isAvailable {
                                 selectedType = type

@@ -27,16 +27,26 @@ struct LogbuchView: View {
         return log.type == .pota
     }
 
+    // Hilfs-Property: true wenn das aktuelle Log ein Contest ist. Etappe 1
+    // braucht das noch nicht (Contest nutzt regulären DX-Cluster wie Standard-Logs),
+    // ab Etappe 2 schaltet damit der Stats-Panel + Run/S&P-Toggle frei.
+    private var currentLogIsContest: Bool {
+        guard let id = manager.currentLogID,
+              let log = manager.logs.first(where: { $0.id == id }) else { return false }
+        return log.type == .contest
+    }
+
     let onBackToHome: () -> Void
 
     @State private var showNewLogSheet: Bool = false
     @State private var showNewPOTASheet: Bool = false
+    @State private var showNewContestSheet: Bool = false
     @State private var showLogsPopover: Bool = false
 
     // Alle Tab-State-Werte sind persistent über AppStorage — Wunsch des
     // Users: »Alle Einstellungen die man irgendwo im LOG macht sollten
     // persistent sein nach dem nächsten laden.«
-    @AppStorage("logbook.bottomTab")      private var bottomTab: LogbookBottomTab = .log
+    @AppStorage("logbook.bottomTab")      private var bottomTab: LogbookBottomTab = .dxClusters
     @AppStorage("logbook.heatmapMinutes") private var heatmapMinutes: Int         = 60
 
     // Filter-State für den Log-Tab (persistent)
@@ -94,20 +104,25 @@ struct LogbuchView: View {
                 }
                 .frame(minWidth: 600, maxWidth: .infinity, maxHeight: .infinity)
 
-                // Rechte Seite: Propagation/Solar/Band Activity Panel
-                // (Wiederverwendet aus dem DX-Cluster-Modul, identische Daten.)
-                PropagationPanelView(
-                    propagation: clusterVM.propagation,
-                    bandMatrix:  clusterVM.bandMatrix(minutes: heatmapMinutes),
-                    theme:       theme,
-                    callsign:    clusterVM.myCallsign,
-                    connected:   clusterVM.clusterStatus == .connected,
-                    spots:       clusterVM.spots,
-                    onSend:      { freq, call, comment in
-                        clusterVM.sendSpot(freq: freq, call: call, comment: comment)
-                    }
-                )
-                .frame(minWidth: 240, idealWidth: 300, maxWidth: 360, maxHeight: .infinity)
+                // Rechte Seite: Contest-Modus zeigt das Live-Stats-Panel,
+                // sonst das gewohnte Propagation/Solar/Band-Activity-Panel.
+                if currentLogIsContest {
+                    ContestStatsPanel()
+                        .frame(minWidth: 260, idealWidth: 300, maxWidth: 360, maxHeight: .infinity)
+                } else {
+                    PropagationPanelView(
+                        propagation: clusterVM.propagation,
+                        bandMatrix:  clusterVM.bandMatrix(minutes: heatmapMinutes),
+                        theme:       theme,
+                        callsign:    clusterVM.myCallsign,
+                        connected:   clusterVM.clusterStatus == .connected,
+                        spots:       clusterVM.spots,
+                        onSend:      { freq, call, comment in
+                            clusterVM.sendSpot(freq: freq, call: call, comment: comment)
+                        }
+                    )
+                    .frame(minWidth: 240, idealWidth: 300, maxWidth: 360, maxHeight: .infinity)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -139,10 +154,12 @@ struct LogbuchView: View {
                 manager.createLog(newLog)
             }, onSelectPOTA: {
                 // POTA-Wizard kommt nach dismiss des generischen Sheets.
-                // Kleines Delay damit SwiftUI das erste Sheet sauber abbaut,
-                // bevor das neue präsentiert wird.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                     showNewPOTASheet = true
+                }
+            }, onSelectContest: {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    showNewContestSheet = true
                 }
             })
             .environmentObject(themeManager)
@@ -150,6 +167,10 @@ struct LogbuchView: View {
         }
         .sheet(isPresented: $showNewPOTASheet) {
             NewPOTALogSheet()
+                .environmentObject(themeManager)
+        }
+        .sheet(isPresented: $showNewContestSheet) {
+            NewContestLogSheet()
                 .environmentObject(themeManager)
         }
         .sheet(isPresented: $showNewMemorySheet) {
@@ -566,6 +587,8 @@ struct LogbuchView: View {
                         showOnlyUpcomingSkeds: $memoriesUpcomingOnly)
         case .potaMap:
             POTAMapTab()
+        case .bandplan:
+            BandplanView()
         default:
             comingSoon(bottomTab)
         }

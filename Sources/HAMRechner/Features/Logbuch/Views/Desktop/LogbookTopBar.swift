@@ -29,7 +29,7 @@ struct LogbookTopBar: View {
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
                         .font(.caption.weight(.semibold))
-                    Text("Startseite")
+                    Text("Übersicht")
                         .font(.subheadline.weight(.medium))
                 }
                 .padding(.horizontal, 8)
@@ -39,7 +39,7 @@ struct LogbookTopBar: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(theme.accentBlue)
-            .help("Zurück zur Startseite")
+            .help("Zur Übersicht — Rechner und weitere Tools")
 
             Divider().frame(height: 18).background(theme.separator)
 

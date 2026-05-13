@@ -1,10 +1,9 @@
 import SwiftUI
 
 enum Calculator: String, CaseIterable, Identifiable {
-    // Live-Tools
-    case dxCluster = "DX-Cluster"
-    case bandplan  = "IARU R1 Bandplan"
+    // Haupt-Anwendungen (Sidebar-Top)
     case logbuch   = "Logbuch"
+    case dxCluster = "DX-Cluster"
 
     // Antennen – Drahtantennen
     case dipol            = "Dipol"
@@ -51,7 +50,6 @@ enum Calculator: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .dxCluster:           return "dot.radiowaves.left.and.right.circle"
-        case .bandplan:            return "chart.bar.xaxis"
         case .logbuch:             return "book.closed"
         case .dipol:               return "antenna.radiowaves.left.and.right"
         case .groundplane:         return "arrow.up.to.line"
@@ -86,8 +84,8 @@ enum Calculator: String, CaseIterable, Identifiable {
 
     var category: String {
         switch self {
-        case .dxCluster, .bandplan, .logbuch:
-            return "Live-Tools"
+        case .dxCluster, .logbuch:
+            return "Haupt"
         case .dipol, .groundplane, .jpole, .sperrtopf, .windom,
              .efhwRechner, .efhwVerkuerzung, .loopRechner:
             return "Drahtantennen"
@@ -109,19 +107,60 @@ enum Calculator: String, CaseIterable, Identifiable {
 // MARK: - ContentView
 
 struct ContentView: View {
-    @EnvironmentObject var themeManager: ThemeManager
+    @EnvironmentObject var themeManager:   ThemeManager
+    @EnvironmentObject var watchList:      WatchListStore
+    @EnvironmentObject var clusterStore:   ClusterSettingsStore
+    @EnvironmentObject var logbookManager: LogbookManager
+    @EnvironmentObject var licenseService: LicenseService
     @StateObject private var dxClusterVM = DXClusterViewModel()
     @StateObject private var simBridge   = AntennaSimBridge.shared
     @StateObject private var logBridge   = LogEntryBridge.shared
-    @State private var selectedCalculator: Calculator? = .dxCluster
+    @State private var selectedCalculator: Calculator? = .logbuch
 
     private var theme: AppTheme { themeManager.theme }
 
     var body: some View {
+        VStack(spacing: 0) {
+            LicenseBanner()
+            mainContent
+        }
+        .preferredColorScheme(theme.colorScheme)
+        .onAppear {
+            // DX-Cluster-Verbindung global beim App-Start aufbauen — damit
+            // Band Activity, Propagation-Daten und POTA/SOTA-Spots im Logbuch
+            // sofort verfügbar sind, ohne dass der User erst auf den DX-Cluster-
+            // Tab wechseln muss.
+            dxClusterVM.setup(watchStore: watchList)
+            if let node = clusterStore.activeNode {
+                dxClusterVM.connect(host: node.host, port: node.port, name: node.name)
+            } else {
+                dxClusterVM.connect()
+            }
+
+            // Lizenz-Hooks im LogbookManager verkabeln. Closure-Capture statt
+            // direkter Service-Referenz, damit der Manager License-agnostisch bleibt.
+            let lic = licenseService
+            logbookManager.licenseAllowsMoreQSOs = { lic.canLogMoreQSOs }
+            logbookManager.onQSOLogged           = { lic.registerLoggedQSO() }
+        }
+        .onChange(of: simBridge.navigationRequest) {
+            if simBridge.navigationRequest != nil {
+                selectedCalculator = .antennenSim
+            }
+        }
+        .onChange(of: logBridge.navigationRequest) {
+            if logBridge.navigationRequest != nil {
+                selectedCalculator = .logbuch
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
         Group {
             if selectedCalculator == .logbuch {
-                // Logbuch übernimmt das ganze Fenster — eigene Sidebar links,
-                // "Zurück"-Button schaltet auf die Startansicht.
+                // Logbuch übernimmt das ganze Fenster — eigene Top-Bar oben,
+                // "Übersicht"-Button schaltet zur Sidebar-Welt zurück (Rechner etc.).
                 LogbuchView(onBackToHome: {
                     selectedCalculator = .dxCluster
                 })
@@ -153,17 +192,6 @@ struct ContentView: View {
                 .navigationSplitViewStyle(.balanced)
             }
         }
-        .preferredColorScheme(theme.colorScheme)
-        .onChange(of: simBridge.navigationRequest) {
-            if simBridge.navigationRequest != nil {
-                selectedCalculator = .antennenSim
-            }
-        }
-        .onChange(of: logBridge.navigationRequest) {
-            if logBridge.navigationRequest != nil {
-                selectedCalculator = .logbuch
-            }
-        }
     }
 }
 
@@ -174,25 +202,54 @@ struct SidebarView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.openSettings) private var openSettings
 
-    private let categories = [
-        "Live-Tools",
+    // Sub-Kategorien unter "Rechner" — Reihenfolge ist die Anzeige-Reihenfolge.
+    private let rechnerSubCategories = [
         "Drahtantennen", "Richtstrahler", "Spezialantennen",
         "Spulen & Transformatoren", "Anpassung & Leitungen", "Signale & Tools"
     ]
+
+    // Persistierte Expand-States — User-Wunsch: Sidebar-Zustand bleibt erhalten.
+    @AppStorage("sidebar.rechner.expanded")    private var rechnerExpanded:   Bool = false
+    @AppStorage("sidebar.draht.expanded")      private var drahtExpanded:     Bool = false
+    @AppStorage("sidebar.richt.expanded")      private var richtExpanded:     Bool = false
+    @AppStorage("sidebar.spezial.expanded")    private var spezialExpanded:   Bool = false
+    @AppStorage("sidebar.spulen.expanded")     private var spulenExpanded:    Bool = false
+    @AppStorage("sidebar.anpassung.expanded")  private var anpassungExpanded: Bool = false
+    @AppStorage("sidebar.signale.expanded")    private var signaleExpanded:   Bool = false
 
     private var theme: AppTheme { themeManager.theme }
 
     var body: some View {
         VStack(spacing: 0) {
             List(selection: $selectedCalculator) {
-                ForEach(categories, id: \.self) { category in
-                    Section(category) {
-                        ForEach(Calculator.allCases.filter { $0.category == category }) { calc in
-                            Label(calc.rawValue, systemImage: calc.icon)
+                // Top-Punkte: die zwei Haupt-Anwendungen, flach ohne Section-Header.
+                Label(Calculator.logbuch.rawValue, systemImage: Calculator.logbuch.icon)
+                    .foregroundStyle(theme.textPrimary)
+                    .tag(Calculator.logbuch)
+
+                Label(Calculator.dxCluster.rawValue, systemImage: Calculator.dxCluster.icon)
+                    .foregroundStyle(theme.textPrimary)
+                    .tag(Calculator.dxCluster)
+
+                // Rechner-Akkordeon — beim Ausklappen erscheinen die 6 Sub-Sektionen,
+                // die wiederum die Einzel-Rechner als Tags enthalten.
+                DisclosureGroup(isExpanded: $rechnerExpanded) {
+                    ForEach(rechnerSubCategories, id: \.self) { sub in
+                        DisclosureGroup(isExpanded: binding(for: sub)) {
+                            ForEach(Calculator.allCases.filter { $0.category == sub }) { calc in
+                                Label(calc.rawValue, systemImage: calc.icon)
+                                    .foregroundStyle(theme.textPrimary)
+                                    .tag(calc)
+                            }
+                        } label: {
+                            Label(sub, systemImage: icon(for: sub))
                                 .foregroundStyle(theme.textPrimary)
-                                .tag(calc)
                         }
                     }
+                } label: {
+                    Label("Rechner", systemImage: "function")
+                        .foregroundStyle(theme.textPrimary)
+                        .font(.body.weight(.semibold))
                 }
             }
             .listStyle(.sidebar)
@@ -207,6 +264,30 @@ struct SidebarView: View {
         .navigationTitle("HAM-Tools")
         .navigationSubtitle("HB9HJI Funkwelt")
         .navigationSplitViewColumnWidth(min: 220, ideal: 230, max: 320)
+    }
+
+    private func binding(for subCategory: String) -> Binding<Bool> {
+        switch subCategory {
+        case "Drahtantennen":             return $drahtExpanded
+        case "Richtstrahler":             return $richtExpanded
+        case "Spezialantennen":           return $spezialExpanded
+        case "Spulen & Transformatoren":  return $spulenExpanded
+        case "Anpassung & Leitungen":     return $anpassungExpanded
+        case "Signale & Tools":           return $signaleExpanded
+        default:                          return .constant(false)
+        }
+    }
+
+    private func icon(for subCategory: String) -> String {
+        switch subCategory {
+        case "Drahtantennen":             return "antenna.radiowaves.left.and.right"
+        case "Richtstrahler":             return "dot.radiowaves.forward"
+        case "Spezialantennen":           return "circle.dotted"
+        case "Spulen & Transformatoren":  return "spiral"
+        case "Anpassung & Leitungen":     return "slider.horizontal.3"
+        case "Signale & Tools":           return "waveform"
+        default:                          return "folder"
+        }
     }
 
     private var catToggleRow: some View {
@@ -237,9 +318,8 @@ struct CalculatorRouter: View {
 
     var body: some View {
         switch calculator {
-        // Live-Tools
+        // Haupt-Anwendungen
         case .dxCluster:             DXClusterView()
-        case .bandplan:              BandplanView()
         case .logbuch:               EmptyView()  // Logbuch wird auf Container-Ebene gerendert
         // Drahtantennen
         case .dipol:             DipolView()

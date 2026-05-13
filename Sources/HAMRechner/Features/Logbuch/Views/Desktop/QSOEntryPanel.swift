@@ -50,14 +50,19 @@ struct QSOEntryPanel: View {
     @EnvironmentObject var clusterVM: DXClusterViewModel
     @EnvironmentObject var radio: RadioState
 
-    // entryMode wird aus dem aktiven Log abgeleitet, damit der DX/POTA-
+    // entryMode wird aus dem aktiven Log abgeleitet, damit der DX/POTA/Contest-
     // Tab oben *und* der DX-Cluster-Tab unten immer dieselbe Welt zeigen.
-    // Klick auf DX/POTA wechselt das aktive Log (siehe modeTab).
-    private var entryMode: EntryMode { isPOTALogActive ? .pota : .dx }
+    // Klick auf DX/POTA/Contest wechselt das aktive Log (siehe modeTab).
+    private var entryMode: EntryMode {
+        if isContestLogActive { return .contest }
+        if isPOTALogActive    { return .pota }
+        return .dx
+    }
     @State private var lastFilledFromSpot: Date? = nil
     @State private var lastFilledFromCallbook: Date? = nil
     @State private var pendingDupe: DupeWarning? = nil
     @State private var showNewPOTASheet: Bool = false
+    @State private var showNewContestSheet: Bool = false
 
     // Aktive Log-Variante (Log-Objekt, nicht nur ID) für Render-Entscheidungen
     private var activeLog: Log? {
@@ -66,6 +71,9 @@ struct QSOEntryPanel: View {
     }
     private var isPOTALogActive: Bool {
         activeLog?.type == .pota
+    }
+    private var isContestLogActive: Bool {
+        activeLog?.type == .contest
     }
 
     // Callbook-Lookup-Resultat: Bild-URL + QRZ-Link für die Header-Anzeige
@@ -138,7 +146,10 @@ struct QSOEntryPanel: View {
         VStack(spacing: 0) {
             modeTabs
             Divider().background(theme.separator)
-            if isPOTALogActive {
+            if isContestLogActive {
+                // Schlanke Contest-Form ersetzt das DX-Grid + ActionBar
+                ContestEntryForm()
+            } else if isPOTALogActive {
                 // Schlanke POTA-Form ersetzt das DX-Grid + ActionBar
                 POTAEntryForm()
             } else {
@@ -163,6 +174,9 @@ struct QSOEntryPanel: View {
         }
         .sheet(isPresented: $showNewPOTASheet) {
             NewPOTALogSheet()
+        }
+        .sheet(isPresented: $showNewContestSheet) {
+            NewContestLogSheet()
         }
         .background(theme.bgCard)
         .overlay(
@@ -252,7 +266,7 @@ struct QSOEntryPanel: View {
     private var modeTabs: some View {
         HStack(spacing: 4) {
             modeTab(.dx, label: "DX")
-            modeTab(.contest, label: "Contest", enabled: false)
+            modeTab(.contest, label: "Contest")
             modeTab(.pota, label: "POTA")
             Spacer()
             if !canLog {
@@ -274,10 +288,10 @@ struct QSOEntryPanel: View {
             guard enabled else { return }
             switch m {
             case .dx:
-                // POTA → Standard: zurück zum zuletzt offenen DX/Standard-Log.
+                // POTA/Contest → Standard: zurück zum zuletzt offenen DX/Standard-Log.
                 // Damit fällt auch der DX-Cluster-Tab unten vom POTA-Spots-Feed
                 // automatisch wieder auf den normalen DX-Cluster zurück.
-                if isPOTALogActive {
+                if isPOTALogActive || isContestLogActive {
                     manager.switchToLastLog(of: .standard)
                 }
             case .pota:
@@ -291,7 +305,15 @@ struct QSOEntryPanel: View {
                     }
                 }
             case .contest:
-                break   // disabled, Phase 4
+                // DX/POTA → Contest: zuletzt offenen Contest-Log öffnen,
+                // sonst Wizard anbieten.
+                if !isContestLogActive {
+                    if manager.logs.contains(where: { $0.type == .contest }) {
+                        manager.switchToLastLog(of: .contest)
+                    } else {
+                        showNewContestSheet = true
+                    }
+                }
             }
         } label: {
             Text(label)

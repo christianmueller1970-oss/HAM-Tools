@@ -18,6 +18,8 @@ struct HAMRechnerApp: App {
     @StateObject private var potaParkService:  PotaParkService
     @StateObject private var potaSpotsService: PotaSpotsService = PotaSpotsService()
     @StateObject private var potaStatsService: PotaStatsService
+    @StateObject private var contestService:   ContestService = ContestService()
+    @StateObject private var licenseService:   LicenseService = LicenseService()
 
     init() {
         // Swift-Package-Builds laufen ohne .app-Bundle; macOS würde sie ohne
@@ -91,6 +93,8 @@ struct HAMRechnerApp: App {
                 .environmentObject(potaParkService)
                 .environmentObject(potaSpotsService)
                 .environmentObject(potaStatsService)
+                .environmentObject(contestService)
+                .environmentObject(licenseService)
                 .frame(minWidth: 900, minHeight: 580)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
@@ -118,6 +122,8 @@ struct HAMRechnerApp: App {
                 .environmentObject(potaParkService)
                 .environmentObject(potaSpotsService)
                 .environmentObject(potaStatsService)
+                .environmentObject(contestService)
+                .environmentObject(licenseService)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
     }

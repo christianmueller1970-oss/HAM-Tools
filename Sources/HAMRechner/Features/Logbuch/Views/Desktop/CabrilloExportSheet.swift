@@ -4,6 +4,7 @@ import AppKit
 struct CabrilloExportSheet: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
+    @EnvironmentObject var contests: ContestService
     @Environment(\.dismiss) private var dismiss
 
     @AppStorage("callsign")   private var stationCall = ""
@@ -68,6 +69,7 @@ struct CabrilloExportSheet: View {
         .padding(16)
         .frame(width: 560, height: 600)
         .background(theme.bgCard)
+        .onAppear { prefillFromContestLogIfAvailable() }
         .alert("Cabrillo-Export erfolgreich", isPresented: $showAlert, presenting: resultURL) { url in
             Button("Im Finder zeigen") {
                 NSWorkspace.shared.activateFileViewerSelecting([url])
@@ -251,6 +253,32 @@ struct CabrilloExportSheet: View {
                 .frame(width: 110, alignment: .trailing)
             content()
             Spacer()
+        }
+    }
+
+    /// Wenn das aktive Log ein Contest-Log ist, übernimm Contest-ID und alle Cabrillo-
+    /// Kategorien direkt aus dem Log (vom Wizard gesetzt). Überschreibt die
+    /// gespeicherten Defaults nur, wenn das Log echte Werte mitbringt.
+    private func prefillFromContestLogIfAvailable() {
+        guard let logID = manager.currentLogID,
+              let log = manager.logs.first(where: { $0.id == logID }),
+              log.type == .contest else { return }
+
+        if let id = log.contestID, !id.isEmpty {
+            contestID = id
+        }
+        if let cat = log.contestCategory, !cat.isEmpty {
+            categoryOperator = cat
+        }
+        // Template-Defaults für die anderen Kategorien (Power/Band/Mode/Station/Time)
+        // nachziehen, wenn der User sie noch nicht angetasst hat (also Default-State).
+        if let id = log.contestID, let tpl = contests.template(forID: id),
+           let d = tpl.defaultCategories {
+            if let v = d.power,    categoryPower    == "LOW"        { categoryPower    = v }
+            if let v = d.band,     categoryBand     == "ALL"        { categoryBand     = v }
+            if let v = d.mode,     categoryMode     == "MIXED"      { categoryMode     = v }
+            if let v = d.station,  categoryStation  == "FIXED"      { categoryStation  = v }
+            if let v = d.time,     categoryTime     == "24-HOURS"   { categoryTime     = v }
         }
     }
 

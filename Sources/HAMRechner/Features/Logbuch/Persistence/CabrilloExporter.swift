@@ -85,8 +85,13 @@ enum CabrilloExporter {
         let dateStr = dateF.string(from: q.datetime)
         let timeStr = timeF.string(from: q.datetime)
 
-        let myExch    = sentExch.isEmpty ? "—" : sentExch
-        let theirExch = q.contestExchange?.trimmingCharacters(in: .whitespaces).nilIfEmpty
+        // Per-QSO-Exchange (Etappe 1) hat Vorrang vor dem Default-Header-Wert.
+        // Legacy: alter contestExchange auf der QSO landete vor der Etappe-1-Migration
+        // im Recv-Feld, daher Fallback dorthin.
+        let myExch    = q.contestExchangeSent?.trimmingCharacters(in: .whitespaces).nilIfEmpty
+                     ?? (sentExch.isEmpty ? "—" : sentExch)
+        let theirExch = q.contestExchangeRecv?.trimmingCharacters(in: .whitespaces).nilIfEmpty
+                     ?? q.contestExchange?.trimmingCharacters(in: .whitespaces).nilIfEmpty
                      ?? (q.cqZone.map { String(format: "%02d", $0) } ?? "—")
 
         // Loose-format mit Single-Space, Spaltenausrichtung über padding

@@ -19,6 +19,8 @@ struct EinstellungenView: View {
                 .tabItem { Label("Alerts", systemImage: "bell.badge") }
             CATTab()
                 .tabItem { Label("CAT", systemImage: "cable.connector") }
+            LicenseSettingsView()
+                .tabItem { Label("Lizenz", systemImage: "key.fill") }
         }
         .frame(minWidth: 580, idealWidth: 640,
                minHeight: 480, idealHeight: 860)

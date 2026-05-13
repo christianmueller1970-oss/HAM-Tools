@@ -44,3 +44,9 @@ claude-memory-backup/
 # erzeugt (Universal2, Hamlib-Source-Build). Nicht ins Git, da 22 MB + Drive-
 # Mode-Bit-Problem. Build automatisch im build-dmg.sh falls fehlend.
 vendor/hamlib/rigctld
+
+# Lizenz-Generator: Ed25519-Private-Key liegt im UserAppSupport-Ordner und
+# darf NIE ins Repo. Belt-and-Suspenders falls mal ein Test-Keypair im
+# Projektverzeichnis landet.
+keypair.json
+*.keypair.json

@@ -1,0 +1,365 @@
+[
+  {
+    "id": "HELVETIA",
+    "name": "Helvetia (H26)",
+    "sponsor": "USKA",
+    "modeHint": "Mixed",
+    "periodHint": "Last full weekend of April, 1300–1259 UTC",
+    "defaultSerialScope": "log",
+    "exchangeFields": [
+      { "key": "rst_sent",     "label": "RST",    "kind": "rst",    "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "canton_sent",  "label": "Kanton", "kind": "canton", "role": "sent", "autoFill": "myCanton",    "width": 70 },
+      { "key": "rst_recv",     "label": "RST",    "kind": "rst",    "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "canton_recv",  "label": "Kanton", "kind": "canton", "role": "recv", "visibility": "onlyIfRecvIsHB", "width": 70 },
+      { "key": "serial_recv",  "label": "Serial", "kind": "serial", "role": "recv", "visibility": "onlyIfRecvIsDX", "placeholder": "001", "width": 70 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "LOW",
+      "band": "ALL",
+      "mode": "MIXED",
+      "station": "FIXED",
+      "assisted": "NON-ASSISTED",
+      "time": "24-HOURS"
+    },
+    "infoURL": "https://uska.ch/en/events/uska-helvetia-contest-h26/",
+    "notes": "HB-Station sendet RST + Kanton. Recv: Kanton (wenn Gegenstation HB) oder Serial (wenn DX)."
+  },
+  {
+    "id": "USKA-FD-SSB",
+    "name": "USKA Field Day SSB",
+    "sponsor": "USKA",
+    "modeHint": "SSB",
+    "periodHint": "First full weekend of September, 1200–1159 UTC",
+    "defaultSerialScope": "log",
+    "exchangeFields": [
+      { "key": "rst_sent",    "label": "RS",     "kind": "rst",    "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "serial_sent", "label": "Serial", "kind": "serial", "role": "sent", "autoFill": "serialNext",  "width": 70 },
+      { "key": "rst_recv",    "label": "RS",     "kind": "rst",    "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "serial_recv", "label": "Serial", "kind": "serial", "role": "recv", "placeholder": "001",      "width": 70 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "LOW",
+      "band": "ALL",
+      "mode": "PH",
+      "station": "PORTABLE",
+      "assisted": "NON-ASSISTED",
+      "time": "24-HOURS"
+    },
+    "infoURL": "https://uska.ch/en/events/uska-field-day-ssb-2/",
+    "notes": "RS + laufende Nummer für alle Stationen."
+  },
+  {
+    "id": "USKA-FD-CW",
+    "name": "USKA Field Day CW",
+    "sponsor": "USKA",
+    "modeHint": "CW",
+    "periodHint": "First full weekend of June, 1200–1159 UTC",
+    "defaultSerialScope": "log",
+    "exchangeFields": [
+      { "key": "rst_sent",    "label": "RST",    "kind": "rst",    "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "serial_sent", "label": "Serial", "kind": "serial", "role": "sent", "autoFill": "serialNext",  "width": 70 },
+      { "key": "rst_recv",    "label": "RST",    "kind": "rst",    "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "serial_recv", "label": "Serial", "kind": "serial", "role": "recv", "placeholder": "001",      "width": 70 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "LOW",
+      "band": "ALL",
+      "mode": "CW",
+      "station": "PORTABLE",
+      "assisted": "NON-ASSISTED",
+      "time": "24-HOURS"
+    },
+    "infoURL": "https://uska.ch/en/contest/",
+    "notes": "RST + laufende Nummer für alle Stationen."
+  },
+  {
+    "id": "USKA-50MHZ",
+    "name": "USKA 50 MHz Contest",
+    "sponsor": "USKA",
+    "modeHint": "VHF",
+    "periodHint": "First Sunday of May",
+    "defaultSerialScope": "log",
+    "exchangeFields": [
+      { "key": "rst_sent",    "label": "RST",     "kind": "rst",    "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "grid_sent",   "label": "Locator", "kind": "grid",   "role": "sent", "autoFill": "myGrid",      "width": 90 },
+      { "key": "serial_sent", "label": "Serial",  "kind": "serial", "role": "sent", "autoFill": "serialNext",  "width": 70 },
+      { "key": "rst_recv",    "label": "RST",     "kind": "rst",    "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "grid_recv",   "label": "Locator", "kind": "grid",   "role": "recv", "placeholder": "JN47PN",   "width": 90 },
+      { "key": "serial_recv", "label": "Serial",  "kind": "serial", "role": "recv", "placeholder": "001",      "width": 70 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "LOW",
+      "band": "6M",
+      "mode": "MIXED",
+      "station": "PORTABLE",
+      "assisted": "NON-ASSISTED",
+      "time": "6-HOURS"
+    },
+    "infoURL": "https://uska.ch/en/contest/",
+    "notes": "RST + 6-stelliger Locator + laufende Nummer."
+  },
+  {
+    "id": "CQ-WW-CW",
+    "name": "CQ World-Wide DX (CW)",
+    "sponsor": "CQ Magazine",
+    "modeHint": "CW",
+    "periodHint": "Last full weekend of November, 0000–2359 UTC",
+    "defaultSerialScope": "log",
+    "exchangeFields": [
+      { "key": "rst_sent",  "label": "RST",     "kind": "rst",  "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "zone_sent", "label": "CQ-Zone", "kind": "zone", "role": "sent", "autoFill": "myZone",      "width": 70 },
+      { "key": "rst_recv",  "label": "RST",     "kind": "rst",  "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "zone_recv", "label": "CQ-Zone", "kind": "zone", "role": "recv", "placeholder": "14",       "width": 70 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "HIGH",
+      "band": "ALL",
+      "mode": "CW",
+      "station": "FIXED",
+      "assisted": "NON-ASSISTED",
+      "time": "48-HOURS"
+    },
+    "infoURL": "https://cqww.com/rules.htm",
+    "notes": "RST + CQ-Zone (z.B. 599 14). Multiplier: Zone × DXCC-Country pro Band."
+  },
+  {
+    "id": "CQ-WW-SSB",
+    "name": "CQ World-Wide DX (SSB)",
+    "sponsor": "CQ Magazine",
+    "modeHint": "SSB",
+    "periodHint": "Last full weekend of October, 0000–2359 UTC",
+    "defaultSerialScope": "log",
+    "exchangeFields": [
+      { "key": "rst_sent",  "label": "RS",      "kind": "rst",  "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "zone_sent", "label": "CQ-Zone", "kind": "zone", "role": "sent", "autoFill": "myZone",      "width": 70 },
+      { "key": "rst_recv",  "label": "RS",      "kind": "rst",  "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "zone_recv", "label": "CQ-Zone", "kind": "zone", "role": "recv", "placeholder": "14",       "width": 70 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "HIGH",
+      "band": "ALL",
+      "mode": "PH",
+      "station": "FIXED",
+      "assisted": "NON-ASSISTED",
+      "time": "48-HOURS"
+    },
+    "infoURL": "https://cqww.com/rules.htm",
+    "notes": "RS + CQ-Zone (z.B. 59 14). Multiplier: Zone × DXCC-Country pro Band."
+  },
+  {
+    "id": "CQ-WPX-CW",
+    "name": "CQ WPX (CW)",
+    "sponsor": "CQ Magazine",
+    "modeHint": "CW",
+    "periodHint": "Last full weekend of May, 0000–2359 UTC",
+    "defaultSerialScope": "log",
+    "serialScopeByOperator": {
+      "MULTI-TWO": "band",
+      "MULTI-UNLIMITED": "band",
+      "MULTI-DISTRIBUTED": "band"
+    },
+    "exchangeFields": [
+      { "key": "rst_sent",    "label": "RST",    "kind": "rst",    "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "serial_sent", "label": "Serial", "kind": "serial", "role": "sent", "autoFill": "serialNext",  "width": 70 },
+      { "key": "rst_recv",    "label": "RST",    "kind": "rst",    "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "serial_recv", "label": "Serial", "kind": "serial", "role": "recv", "placeholder": "001",      "width": 70 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "HIGH",
+      "band": "ALL",
+      "mode": "CW",
+      "station": "FIXED",
+      "assisted": "NON-ASSISTED",
+      "time": "48-HOURS"
+    },
+    "infoURL": "https://www.cqwpx.com/rules.htm",
+    "notes": "RST + Serial. Multi-Two / Multi-Unlimited / Multi-Distributed: Serial pro Band statt pro Log."
+  },
+  {
+    "id": "CQ-WPX-SSB",
+    "name": "CQ WPX (SSB)",
+    "sponsor": "CQ Magazine",
+    "modeHint": "SSB",
+    "periodHint": "Last full weekend of March, 0000–2359 UTC",
+    "defaultSerialScope": "log",
+    "serialScopeByOperator": {
+      "MULTI-TWO": "band",
+      "MULTI-UNLIMITED": "band",
+      "MULTI-DISTRIBUTED": "band"
+    },
+    "exchangeFields": [
+      { "key": "rst_sent",    "label": "RS",     "kind": "rst",    "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "serial_sent", "label": "Serial", "kind": "serial", "role": "sent", "autoFill": "serialNext",  "width": 70 },
+      { "key": "rst_recv",    "label": "RS",     "kind": "rst",    "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "serial_recv", "label": "Serial", "kind": "serial", "role": "recv", "placeholder": "001",      "width": 70 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "HIGH",
+      "band": "ALL",
+      "mode": "PH",
+      "station": "FIXED",
+      "assisted": "NON-ASSISTED",
+      "time": "48-HOURS"
+    },
+    "infoURL": "https://www.cqwpx.com/rules.htm",
+    "notes": "RS + Serial. Multi-Two / Multi-Unlimited / Multi-Distributed: Serial pro Band statt pro Log."
+  },
+  {
+    "id": "IARU-HF",
+    "name": "IARU HF World Championship",
+    "sponsor": "IARU / ARRL",
+    "modeHint": "Mixed",
+    "periodHint": "Second full weekend of July, 1200–1159 UTC",
+    "defaultSerialScope": "log",
+    "exchangeFields": [
+      { "key": "rst_sent",  "label": "RST",      "kind": "rst",  "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "zone_sent", "label": "ITU-Zone", "kind": "zone", "role": "sent", "placeholder": "28",       "width": 70 },
+      { "key": "rst_recv",  "label": "RST",      "kind": "rst",  "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "zone_recv", "label": "ITU/Soc",  "kind": "freeText", "role": "recv", "placeholder": "28 oder USKA", "width": 100 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "HIGH",
+      "band": "ALL",
+      "mode": "MIXED",
+      "station": "FIXED",
+      "assisted": "NON-ASSISTED",
+      "time": "24-HOURS"
+    },
+    "infoURL": "https://www.arrl.org/iaru-hf-world-championship",
+    "notes": "RST + ITU-Zone (HB: 28). HQ-Stationen senden ihre Society-Abkürzung statt Zone (z.B. USKA)."
+  },
+  {
+    "id": "DARC-WAG",
+    "name": "DARC Worked All Germany",
+    "sponsor": "DARC",
+    "modeHint": "Mixed",
+    "periodHint": "3rd full weekend of October, 1500–1459 UTC",
+    "defaultSerialScope": "log",
+    "exchangeFields": [
+      { "key": "rst_sent",    "label": "RST",    "kind": "rst",      "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "serial_sent", "label": "Serial", "kind": "serial",   "role": "sent", "autoFill": "serialNext",  "width": 70 },
+      { "key": "rst_recv",    "label": "RST",    "kind": "rst",      "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "dok_recv",    "label": "DOK",    "kind": "district", "role": "recv", "placeholder": "B01",      "width": 90 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "LOW",
+      "band": "ALL",
+      "mode": "MIXED",
+      "station": "FIXED",
+      "assisted": "NON-ASSISTED",
+      "time": "24-HOURS"
+    },
+    "infoURL": "https://www.darc.de/der-club/referate/conteste/wag-contest/en/rules/",
+    "notes": "Aus HB-Sicht: Wir senden RST + Serial, deutsche Stationen senden DOK. Multiplier (für uns) sind die DOK-Distrikt-Buchstaben."
+  },
+  {
+    "id": "ARRL-DX-CW",
+    "name": "ARRL International DX (CW)",
+    "sponsor": "ARRL",
+    "modeHint": "CW",
+    "periodHint": "3rd full weekend of February, 0000–2359 UTC",
+    "defaultSerialScope": "log",
+    "exchangeFields": [
+      { "key": "rst_sent",   "label": "RST",   "kind": "rst",      "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "power_sent", "label": "Power", "kind": "freeText", "role": "sent", "placeholder": "100",      "width": 70 },
+      { "key": "rst_recv",   "label": "RST",   "kind": "rst",      "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "state_recv", "label": "State", "kind": "state",    "role": "recv", "placeholder": "NY",       "width": 70 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "HIGH",
+      "band": "ALL",
+      "mode": "CW",
+      "station": "FIXED",
+      "assisted": "NON-ASSISTED",
+      "time": "48-HOURS"
+    },
+    "infoURL": "https://www.arrl.org/arrl-dx",
+    "notes": "Nur W/VE-Stationen arbeiten — wir senden Power (Watt), W/VE sendet State/Province."
+  },
+  {
+    "id": "ARRL-DX-SSB",
+    "name": "ARRL International DX (SSB)",
+    "sponsor": "ARRL",
+    "modeHint": "SSB",
+    "periodHint": "1st full weekend of March, 0000–2359 UTC",
+    "defaultSerialScope": "log",
+    "exchangeFields": [
+      { "key": "rst_sent",   "label": "RS",    "kind": "rst",      "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "power_sent", "label": "Power", "kind": "freeText", "role": "sent", "placeholder": "100",      "width": 70 },
+      { "key": "rst_recv",   "label": "RS",    "kind": "rst",      "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "state_recv", "label": "State", "kind": "state",    "role": "recv", "placeholder": "NY",       "width": 70 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "HIGH",
+      "band": "ALL",
+      "mode": "PH",
+      "station": "FIXED",
+      "assisted": "NON-ASSISTED",
+      "time": "48-HOURS"
+    },
+    "infoURL": "https://www.arrl.org/arrl-dx",
+    "notes": "Nur W/VE-Stationen arbeiten — wir senden Power (Watt), W/VE sendet State/Province."
+  },
+  {
+    "id": "WAE-DX-CW",
+    "name": "WAE DX (CW)",
+    "sponsor": "DARC",
+    "modeHint": "CW",
+    "periodHint": "2nd full weekend of August, 0000–2359 UTC",
+    "defaultSerialScope": "log",
+    "exchangeFields": [
+      { "key": "rst_sent",    "label": "RST",    "kind": "rst",    "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "serial_sent", "label": "Serial", "kind": "serial", "role": "sent", "autoFill": "serialNext",  "width": 70 },
+      { "key": "rst_recv",    "label": "RST",    "kind": "rst",    "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "serial_recv", "label": "Serial", "kind": "serial", "role": "recv", "placeholder": "001",      "width": 70 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "HIGH",
+      "band": "ALL",
+      "mode": "CW",
+      "station": "FIXED",
+      "assisted": "NON-ASSISTED",
+      "time": "36-HOURS"
+    },
+    "infoURL": "https://www.darc.de/der-club/referate/conteste/wae-dx-contest/en/wae-rules/",
+    "notes": "EU vs DX. Nur EU/DX gegenseitig — kein EU-zu-EU. QTC-Block kommt in einer späteren Etappe."
+  },
+  {
+    "id": "WAE-DX-SSB",
+    "name": "WAE DX (SSB)",
+    "sponsor": "DARC",
+    "modeHint": "SSB",
+    "periodHint": "2nd full weekend of September, 0000–2359 UTC",
+    "defaultSerialScope": "log",
+    "exchangeFields": [
+      { "key": "rst_sent",    "label": "RS",     "kind": "rst",    "role": "sent", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "serial_sent", "label": "Serial", "kind": "serial", "role": "sent", "autoFill": "serialNext",  "width": 70 },
+      { "key": "rst_recv",    "label": "RS",     "kind": "rst",    "role": "recv", "autoFill": "rstFromMode", "width": 60 },
+      { "key": "serial_recv", "label": "Serial", "kind": "serial", "role": "recv", "placeholder": "001",      "width": 70 }
+    ],
+    "defaultCategories": {
+      "op": "SINGLE-OP",
+      "power": "HIGH",
+      "band": "ALL",
+      "mode": "PH",
+      "station": "FIXED",
+      "assisted": "NON-ASSISTED",
+      "time": "36-HOURS"
+    },
+    "infoURL": "https://www.darc.de/der-club/referate/conteste/wae-dx-contest/en/wae-rules/",
+    "notes": "EU vs DX. Nur EU/DX gegenseitig — kein EU-zu-EU. QTC-Block kommt in einer späteren Etappe."
+  }
+]

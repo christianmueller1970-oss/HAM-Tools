@@ -43,12 +43,9 @@ struct DXClusterView: View {
         .navigationTitle("DX-Cluster")
         .onAppear {
             updateClock()
-            vm.setup(watchStore: watchList)
-            if let node = clusterStore.activeNode {
-                vm.connect(host: node.host, port: node.port, name: node.name)
-            } else {
-                vm.connect()
-            }
+            // setup + connect läuft jetzt zentral in ContentView.onAppear,
+            // damit Band Activity / POTA-Spots / Propagation auch verfügbar
+            // sind wenn der User nicht via DX-Cluster-Tab einsteigt.
         }
         .onDisappear { /* keep connection alive while app runs */ }
         .onReceive(timer) { _ in updateClock() }

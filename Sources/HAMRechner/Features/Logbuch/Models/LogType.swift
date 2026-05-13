@@ -39,9 +39,8 @@ enum LogType: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    // Standard + POTA sind voll umgesetzt (Phase 1 / 4c).
-    // Contest + SOTA sind im Enum, UI noch nicht fertig.
+    // Standard + POTA + Contest sind voll umgesetzt. SOTA folgt.
     var isAvailable: Bool {
-        self == .standard || self == .pota
+        self == .standard || self == .pota || self == .contest
     }
 }

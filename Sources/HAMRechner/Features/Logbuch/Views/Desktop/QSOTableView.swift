@@ -35,8 +35,18 @@ struct QSOTableView: View {
 
     // Spalten-Anpassung (Reihenfolge + Sichtbarkeit + Breite). TableColumn-
     // Customization ist Codable — wird in UserDefaults als JSON persistiert.
+    // Pro Log-Typ ein eigener Key: Contest braucht Serial+Exch, POTA braucht
+    // Their-Park, Standard ist die generische DX-Sicht.
     @State private var columnCustomization = TableColumnCustomization<QSO>()
-    private let customizationStorageKey = "logbook.qsoTable.columnCustomization"
+    private var customizationStorageKey: String {
+        let suffix: String
+        switch currentLog?.type {
+        case .contest: suffix = ".contest"
+        case .pota:    suffix = ".pota"
+        default:       suffix = ""
+        }
+        return "logbook.qsoTable.columnCustomization\(suffix)"
+    }
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -54,6 +64,18 @@ struct QSOTableView: View {
     // Daten an.
     private var sortedQSOs: [QSO] {
         filteredQSOs.sorted(using: sortOrder)
+    }
+
+    // Chronologische QSO-Nummer (ältestes = 1, neuestes = N).
+    // Bewusst aus *currentQSOs* abgeleitet, nicht aus sortedQSOs — die Nummer
+    // bleibt dem QSO erhalten, egal in welcher Sortierung die Tabelle steht.
+    private var chronologicalIndex: [UUID: Int] {
+        let byDate = manager.currentQSOs.sorted { $0.datetime < $1.datetime }
+        var map: [UUID: Int] = [:]
+        for (i, qso) in byDate.enumerated() {
+            map[qso.id] = i + 1
+        }
+        return map
     }
 
     private var currentLog: Log? {
@@ -86,7 +108,12 @@ struct QSOTableView: View {
         }
         .onChange(of: columnCustomization) { _, _ in saveCustomization() }
         .onChange(of: manager.currentQSOs) { _, _ in recomputeDupes() }
-        .onChange(of: manager.currentLogID) { _, _ in recomputeDupes() }
+        .onChange(of: manager.currentLogID) { _, _ in
+            recomputeDupes()
+            // Beim Log-Wechsel die für den Log-Typ passende Spalten-Konfiguration
+            // laden (Standard, POTA, Contest haben je einen eigenen Storage-Key).
+            loadCustomization()
+        }
     }
 
     /// Berechnet die Menge der Dupe-QSO-IDs im aktiven POTA-Log neu.
@@ -134,6 +161,20 @@ struct QSOTableView: View {
             // die Tabelle das TableColumnBuilder-10er-Limit (insgesamt haben
             // wir 15 Spalten inkl. Aktionen).
             Group {
+                // Laufende Nummer (chronologisch) — in allen Log-Typen sichtbar.
+                // Der User sieht damit beim Loggen sofort, wie viele QSOs er
+                // schon hat. Sortier-Value zeigt auf datetime, damit der Builder
+                // Sort-Typ-konsistent zu den anderen Spalten bleibt.
+                TableColumn("#", value: \QSO.datetime) { (qso: QSO) in
+                    let idx = chronologicalIndex[qso.id]
+                    let label: String = idx.map { String($0) } ?? ""
+                    Text(label)
+                        .font(.system(.caption, design: .monospaced).weight(.semibold))
+                        .foregroundStyle(theme.textDim)
+                }
+                .width(min: 36, ideal: 42)
+                .customizationID("rowNumber")
+
                 TableColumn("Time On (UTC)", value: \QSO.datetime) { (qso: QSO) in
                     Text(formatUTC(qso.datetime))
                         .font(.system(.caption, design: .monospaced))
@@ -290,6 +331,36 @@ struct QSOTableView: View {
                 .width(min: 120, ideal: 200)
                 .customizationID("comment")
                 .defaultVisibility(.hidden)
+
+                // Contest-spezifische Spalten: bei Standard- und POTA-Logs
+                // default versteckt, bei Contest-Logs wird die Sichtbarkeit
+                // über applyDefaultsForCurrentLogType() angeschaltet.
+                TableColumn("S-Nr") { (qso: QSO) in
+                    Text(qso.contestSerial.map { String(format: "%03d", $0) } ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 50, ideal: 60)
+                .customizationID("contestSerial")
+                .defaultVisibility(.hidden)
+
+                TableColumn("Sent Exch") { (qso: QSO) in
+                    Text(qso.contestExchangeSent ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 80, ideal: 110)
+                .customizationID("contestExchSent")
+                .defaultVisibility(.hidden)
+
+                TableColumn("Recv Exch") { (qso: QSO) in
+                    Text(qso.contestExchangeRecv ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 80, ideal: 110)
+                .customizationID("contestExchRecv")
+                .defaultVisibility(.hidden)
             }
 
             // QRZ-Status — grüner Haken wenn Call via Callbook irgendwas
@@ -396,15 +467,43 @@ struct QSOTableView: View {
     // MARK: - Persistenz der Spalten-Anpassung
 
     private func loadCustomization() {
-        guard let data = UserDefaults.standard.data(forKey: customizationStorageKey),
-              let decoded = try? JSONDecoder().decode(TableColumnCustomization<QSO>.self, from: data)
-        else { return }
-        columnCustomization = decoded
+        if let data = UserDefaults.standard.data(forKey: customizationStorageKey),
+           let decoded = try? JSONDecoder().decode(TableColumnCustomization<QSO>.self, from: data) {
+            columnCustomization = decoded
+            return
+        }
+        // Kein Save unter diesem Key vorhanden → Sinnvolle Defaults für den
+        // aktuellen Log-Typ. Spätere User-Anpassungen werden wieder unter
+        // demselben Key persistiert.
+        columnCustomization = defaultsForCurrentLogType()
     }
 
     private func saveCustomization() {
         guard let data = try? JSONEncoder().encode(columnCustomization) else { return }
         UserDefaults.standard.set(data, forKey: customizationStorageKey)
+    }
+
+    /// Erzeugt eine Spalten-Konfiguration für den gerade aktiven Log-Typ.
+    /// Wird beim ersten Öffnen eines neuen Log-Typs verwendet (Key noch leer).
+    private func defaultsForCurrentLogType() -> TableColumnCustomization<QSO> {
+        var c = TableColumnCustomization<QSO>()
+        switch currentLog?.type {
+        case .contest:
+            // POTA-/QRZ-Spalten unsichtbar, Contest-Felder sichtbar.
+            // rowNumber ist global default-sichtbar — kein expliziter Override nötig.
+            c[visibility: "theirPark"]       = .hidden
+            c[visibility: "state"]           = .hidden
+            c[visibility: "qrzStatus"]       = .hidden
+            c[visibility: "contestSerial"]   = .visible
+            c[visibility: "contestExchSent"] = .visible
+            c[visibility: "contestExchRecv"] = .visible
+        case .pota:
+            c[visibility: "theirPark"]      = .visible
+            c[visibility: "state"]          = .visible
+        default:
+            break
+        }
+        return c
     }
 
     // MARK: - Color coding

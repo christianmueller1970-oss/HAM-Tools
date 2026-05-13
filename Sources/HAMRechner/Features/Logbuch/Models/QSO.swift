@@ -28,8 +28,12 @@ struct QSO: Identifiable, Codable, Hashable {
     var antenna: String?
 
     // Contest (Phase 4)
-    var contest: String?
-    var contestExchange: String?
+    var contest: String?                // Template-ID (z.B. "HELVETIA", "CQ-WW-CW")
+    var contestSerial: Int?             // eigener Serial (nil wenn Template keinen verlangt)
+    var contestExchangeSent: String?    // voll formatierter sent-Exchange (z.B. "599 BE" oder "599 001")
+    var contestExchangeRecv: String?    // voll formatierter recv-Exchange
+    var contestExchange: String?        // Legacy: vor Etappe 1 das einzige Feld; bleibt zur Migration
+    var contestIsRun: Bool?             // Etappe 2: Run vs S&P
 
     // POTA/SOTA (Phase 4c/4d)
     var myPotaRef: String?

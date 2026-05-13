@@ -78,7 +78,13 @@ enum ADIFCodec {
         if let v = q.powerW      { s += field("TX_PWR", String(format: "%g", v)) }
         if let v = q.antenna     { s += field("ANTENNA", v) }
         if let v = q.contest     { s += field("CONTEST_ID", v) }
-        if let v = q.contestExchange { s += field("SRX_STRING", v) }
+        // Contest-Exchange (Etappe 1): eigener Serial → STX, voller Sent/Recv → STX_STRING/SRX_STRING.
+        // Wenn die neuen Felder leer sind, fällt der Code auf den Legacy-`contestExchange` zurück,
+        // damit Logs aus der Vor-Etappe-1-Zeit weiter exportierbar bleiben.
+        if let v = q.contestSerial          { s += field("STX", String(v)) }
+        if let v = q.contestExchangeSent    { s += field("STX_STRING", v) }
+        let recvEx = q.contestExchangeRecv ?? q.contestExchange
+        if let v = recvEx                   { s += field("SRX_STRING", v) }
         if let v = q.distanceKm  { s += field("DISTANCE", String(format: "%.0f", v)) }
         if let v = q.bearingDeg  { s += field("ANT_AZ", String(format: "%.0f", v)) }
 
@@ -243,8 +249,11 @@ enum ADIFCodec {
         q.stationCall    = fields["STATION_CALLSIGN"]
         q.powerW         = fields["TX_PWR"].flatMap(Double.init)
         q.antenna        = fields["ANTENNA"]
-        q.contest        = fields["CONTEST_ID"]
-        q.contestExchange = fields["SRX_STRING"] ?? fields["SRX"]
+        q.contest             = fields["CONTEST_ID"]
+        q.contestSerial       = fields["STX"].flatMap(Int.init)
+        q.contestExchangeSent = fields["STX_STRING"]
+        q.contestExchangeRecv = fields["SRX_STRING"] ?? fields["SRX"]
+        // Legacy-Feld absichtlich nicht mehr setzen — neue Felder sind die Quelle der Wahrheit.
         q.distanceKm     = fields["DISTANCE"].flatMap(Double.init)
         q.bearingDeg     = fields["ANT_AZ"].flatMap(Double.init)
 

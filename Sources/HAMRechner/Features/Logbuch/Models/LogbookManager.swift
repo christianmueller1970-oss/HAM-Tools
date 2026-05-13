@@ -164,11 +164,24 @@ final class LogbookManager: ObservableObject {
 
     // MARK: - Public: QSOs
 
+    // Lizenz-Gate: optional vom App-Root gesetzt. Wenn `licenseAllowsMoreQSOs`
+    // false zurückgibt, wird das QSO NICHT persistiert und `onLicenseBlocked`
+    // aufgerufen (für UI-Toast). Nach erfolgreichem Add wird `onQSOLogged`
+    // gerufen — der License-Service zählt damit den Demo-Counter hoch.
+    var licenseAllowsMoreQSOs: (() -> Bool)?
+    var onLicenseBlocked:      (() -> Void)?
+    var onQSOLogged:           (() -> Void)?
+
     func addQSO(_ qso: QSO) {
         guard let db = openDB else { return }
+        if let gate = licenseAllowsMoreQSOs, !gate() {
+            onLicenseBlocked?()
+            return
+        }
         do {
             try db.addQSO(qso); currentQSOs = db.qsos
             recomputeAwards()
+            onQSOLogged?()
         } catch { print("addQSO failed: \(error.localizedDescription)") }
     }
 

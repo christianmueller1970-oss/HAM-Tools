@@ -12,6 +12,7 @@ struct Log: Identifiable, Codable, Hashable {
     // Typ-spezifische Felder — in MVP ungenutzt, in späteren Phasen aktiviert.
     var contestID: String?
     var contestCategory: String?
+    var contestSerialScope: String?    // "log" | "band" — Override des Template-Defaults aus Multi-Op-Kategorie
     var potaParkRef: String?       // primärer Park (auch der einzige bei Non-Hopping)
     var potaParkRefs: String?      // Komma-Liste aller Parks (Multi-Park-Hopping), inkl. primärer; nil bei Single-Park
     var sotaSummitRef: String?
@@ -27,6 +28,7 @@ struct Log: Identifiable, Codable, Hashable {
          endDate: Date? = nil,
          contestID: String? = nil,
          contestCategory: String? = nil,
+         contestSerialScope: String? = nil,
          potaParkRef: String? = nil,
          potaParkRefs: String? = nil,
          sotaSummitRef: String? = nil,
@@ -40,6 +42,7 @@ struct Log: Identifiable, Codable, Hashable {
         self.endDate = endDate
         self.contestID = contestID
         self.contestCategory = contestCategory
+        self.contestSerialScope = contestSerialScope
         self.potaParkRef = potaParkRef
         self.potaParkRefs = potaParkRefs
         self.sotaSummitRef = sotaSummitRef
