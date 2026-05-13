@@ -23,6 +23,7 @@ struct CATSettingsView: View {
                 configManagementSection
                 profileSection
                 serialSection
+                civSection
                 pollSection
                 diagnosticsSection
             }
@@ -75,10 +76,16 @@ struct CATSettingsView: View {
                 }
                 .pickerStyle(.menu)
 
-                Button("Neu…") {
-                    newConfigName = ""
+                Button("Speichern unter…") {
+                    // Default-Name vom aktiven Profil ableiten, dann editierbar.
+                    let active = settings.activeConfig
+                    let suggested = TRXProfileLoader.shared
+                        .profile(forID: active?.profileID ?? "")?
+                        .model ?? "Neue Konfig"
+                    newConfigName = suggested
                     showNewConfigSheet = true
                 }
+                .help("Aktuelle Einstellungen als neue Konfiguration speichern.")
                 Button("Löschen") {
                     if let id = settings.activeConfigID {
                         settings.removeConfig(id: id)
@@ -93,6 +100,11 @@ struct CATSettingsView: View {
                     .textFieldStyle(.roundedBorder)
                     .padding(.top, 4)
             }
+
+            Text("Mehrere Konfigurationen sind möglich — z.B. eine pro Radio. Änderungen werden in der aktuell ausgewählten Konfig gespeichert; zwischen Konfigs wechselst du oben im Picker.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .padding(.top, 2)
         }
     }
 
@@ -202,6 +214,36 @@ struct CATSettingsView: View {
         }
     }
 
+    // CI-V Address — nur für ICOM-Geräte. Default kommt aus dem Profil,
+    // User kann überschreiben (z.B. wenn er das Default-CI-V der Firmware
+    // selber umgestellt hat, oder mehrere ICOMs am selben Bus).
+    @ViewBuilder
+    private var civSection: some View {
+        if let profile = TRXProfileLoader.shared.profile(forID: settings.activeConfig?.profileID ?? ""),
+           profile.brand == "Icom" {
+            GroupBox("CI-V (ICOM)") {
+                HStack {
+                    TextField("0x94", text: civBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(width: 110)
+                    if let def = profile.defaultCIVAddress {
+                        Button("Default (\(def))") {
+                            guard var c = settings.activeConfig else { return }
+                            c.civAddress = def
+                            settings.activeConfig = c
+                        }
+                        .controlSize(.small)
+                    }
+                    Spacer()
+                }
+                Text("Hex-Wert wie auf dem Radio eingestellt (Menü → CI-V Address). Hamlib übernimmt den Wert beim Start; bei abweichendem Wert blinkt die Verbindung nicht auf.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private var pollSection: some View {
         GroupBox("Polling") {
             if let cfg = settings.activeConfig {
@@ -250,23 +292,26 @@ struct CATSettingsView: View {
 
     private var newConfigSheet: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Neue Konfiguration")
+            Text("Konfiguration speichern unter…")
                 .font(.headline)
-            TextField("Name (z.B. Home-IC7300)", text: $newConfigName)
+            Text("Die aktuellen CAT-Einstellungen (Radio, Port, Baud, …) werden als neue Konfiguration unter dem hier eingegebenen Namen abgelegt. Vorhandene Konfigurationen bleiben unverändert.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField("Name (z.B. IC-705 Mobile)", text: $newConfigName)
                 .textFieldStyle(.roundedBorder)
             HStack {
                 Button("Abbrechen") { showNewConfigSheet = false }
                 Spacer()
-                Button("Anlegen") {
+                Button("Speichern") {
                     let n = newConfigName.trimmingCharacters(in: .whitespaces)
                     guard !n.isEmpty else { return }
-                    // Neue Konfig: Defaults von aktuellem aktiven Profil übernehmen,
-                    // damit nicht ganz leer.
+                    // 1:1-Kopie der aktiven Konfig — auch Port und Poll-Interval,
+                    // damit der User nichts nochmal eingeben muss.
                     let template = settings.activeConfig
                     let newCfg = CATConfig(
                         name: n,
                         profileID: template?.profileID ?? "hamlib-dummy",
-                        serialPort: nil,
+                        serialPort: template?.serialPort,
                         baudRate: template?.baudRate ?? 9600,
                         dataBits: template?.dataBits ?? 8,
                         stopBits: template?.stopBits ?? 1,
@@ -283,7 +328,7 @@ struct CATSettingsView: View {
             }
         }
         .padding(20)
-        .frame(width: 360)
+        .frame(width: 380)
     }
 
     // MARK: - Bindings
@@ -420,6 +465,17 @@ struct CATSettingsView: View {
             set: { v in
                 guard var c = settings.activeConfig else { return }
                 c.pollIntervalMillis = Int(v)
+                settings.activeConfig = c
+            }
+        )
+    }
+
+    private var civBinding: Binding<String> {
+        Binding(
+            get: { settings.activeConfig?.civAddress ?? "" },
+            set: { v in
+                guard var c = settings.activeConfig else { return }
+                c.civAddress = v.trimmingCharacters(in: .whitespaces).isEmpty ? nil : v
                 settings.activeConfig = c
             }
         )

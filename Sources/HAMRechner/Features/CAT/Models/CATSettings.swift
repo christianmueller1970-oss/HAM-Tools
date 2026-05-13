@@ -82,12 +82,13 @@ final class CATSettings: ObservableObject {
     // Port/Name beibehalten (Port ist physisch, Name ist user-gegeben).
     func applyProfileDefaultsToActive(_ profile: TRXProfile) {
         guard var cfg = activeConfig else { return }
-        cfg.profileID  = profile.id
-        cfg.baudRate   = profile.defaultBaud
-        cfg.dataBits   = profile.defaultDataBits
-        cfg.stopBits   = profile.defaultStopBits
-        cfg.parity     = profile.defaultParity
-        cfg.handshake  = profile.defaultHandshake
+        cfg.profileID   = profile.id
+        cfg.baudRate    = profile.defaultBaud
+        cfg.dataBits    = profile.defaultDataBits
+        cfg.stopBits    = profile.defaultStopBits
+        cfg.parity      = profile.defaultParity
+        cfg.handshake   = profile.defaultHandshake
+        cfg.civAddress  = profile.defaultCIVAddress
         activeConfig = cfg
     }
 

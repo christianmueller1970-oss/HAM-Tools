@@ -17,6 +17,10 @@ struct TRXProfile: Codable, Identifiable, Hashable {
     let supportsFreq: Bool
     let supportsMode: Bool
     let supportsPTT: Bool
+    /// ICOM CI-V Default-Adresse als Hex-String, z.B. "0x94". Nur für
+    /// ICOM-Geräte relevant; für Yaesu/Kenwood/Elecraft bleibt das Feld nil
+    /// und die UI versteckt das Eingabefeld.
+    let defaultCIVAddress: String?
 
     var displayName: String { "\(brand) \(model)" }
 }

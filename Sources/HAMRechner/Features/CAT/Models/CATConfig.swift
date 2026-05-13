@@ -14,6 +14,10 @@ struct CATConfig: Codable, Identifiable, Hashable {
     var parity: SerialParity
     var handshake: SerialHandshake
     var pollIntervalMillis: Int
+    /// ICOM CI-V Adresse als Hex-String, z.B. "0x94" oder "94". Bleibt nil
+    /// für Nicht-ICOM-Profile. Default kommt aus TRXProfile.defaultCIVAddress;
+    /// User kann überschreiben (Multi-Radio-Setups, modifizierte Firmware).
+    var civAddress: String?
 
     init(id: UUID = UUID(),
          name: String,
@@ -24,7 +28,8 @@ struct CATConfig: Codable, Identifiable, Hashable {
          stopBits: Int = 1,
          parity: SerialParity = .none,
          handshake: SerialHandshake = .none,
-         pollIntervalMillis: Int = 500) {
+         pollIntervalMillis: Int = 500,
+         civAddress: String? = nil) {
         self.id = id
         self.name = name
         self.profileID = profileID
@@ -35,6 +40,7 @@ struct CATConfig: Codable, Identifiable, Hashable {
         self.parity = parity
         self.handshake = handshake
         self.pollIntervalMillis = pollIntervalMillis
+        self.civAddress = civAddress
     }
 
     // Erstellt eine Konfig mit den Werkseinstellungen eines Profils.
@@ -48,7 +54,8 @@ struct CATConfig: Codable, Identifiable, Hashable {
             stopBits: profile.defaultStopBits,
             parity: profile.defaultParity,
             handshake: profile.defaultHandshake,
-            pollIntervalMillis: 500
+            pollIntervalMillis: 500,
+            civAddress: profile.defaultCIVAddress
         )
     }
 }

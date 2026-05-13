@@ -118,6 +118,7 @@ struct ContentView: View {
     @StateObject private var logBridge   = LogEntryBridge.shared
     @State private var selectedCalculator: Calculator? = .logbuch
     @State private var pendingUpdatePayload: UpdateManifestPayload?
+    @State private var showBugReport: Bool = false
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -157,6 +158,13 @@ struct ContentView: View {
             UpdateAlertView(payload: payload)
                 .environmentObject(updateChecker)
                 .environmentObject(licenseService)
+        }
+        .sheet(isPresented: $showBugReport) {
+            BugReportSheet()
+                .environmentObject(themeManager)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showBugReport)) { _ in
+            showBugReport = true
         }
         .onChange(of: simBridge.navigationRequest) {
             if simBridge.navigationRequest != nil {

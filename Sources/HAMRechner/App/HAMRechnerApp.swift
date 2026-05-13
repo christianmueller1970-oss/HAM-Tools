@@ -111,6 +111,12 @@ struct HAMRechnerApp: App {
                 }
                 .keyboardShortcut("u", modifiers: [.command, .option])
             }
+            CommandGroup(replacing: .help) {
+                Button("Bug melden…") {
+                    NotificationCenter.default.post(name: .showBugReport, object: nil)
+                }
+                .keyboardShortcut("b", modifiers: [.command, .shift])
+            }
         }
 
         Settings {

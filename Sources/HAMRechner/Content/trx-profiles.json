@@ -27,7 +27,8 @@
     "needsSerialPort": true,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "defaultCIVAddress": "0x94"
   },
   {
     "id": "icom-ic7610",
@@ -42,7 +43,8 @@
     "needsSerialPort": true,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "defaultCIVAddress": "0x98"
   },
   {
     "id": "icom-ic705",
@@ -57,7 +59,8 @@
     "needsSerialPort": true,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "defaultCIVAddress": "0xA4"
   },
   {
     "id": "icom-ic9700",
@@ -72,7 +75,8 @@
     "needsSerialPort": true,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "defaultCIVAddress": "0xA2"
   },
   {
     "id": "icom-ic7100",
@@ -87,7 +91,8 @@
     "needsSerialPort": true,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "defaultCIVAddress": "0x88"
   },
   {
     "id": "icom-ic9100",
@@ -102,7 +107,8 @@
     "needsSerialPort": true,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "defaultCIVAddress": "0x7C"
   },
   {
     "id": "icom-ic7600",
@@ -117,7 +123,8 @@
     "needsSerialPort": true,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "defaultCIVAddress": "0x7A"
   },
   {
     "id": "icom-ic7700",
@@ -132,7 +139,8 @@
     "needsSerialPort": true,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "defaultCIVAddress": "0x74"
   },
   {
     "id": "icom-ic7200",
@@ -147,7 +155,8 @@
     "needsSerialPort": true,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "defaultCIVAddress": "0x76"
   },
   {
     "id": "icom-ic7000",
@@ -162,7 +171,8 @@
     "needsSerialPort": true,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "defaultCIVAddress": "0x70"
   },
   {
     "id": "icom-ic746pro",
@@ -177,7 +187,8 @@
     "needsSerialPort": true,
     "supportsFreq": true,
     "supportsMode": true,
-    "supportsPTT": true
+    "supportsPTT": true,
+    "defaultCIVAddress": "0x66"
   },
   {
     "id": "yaesu-ft991",

@@ -31,12 +31,21 @@ final class RigctldProcess {
                      "-s", String(config.baudRate)]
 
             // Serial-Parameter via -C (rigctld set_conf)
-            let confValue =
-                "data_bits=\(config.dataBits)" +
-                ",stop_bits=\(config.stopBits)" +
-                ",serial_parity=\(config.parity.rawValue)" +
-                ",serial_handshake=\(config.handshake.rawValue)"
-            args += ["-C", confValue]
+            var confParts = [
+                "data_bits=\(config.dataBits)",
+                "stop_bits=\(config.stopBits)",
+                "serial_parity=\(config.parity.rawValue)",
+                "serial_handshake=\(config.handshake.rawValue)"
+            ]
+            // ICOM CI-V Adresse mitgeben wenn das Profil eine kennt. Hamlib
+            // akzeptiert das Format "0x94" oder "94" — wir übernehmen, was
+            // im Config-Feld steht (User kann editieren).
+            if profile.brand == "Icom",
+               let civ = config.civAddress?.trimmingCharacters(in: .whitespaces),
+               !civ.isEmpty {
+                confParts.append("civaddr=\(civ)")
+            }
+            args += ["-C", confParts.joined(separator: ",")]
         }
 
         args += ["-t", String(tcpPort)]

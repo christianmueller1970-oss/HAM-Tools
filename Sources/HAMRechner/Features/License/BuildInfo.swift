@@ -18,6 +18,9 @@ enum BuildInfo {
     /// Support-/Lizenz-Anfragen
     static let licenseRequestEmail = "hb9hji@funkwelt.net"
 
+    /// Bug-Reports vom In-App-Button "Bug melden…"
+    static let bugReportEmail = "bugs@funkwelt.net"
+
     /// Update-Manifest auf Christians Webserver. Server-Setup s. tools/README-server.md.
     static let updateManifestURL = "https://toolbox.funkwelt.net/app/updates.json"
 
