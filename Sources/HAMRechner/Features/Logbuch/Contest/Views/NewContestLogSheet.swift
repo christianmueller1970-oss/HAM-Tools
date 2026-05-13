@@ -369,7 +369,8 @@ struct NewContestLogSheet: View {
             type: .contest,
             contestID: tpl.id,
             contestCategory: catOperator,
-            contestSerialScope: scope.rawValue
+            contestSerialScope: scope.rawValue,
+            contestModeCategory: catMode
         )
         manager.createLog(log)
         dismiss()

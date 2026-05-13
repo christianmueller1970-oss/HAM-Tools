@@ -231,6 +231,11 @@ struct QSOEntryPanel: View {
     }
 
     private func consumeBridge() {
+        // Im Contest- oder POTA-Modus übernimmt das jeweilige spezialisierte
+        // Form (ContestEntryForm / POTAEntryForm) den Draft selbst. Sonst hier
+        // konsumieren ist eine Race-Condition — Parent fängt den Draft ab
+        // bevor das Child-Form ihn sieht.
+        guard !isContestLogActive, !isPOTALogActive else { return }
         guard let draft = logBridge.consume() else { return }
         applyDraft(draft)
     }

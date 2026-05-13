@@ -116,16 +116,24 @@ struct QSOTableView: View {
         }
     }
 
-    /// Berechnet die Menge der Dupe-QSO-IDs im aktiven POTA-Log neu.
-    /// Outside POTA-Logs bleibt die Menge leer.
+    /// Berechnet die Menge der Dupe-QSO-IDs im aktiven Log neu.
+    /// • POTA: gleicher Call + gleiches Band (Mode egal — POTA-Spec).
+    /// • Contest: gleicher Call + gleiches Band + gleicher Mode (Cabrillo-Standard).
+    /// • Standard-Log: keine Markierung — Wiederholungen mit demselben Call sind
+    ///   legitime QSOs über Jahre.
     private func recomputeDupes() {
-        guard currentLog?.type == .pota else {
+        let kind = currentLog?.type
+        guard kind == .pota || kind == .contest else {
             if !dupeQSOIDs.isEmpty { dupeQSOIDs = [] }
             return
         }
         var groups: [String: [UUID]] = [:]
         for q in manager.currentQSOs {
-            let key = "\(q.call.uppercased())|\(q.band)"
+            let key: String
+            switch kind {
+            case .contest: key = "\(q.call.uppercased())|\(q.band)|\(q.mode.uppercased())"
+            default:       key = "\(q.call.uppercased())|\(q.band)"
+            }
             groups[key, default: []].append(q.id)
         }
         var result: Set<UUID> = []

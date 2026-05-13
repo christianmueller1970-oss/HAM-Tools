@@ -81,12 +81,26 @@ EOF
 # Quarantäne-Attribute vom Build entfernen (sonst klebt der Build-Mac-Quarantäne-Status am Bundle)
 xattr -cr "$APP_DIR" 2>/dev/null || true
 
-# Ad-hoc Code-Signing — auf Apple Silicon (ARM) essentiell, sonst läuft die App nicht.
-# Auf Intel ist es optional, aber konsistent. Hilft NICHT gegen Gatekeeper-Quarantäne,
-# nur gegen "App lässt sich gar nicht starten"-Probleme auf ARM.
-echo "==> Ad-hoc Code-Signing..."
-codesign --force --deep --sign - --options runtime "$APP_DIR" 2>&1 | grep -v "replacing existing signature" || true
-codesign --verify --deep --strict "$APP_DIR" && echo "    Signatur OK" || echo "    ⚠ Signatur-Verifikation fehlgeschlagen (App startet aber trotzdem)"
+# Code-Signing mit Developer ID (Apple-vergebenes Zertifikat) — erforderlich für
+# die spätere Notarisierung. Wenn das Cert nicht im Keychain ist, fällt es auf
+# Ad-hoc zurück (Dev-Build ohne Notarisierung, "App ist beschädigt" Workaround
+# beim ersten Öffnen — siehe LIES MICH ZUERST.txt).
+SIGN_IDENTITY="Developer ID Application: Christian Mueller (MS6HQ7BNA9)"
+NOTARY_PROFILE="HAM-Tools"
+if security find-identity -v -p codesigning 2>/dev/null | grep -q "$SIGN_IDENTITY"; then
+    echo "==> Code-Signing mit Developer ID..."
+    # --timestamp wird für Notarisierung verlangt. --options runtime aktiviert das
+    # Hardened Runtime (Pflicht für Notarisierung).
+    codesign --force --deep --timestamp --options runtime \
+        --sign "$SIGN_IDENTITY" "$APP_DIR" 2>&1 | grep -v "replacing existing signature" || true
+    codesign --verify --deep --strict "$APP_DIR" && echo "    Signatur OK"
+    SIGNED_FOR_NOTARIZATION=1
+else
+    echo "==> Developer-ID-Cert nicht gefunden — fallback auf Ad-hoc-Signing (Dev-Build, NICHT für Verteilung)..."
+    codesign --force --deep --sign - --options runtime "$APP_DIR" 2>&1 | grep -v "replacing existing signature" || true
+    codesign --verify --deep --strict "$APP_DIR" && echo "    Signatur OK (ad-hoc)" || echo "    ⚠ Signatur-Verifikation fehlgeschlagen"
+    SIGNED_FOR_NOTARIZATION=0
+fi
 
 echo "==> Erstelle DMG: ${DMG_NAME}..."
 DMG_TMP="$BUILD_PATH/dmg-tmp"
@@ -132,6 +146,29 @@ hdiutil create \
   "$DMG_NAME" >/dev/null
 
 rm -rf "$DMG_TMP"
+
+# Notarisierung: nur bei Developer-ID-signierten Builds. Apple-Server prüft
+# die Signatur + Hardened Runtime — wenn OK, kommt ein "Ticket" zurück, das
+# wir mit stapler ins DMG einbetten. Damit verifiziert Gatekeeper offline.
+if [ "$SIGNED_FOR_NOTARIZATION" = "1" ]; then
+    echo "==> Notarisierung: lade $DMG_NAME an Apple hoch (dauert 1–5 Minuten)..."
+    if xcrun notarytool submit "$DMG_NAME" \
+            --keychain-profile "$NOTARY_PROFILE" \
+            --wait 2>&1 | tee /tmp/hamtools-notary.log; then
+        if grep -q "status: Accepted" /tmp/hamtools-notary.log; then
+            echo "==> Notarisierungs-Ticket einbetten (stapler staple)..."
+            xcrun stapler staple "$DMG_NAME" && echo "    Ticket eingebettet"
+            xcrun stapler validate "$DMG_NAME" && echo "    Validierung OK — Gatekeeper-grün"
+        else
+            echo "    ⚠ Notarisierung NICHT akzeptiert — Log oben prüfen, Submission-ID auch in /tmp/hamtools-notary.log"
+            echo "    Diagnose mit:  xcrun notarytool log <SUBMISSION-ID> --keychain-profile $NOTARY_PROFILE"
+        fi
+    else
+        echo "    ⚠ notarytool-Aufruf fehlgeschlagen — DMG bleibt ohne Notar-Ticket"
+    fi
+else
+    echo "==> (Ad-hoc-Build, Notarisierung übersprungen)"
+fi
 
 echo "==> Fertig:"
 ls -lh "$DMG_NAME"

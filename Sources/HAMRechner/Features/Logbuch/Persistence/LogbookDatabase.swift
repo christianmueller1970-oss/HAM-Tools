@@ -12,7 +12,7 @@ final class LogbookDatabase {
     let fileURL: URL
     private let conn: SQLiteConnection
 
-    static let schemaVersion = 3
+    static let schemaVersion = 4
     static let fileExtension = "htlog"          // intern SQLite
 
     private(set) var log: Log
@@ -112,6 +112,7 @@ final class LogbookDatabase {
             contestID TEXT,
             contestCategory TEXT,
             contestSerialScope TEXT,
+            contestModeCategory TEXT,
             potaParkRef TEXT,
             potaParkRefs TEXT,
             sotaSummitRef TEXT,
@@ -200,6 +201,15 @@ final class LogbookDatabase {
             }
         }
 
+        // v3 → v4: Contest-Mode-Kategorie auf Log-Ebene (Wizard-Wahl persistieren).
+        if current < 4 {
+            if !columnExists(conn: conn, table: "log_meta", column: "contestModeCategory") {
+                if !conn.exec("ALTER TABLE log_meta ADD COLUMN contestModeCategory TEXT;") {
+                    throw LogbookError.writeFailed(conn.lastErrorMessage)
+                }
+            }
+        }
+
         // v2 → v3: Contest-Etappe-1-Felder (Serial, Sent/Recv-Exchange, Run/S&P).
         if current < 3 {
             let migrations: [(table: String, column: String, type: String)] = [
@@ -264,7 +274,7 @@ final class LogbookDatabase {
     private static func readLogMeta(conn: SQLiteConnection) throws -> Log? {
         let stmt = try conn.prepare("""
             SELECT id, name, type, startDate, endDate, contestID, contestCategory,
-                   contestSerialScope,
+                   contestSerialScope, contestModeCategory,
                    potaParkRef, potaParkRefs, sotaSummitRef, role, notes, createdAt
             FROM log_meta LIMIT 1;
         """)
@@ -274,7 +284,7 @@ final class LogbookDatabase {
               let name = stmt.columnText(1),
               let typeRaw = stmt.columnText(2),
               let startTS = stmt.columnDouble(3),
-              let createdTS = stmt.columnDouble(13) else {
+              let createdTS = stmt.columnDouble(14) else {
             return nil
         }
         return Log(
@@ -286,11 +296,12 @@ final class LogbookDatabase {
             contestID: stmt.columnText(5),
             contestCategory: stmt.columnText(6),
             contestSerialScope: stmt.columnText(7),
-            potaParkRef: stmt.columnText(8),
-            potaParkRefs: stmt.columnText(9),
-            sotaSummitRef: stmt.columnText(10),
-            role: stmt.columnText(11),
-            notes: stmt.columnText(12),
+            contestModeCategory: stmt.columnText(8),
+            potaParkRef: stmt.columnText(9),
+            potaParkRefs: stmt.columnText(10),
+            sotaSummitRef: stmt.columnText(11),
+            role: stmt.columnText(12),
+            notes: stmt.columnText(13),
             createdAt: Date(timeIntervalSince1970: createdTS)
         )
     }
@@ -298,9 +309,9 @@ final class LogbookDatabase {
     private func writeLogMeta(_ log: Log) throws {
         let stmt = try conn.prepare("""
             INSERT INTO log_meta(id, name, type, startDate, endDate, contestID,
-                contestCategory, contestSerialScope,
+                contestCategory, contestSerialScope, contestModeCategory,
                 potaParkRef, potaParkRefs, sotaSummitRef, role, notes, createdAt)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 type=excluded.type,
@@ -309,6 +320,7 @@ final class LogbookDatabase {
                 contestID=excluded.contestID,
                 contestCategory=excluded.contestCategory,
                 contestSerialScope=excluded.contestSerialScope,
+                contestModeCategory=excluded.contestModeCategory,
                 potaParkRef=excluded.potaParkRef,
                 potaParkRefs=excluded.potaParkRefs,
                 sotaSummitRef=excluded.sotaSummitRef,
@@ -323,12 +335,13 @@ final class LogbookDatabase {
         stmt.bind(6,  log.contestID)
         stmt.bind(7,  log.contestCategory)
         stmt.bind(8,  log.contestSerialScope)
-        stmt.bind(9,  log.potaParkRef)
-        stmt.bind(10, log.potaParkRefs)
-        stmt.bind(11, log.sotaSummitRef)
-        stmt.bind(12, log.role)
-        stmt.bind(13, log.notes)
-        stmt.bind(14, date: log.createdAt)
+        stmt.bind(9,  log.contestModeCategory)
+        stmt.bind(10, log.potaParkRef)
+        stmt.bind(11, log.potaParkRefs)
+        stmt.bind(12, log.sotaSummitRef)
+        stmt.bind(13, log.role)
+        stmt.bind(14, log.notes)
+        stmt.bind(15, date: log.createdAt)
         guard stmt.step() == SQLITE_DONE else {
             throw LogbookError.writeFailed(conn.lastErrorMessage)
         }

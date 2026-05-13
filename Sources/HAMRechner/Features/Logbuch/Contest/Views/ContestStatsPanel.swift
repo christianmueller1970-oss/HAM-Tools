@@ -33,17 +33,37 @@ struct ContestStatsPanel: View {
         ContestScoringEngine.score(qsos: qsos, templateID: activeLog?.contestID)
     }
 
-    // Welche Bänder zeigen wir in der Matrix? Bevorzugt die Standard-HF-Bänder
-    // PLUS alles was tatsächlich im Log vorkommt (bei VHF/UHF-Contests etc.).
-    private static let standardBands = ["160m", "80m", "40m", "20m", "15m", "10m"]
+    // Welche Bänder zeigen wir in der Matrix? Vom Template-`defaultCategories.band`
+    // abgeleitet — bei ALL die klassischen HF-Contestbänder (160/80/40/20/15/10),
+    // bei 6M nur 6m, bei MIXED jedes verwendete Band. So zeigt der 50-MHz-Contest
+    // keine leere HF-Tabelle und der HF-Contest keine WARC-Bänder.
+    private static let hfContestBands = ["160m", "80m", "40m", "20m", "15m", "10m"]
     private var matrixBands: [String] {
+        let templateBand = (template?.defaultCategories?.band ?? "ALL").uppercased()
+        let baseBands: [String]
+        switch templateBand {
+        case "ALL":     baseBands = Self.hfContestBands
+        case "MIXED":   baseBands = Self.hfContestBands + ["6m", "2m", "70cm"]
+        case "160M":    baseBands = ["160m"]
+        case "80M":     baseBands = ["80m"]
+        case "40M":     baseBands = ["40m"]
+        case "20M":     baseBands = ["20m"]
+        case "15M":     baseBands = ["15m"]
+        case "10M":     baseBands = ["10m"]
+        case "6M":      baseBands = ["6m"]
+        case "2M":      baseBands = ["2m"]
+        case "70CM":    baseBands = ["70cm"]
+        default:        baseBands = Self.hfContestBands
+        }
+        // Plus alles was tatsächlich im Log vorkommt (User könnte z.B. auf
+        // WARC arbeiten obwohl Contest auf HF ist — wird dann sichtbar).
+        var result = baseBands
         let used = Set(qsos.map(\.band)).filter { !$0.isEmpty }
-        var result = Self.standardBands
         for b in used where !result.contains(b) {
             result.append(b)
         }
         return result.sorted { lhs, rhs in
-            (bandSortKey(lhs)) > (bandSortKey(rhs))
+            bandSortKey(lhs) > bandSortKey(rhs)
         }
     }
 
@@ -53,6 +73,21 @@ struct ContestStatsPanel: View {
     private func bandSortKey(_ band: String) -> Double {
         let m = Double(band.lowercased().replacingOccurrences(of: "m", with: "")) ?? 9999
         return 1.0 / m
+    }
+
+    /// Welche Heatmap-Bänder zeigen — analog zur Score-Matrix vom Template
+    /// abgeleitet. Set für O(1)-Lookup im ForEach.
+    private var heatmapBandsToShow: Set<String> {
+        let templateBand = (template?.defaultCategories?.band ?? "ALL").uppercased()
+        switch templateBand {
+        case "ALL":     return ["160m", "80m", "40m", "20m", "15m", "10m"]
+        case "MIXED":   return Set(HEATMAP_BANDS)
+        case "6M":      return ["6m"]
+        case "2M":      return ["2m"]
+        default:        // Spezifisches HF-Band → genau das
+            let lc = templateBand.lowercased()
+            return [lc]
+        }
     }
 
     var body: some View {
@@ -309,14 +344,16 @@ struct ContestStatsPanel: View {
             }
 
             ForEach(Array(HEATMAP_BANDS.enumerated()), id: \.offset) { bi, band in
-                HStack(spacing: 2) {
-                    Text(band)
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(bandColor(for: band))
-                        .frame(width: 30, alignment: .trailing)
-                    ForEach(Array(CONTINENTS.enumerated()), id: \.offset) { ci, _ in
-                        let count = bi < matrix.count && ci < (matrix[bi].count) ? matrix[bi][ci] : 0
-                        HeatCell(count: count, theme: theme)
+                if heatmapBandsToShow.contains(band) {
+                    HStack(spacing: 2) {
+                        Text(band)
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(bandColor(for: band))
+                            .frame(width: 30, alignment: .trailing)
+                        ForEach(Array(CONTINENTS.enumerated()), id: \.offset) { ci, _ in
+                            let count = bi < matrix.count && ci < (matrix[bi].count) ? matrix[bi][ci] : 0
+                            HeatCell(count: count, theme: theme)
+                        }
                     }
                 }
             }

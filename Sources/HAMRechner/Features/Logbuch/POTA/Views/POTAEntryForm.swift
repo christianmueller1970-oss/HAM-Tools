@@ -60,9 +60,16 @@ struct POTAEntryForm: View {
             }
         }
         .padding(12)
-        .onAppear { call = ""; timeOn = Date() }
+        .onAppear {
+            call = ""
+            timeOn = Date()
+            consumeDXDraftIfPending()
+        }
         .onChange(of: logBridge.pendingPotaSpot) { _, spot in
             if let s = spot { applySpot(s); logBridge.pendingPotaSpot = nil }
+        }
+        .onChange(of: logBridge.navigationRequest) { _, _ in
+            consumeDXDraftIfPending()
         }
         .onReceive(utcTimer) { _ in
             timeTicker = Date()
@@ -332,6 +339,21 @@ struct POTAEntryForm: View {
         call = s.activator.uppercased()
         theirPark = s.reference
         // Sofortiger Lookup für den Namen-Hinweis (debounce dauert sonst zu lang)
+        scheduleLookup(for: call)
+    }
+
+    /// Generischer DX-Cluster-Spot wurde geklickt während ein POTA-Log aktiv ist.
+    /// Call/Frequenz/POTA-Ref übernehmen, damit man den Hunter-Workflow ohne
+    /// Tab-Wechsel abschließen kann.
+    private func consumeDXDraftIfPending() {
+        guard let draft = logBridge.consume() else { return }
+        call = draft.call.uppercased()
+        if let f = draft.frequencyMHz, f > 0 {
+            radio.frequencyMHz = f
+        }
+        if let p = draft.myPotaRef, theirPark.isEmpty {
+            theirPark = p
+        }
         scheduleLookup(for: call)
     }
 

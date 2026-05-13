@@ -4,6 +4,8 @@ struct SpotListView: View {
     let spots:     [DXSpot]
     let theme:     AppTheme
     var watchList: WatchListStore? = nil
+    /// Optional pro-Spot-Farbe (override) für Contest-Kontext: dupe → rot, mult → grün.
+    var rowAccent: ((DXSpot) -> Color?)? = nil
 
     @State private var sortOrder = [KeyPathComparator(\DXSpot.timestamp, order: .reverse)]
     @State private var selection: DXSpot.ID? = nil
@@ -60,9 +62,12 @@ struct SpotListView: View {
 
             TableColumn("DX-Rufz.", value: \.dxCall) { s in
                 let watched = watchList?.matches(s.dxCall) == true
+                let accent = rowAccent?(s)
+                let color: Color = accent
+                    ?? (watched ? Color(red: 1, green: 0.8, blue: 0) : bandColor(for: s.band))
                 Text(s.dxCall)
                     .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(watched ? Color(red: 1, green: 0.8, blue: 0) : bandColor(for: s.band))
+                    .foregroundStyle(color)
             }
             .width(min: 80, ideal: 100)
 
@@ -127,9 +132,12 @@ struct SpotListView: View {
     @ViewBuilder
     private func cell(_ text: String, _ spot: DXSpot) -> some View {
         let watched = watchList?.matches(spot.dxCall) == true
+        let accent = rowAccent?(spot)
+        let color: Color = accent
+            ?? (watched ? Color(red: 1, green: 0.8, blue: 0) : bandColor(for: spot.band))
         Text(text)
             .font(.system(size: 12, design: .monospaced))
-            .foregroundStyle(watched ? Color(red: 1, green: 0.8, blue: 0) : bandColor(for: spot.band))
+            .foregroundStyle(color)
             .lineLimit(1)
     }
 

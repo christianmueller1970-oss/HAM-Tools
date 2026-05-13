@@ -13,6 +13,7 @@ struct Log: Identifiable, Codable, Hashable {
     var contestID: String?
     var contestCategory: String?
     var contestSerialScope: String?    // "log" | "band" — Override des Template-Defaults aus Multi-Op-Kategorie
+    var contestModeCategory: String?   // "CW" | "PH" | "RY" | "DG" | "FM" | "MIXED" — vom Wizard gewählt
     var potaParkRef: String?       // primärer Park (auch der einzige bei Non-Hopping)
     var potaParkRefs: String?      // Komma-Liste aller Parks (Multi-Park-Hopping), inkl. primärer; nil bei Single-Park
     var sotaSummitRef: String?
@@ -29,6 +30,7 @@ struct Log: Identifiable, Codable, Hashable {
          contestID: String? = nil,
          contestCategory: String? = nil,
          contestSerialScope: String? = nil,
+         contestModeCategory: String? = nil,
          potaParkRef: String? = nil,
          potaParkRefs: String? = nil,
          sotaSummitRef: String? = nil,
@@ -43,6 +45,7 @@ struct Log: Identifiable, Codable, Hashable {
         self.contestID = contestID
         self.contestCategory = contestCategory
         self.contestSerialScope = contestSerialScope
+        self.contestModeCategory = contestModeCategory
         self.potaParkRef = potaParkRef
         self.potaParkRefs = potaParkRefs
         self.sotaSummitRef = sotaSummitRef

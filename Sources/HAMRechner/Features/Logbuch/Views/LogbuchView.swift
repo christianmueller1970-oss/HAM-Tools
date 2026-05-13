@@ -587,6 +587,8 @@ struct LogbuchView: View {
                         showOnlyUpcomingSkeds: $memoriesUpcomingOnly)
         case .potaMap:
             POTAMapTab()
+        case .contestMap:
+            ContestMapTab()
         case .bandplan:
             BandplanView()
         default:

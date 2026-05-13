@@ -14,6 +14,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
     case qsl         = "QSL"
     case history     = "History"
     case potaMap     = "POTA-Map"
+    case contestMap  = "Contest-Map"
     case bandplan    = "Bandplan"
     case labels      = "Labels"
 
@@ -31,6 +32,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
         case .qsl:        return "envelope"
         case .history:    return "clock"
         case .potaMap:    return "tree.circle"
+        case .contestMap: return "globe.europe.africa"
         case .bandplan:   return "chart.bar.xaxis"
         case .labels:     return "tag"
         }
@@ -39,7 +41,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
     var isAvailable: Bool {
         switch self {
         case .log, .dxClusters, .awards, .map, .bands,
-             .history, .memories, .potaMap, .bandplan:                      return true
+             .history, .memories, .potaMap, .contestMap, .bandplan:         return true
         default:                                                            return false
         }
     }
@@ -60,6 +62,7 @@ struct LogbookTabBar: View {
 
     // Im Contest-Modus werden Tabs ausgeblendet, die keinen Mehrwert bringen
     // (Awards/Memories/POTA-Map/History) — sonst lenkt das beim Loggen ab.
+    // Die Contest-Map ist umgekehrt NUR im Contest sichtbar.
     private var visibleTabs: [LogbookBottomTab] {
         LogbookBottomTab.allCases.filter { tab in
             guard tab.isAvailable else { return false }
@@ -68,8 +71,10 @@ struct LogbookTabBar: View {
                 case .awards, .memories, .potaMap, .history: return false
                 default: return true
                 }
+            } else {
+                // Außerhalb Contest: Contest-Map ist sinnlos
+                return tab != .contestMap
             }
-            return true
         }
     }
 

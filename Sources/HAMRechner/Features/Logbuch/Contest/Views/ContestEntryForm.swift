@@ -51,6 +51,24 @@ struct ContestEntryForm: View {
         return contests.effectiveScope(template: tpl, log: log)
     }
 
+    // Mode-Auswahl im Contest folgt der Cabrillo-Kategorie aus dem Wizard.
+    // Quelle: log.contestModeCategory (vom Wizard explizit gewählt) — falls
+    // leer fallback auf template.defaultCategories.mode.
+    private var allowedModes: [String] {
+        let category = (activeLog?.contestModeCategory
+                        ?? template?.defaultCategories?.mode
+                        ?? "MIXED").uppercased()
+        switch category {
+        case "CW":     return ["CW"]
+        case "PH":     return ["SSB", "USB", "LSB"]
+        case "RY":     return ["RTTY"]
+        case "DG":     return ["FT8", "FT4", "PSK31", "JS8", "RTTY"]
+        case "FM":     return ["FM"]
+        case "MIXED":  return ["SSB", "CW", "RTTY", "FT8", "FT4", "PSK31", "FM"]
+        default:       return ["SSB", "CW", "RTTY", "FT8", "FT4", "PSK31", "FM"]
+        }
+    }
+
     // Soft-Dupe: existiert die Kombination Call + Band + Mode schon im Log?
     // Visuell red-flash am Call-Feld + Toast unter dem Form. QSO kann
     // trotzdem geloggt werden (Hard-Block ist eine spätere Option).
@@ -71,11 +89,22 @@ struct ContestEntryForm: View {
             footerRow
         }
         .padding(10)
-        .onAppear { refreshAutoFills() }
+        .onAppear {
+            // Mode auf einen vom Template erlaubten Wert setzen, falls der
+            // letzte State (SSB-Default) nicht zum Contest passt (z.B. CW-only).
+            if !allowedModes.contains(mode), let first = allowedModes.first {
+                mode = first
+            }
+            refreshAutoFills()
+            consumeBridgeIfPending()
+        }
         .onChange(of: theirCall)            { _, _ in refreshAutoFills() }
         .onChange(of: mode)                 { _, _ in refreshAutoFills() }
         .onChange(of: radio.frequencyMHz)   { _, _ in refreshAutoFills() }
         .onChange(of: manager.currentQSOs.count) { _, _ in refreshAutoFills() }
+        .onChange(of: logBridge.navigationRequest) { _, _ in
+            consumeBridgeIfPending()
+        }
     }
 
     // MARK: - Header
@@ -113,13 +142,8 @@ struct ContestEntryForm: View {
     private var entryRow: some View {
         HStack(alignment: .top, spacing: 12) {
             callField
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Freq")
-                    .font(.caption2).foregroundStyle(theme.textDim)
-                Text(String(format: "%.4f MHz", radio.frequencyMHz))
-                    .font(.system(.subheadline, design: .monospaced))
-                    .frame(width: 110, alignment: .leading)
-            }
+            // Freq-Anzeige weggelassen — wird im CAT-Panel links angezeigt
+            // und ist beim Loggen redundant.
             VStack(alignment: .leading, spacing: 2) {
                 Text("Band")
                     .font(.caption2).foregroundStyle(theme.textDim)
@@ -131,12 +155,13 @@ struct ContestEntryForm: View {
                 Text("Mode")
                     .font(.caption2).foregroundStyle(theme.textDim)
                 Picker("", selection: $mode) {
-                    ForEach(["SSB", "CW", "RTTY", "FT8", "FT4", "PSK31", "FM"], id: \.self) {
+                    ForEach(allowedModes, id: \.self) {
                         Text($0).tag($0)
                     }
                 }
                 .labelsHidden()
                 .frame(width: 90)
+                .disabled(allowedModes.count <= 1)
             }
             Spacer()
         }
@@ -385,6 +410,21 @@ struct ContestEntryForm: View {
 
         manager.addQSO(qso)
         resetEntryButKeepSentDefaults()
+    }
+
+    /// Holt einen vom DX-Cluster-Click bereitgestellten Draft (call/freq/mode)
+    /// und füllt das Contest-Form. Frequenz fließt zusätzlich ins Radio,
+    /// damit der CAT-State synchron ist.
+    private func consumeBridgeIfPending() {
+        guard let draft = logBridge.consume() else { return }
+        theirCall = draft.call.uppercased()
+        if let f = draft.frequencyMHz, f > 0 {
+            radio.frequencyMHz = f
+        }
+        if let m = draft.mode, !m.isEmpty {
+            if allowedModes.contains(m) { mode = m }
+        }
+        refreshAutoFills()
     }
 
     private func resetForm() {
