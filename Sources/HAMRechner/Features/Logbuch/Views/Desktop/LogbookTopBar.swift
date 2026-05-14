@@ -91,6 +91,8 @@ struct LogbookTopBar: View {
                 .background(theme.bgCard2)
                 .clipShape(RoundedRectangle(cornerRadius: 5))
 
+                WsjtxStatusBadge()
+
                 HStack(spacing: 5) {
                     Image(systemName: "person.crop.square")
                         .font(.caption)

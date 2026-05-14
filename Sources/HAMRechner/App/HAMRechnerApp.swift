@@ -21,6 +21,8 @@ struct HAMRechnerApp: App {
     @StateObject private var contestService:   ContestService = ContestService()
     @StateObject private var licenseService:   LicenseService = LicenseService()
     @StateObject private var updateChecker:    UpdateChecker  = UpdateChecker()
+    @StateObject private var wsjtxSettings:    WsjtxBridgeSettings = WsjtxBridgeSettings()
+    @StateObject private var wsjtxBridge:      WsjtxBridgeService = WsjtxBridgeService()
 
     init() {
         // Swift-Package-Builds laufen ohne .app-Bundle; macOS würde sie ohne
@@ -97,6 +99,8 @@ struct HAMRechnerApp: App {
                 .environmentObject(contestService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)
+                .environmentObject(wsjtxSettings)
+                .environmentObject(wsjtxBridge)
                 .frame(minWidth: 900, minHeight: 580)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
@@ -139,6 +143,8 @@ struct HAMRechnerApp: App {
                 .environmentObject(contestService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)
+                .environmentObject(wsjtxSettings)
+                .environmentObject(wsjtxBridge)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
     }

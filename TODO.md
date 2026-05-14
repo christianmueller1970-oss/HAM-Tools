@@ -36,11 +36,14 @@ Convention:
   - [x] **RadioState** zentrale Frequenz-Quelle (manuell jetzt, ab Phase 5 CAT)
   - [x] **Time-On läuft sekündlich mit**, beim Loggen aktuelle Zeit
   - **Offen:**
-    - [ ] **Phase 4** Contest-Engine vollständig (contests.json Templates + Live-Score + SCP + F1-F8 Macros + Run/S&P-Toggle)
-    - [ ] **Phase 4c** POTA-Modus (Park-DB offline, Activator/Hunter, P2P-Erkennung, 10-QSO-Counter, pota.app-Upload)
+    - [x] **Phase 4c** POTA-Modus — Park-DB + Activator/Hunter + P2P + Multi-Park-Hopping + Dupe-Markierung + Spots-Feed mit CAT-QSY + ADIF + QSO-Map fertig (siehe Commits b629758…c7dc8f5)
+    - [x] **Phase 5** CAT-Anbindung — Hamlib + IC-7300/705/9700 + S-Meter + VFO/Mode/Split + Multi-Config + CI-V-Adresse fertig
+    - [ ] **POTA-Upload** (pota.app/user/api/upload) — Activator-Logs end-to-end aus der App hochladen. API-Key in Settings hinterlegen, Sheet "Hochladen" pro Session, Status-Anzeige
+    - [ ] **POTA Self-Spot** — "Spotten von hier"-Button in POTA-Status-Bar (POST api.pota.app/spot mit Auth) für QSY-Wechsel ohne externen Tab
+    - [ ] **WSJT-X UDP-Bridge** — UDP-Listener (Default Port 2237) für WSJT-X-Protokoll Typ-5 (`QSOLogged`), QSOs landen automatisch im aktuell aktiven HAM-Tools-Log; bidirektional auch Status/Heartbeat parsen, später ggf. Decode-Stream anzeigen
+    - [ ] **Phase 4** Contest-Engine vollständig (contests.json Templates + Live-Score + SCP + F1-F8 Macros + Run/S&P-Toggle) — Basis ist live (Contest-Mode 8a53606), Engine-Ausbau folgt
     - [ ] **Phase 4d** SOTA-Modus (Summit-DB, Activator/Chaser, S2S, 4-QSO-Counter, SOTA-CSV-Export + sotadata.org.uk-Upload)
-    - [ ] **Phase 5** CAT-Anbindung (Hamlib-Subprocess + TRX-Profil-DB für IC-7300/705/9700/etc.)
-    - [ ] **Phase 6** LoTW + eQSL + Club Log + POTA.app + SOTAwatch Upload
+    - [ ] **Phase 6** LoTW + eQSL + Club Log + SOTAwatch Upload (POTA-Upload aus Logbuch-Backlog vorgezogen)
     - [ ] **Phase 3-Rest**: Distance/Bearing-Berechnung pro QSO, QRZ-Image-Cache-Persistierung
     - [ ] **i18n** (DE/EN) — Localizable.xcstrings
     - [ ] **QSL-Tab** als Übersicht offener Konfirmationen

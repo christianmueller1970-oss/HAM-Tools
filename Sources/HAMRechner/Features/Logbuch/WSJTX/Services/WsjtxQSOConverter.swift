@@ -1,0 +1,77 @@
+import Foundation
+
+// Wandelt eine WSJT-X QSOLogged-Message in unser QSO-Modell um. Übernimmt
+// Frequenz-/Band-Mapping und schreibt typ-spezifische Felder aus dem aktiven
+// Log mit (POTA → myPotaRef/myPotaRefs, Contest → contestID + Exchange-Felder).
+enum WsjtxQSOConverter {
+
+    static func qso(from msg: WsjtxQSOLogged, into log: Log) -> QSO {
+        let freqMHz = msg.txFrequencyMHz
+        let band = HamBand.from(frequencyMHz: freqMHz)?.rawValue ?? ""
+
+        // Mode normalisieren: WSJT-X sendet z.B. "FT8" / "FT4" / "JT65".
+        // Manche Sub-Modes kommen über das Mode-Feld direkt; wir nehmen es 1:1.
+        let mode = msg.mode.uppercased()
+
+        // RST-Reports: WSJT-X-Reports sind Signal-Reports im SNR-Format
+        // (z.B. "-12"). Das ist ADIF-konform für RST_SENT/RST_RCVD bei FT8.
+        let rstSent = msg.reportSent.isEmpty ? defaultRST(for: mode) : msg.reportSent
+        let rstRecv = msg.reportReceived.isEmpty ? defaultRST(for: mode) : msg.reportReceived
+
+        // Power: WSJT-X sendet als String ("5", "100"). Wenn parsebar als
+        // Double, übernehmen — sonst leer lassen.
+        let power: Double? = Double(msg.txPower.trimmingCharacters(in: .whitespaces))
+
+        var qso = QSO(
+            logID: log.id,
+            call: msg.dxCall,
+            datetime: msg.dateTimeOff,
+            frequencyMHz: freqMHz,
+            band: band,
+            mode: mode,
+            rstSent: rstSent,
+            rstReceived: rstRecv,
+            name: msg.name.nilIfEmpty,
+            locator: msg.dxGrid.nilIfEmpty,
+            comment: msg.comments.nilIfEmpty,
+            operatorCall: msg.operatorCall.nilIfEmpty ?? msg.myCall.nilIfEmpty,
+            stationCall: msg.myCall.nilIfEmpty,
+            powerW: power
+        )
+
+        // Typ-spezifische Erweiterungen aus dem aktiven Log.
+        switch log.type {
+        case .pota:
+            qso.myPotaRef  = log.potaParkRef
+            qso.myPotaRefs = log.potaParkRefs
+
+        case .contest:
+            qso.contest = log.contestID
+            qso.contestExchangeSent = msg.exchangeSent.nilIfEmpty
+            qso.contestExchangeRecv = msg.exchangeReceived.nilIfEmpty
+
+        case .standard, .sota:
+            break
+        }
+
+        return qso
+    }
+
+    private static func defaultRST(for mode: String) -> String {
+        switch mode.uppercased() {
+        case "CW", "RTTY", "PSK", "PSK31", "PSK63", "OLIVIA", "MFSK":
+            return "599"
+        case "FT8", "FT4", "JT65", "JT9", "JT4", "MSK144", "Q65":
+            return "-15"
+        default:
+            return "59"
+        }
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        let s = trimmingCharacters(in: .whitespaces)
+        return s.isEmpty ? nil : s
+    }
+}

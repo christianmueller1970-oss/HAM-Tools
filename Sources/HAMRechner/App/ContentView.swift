@@ -113,6 +113,8 @@ struct ContentView: View {
     @EnvironmentObject var logbookManager: LogbookManager
     @EnvironmentObject var licenseService: LicenseService
     @EnvironmentObject var updateChecker:  UpdateChecker
+    @EnvironmentObject var wsjtxSettings:  WsjtxBridgeSettings
+    @EnvironmentObject var wsjtxBridge:    WsjtxBridgeService
     @StateObject private var dxClusterVM = DXClusterViewModel()
     @StateObject private var simBridge   = AntennaSimBridge.shared
     @StateObject private var logBridge   = LogEntryBridge.shared
@@ -146,8 +148,43 @@ struct ContentView: View {
             logbookManager.licenseAllowsMoreQSOs = { lic.canLogMoreQSOs }
             logbookManager.onQSOLogged           = { lic.registerLoggedQSO() }
 
+            // WSJT-X-Bridge: bei jedem QSOLogged-UDP-Paket → ins aktive Log
+            // einfügen. Sucht das Log über currentLogID; falls keins offen ist,
+            // wird das QSO verworfen (User-Feedback via wsjtxBridge.lastError
+            // wäre die Alternative — aktuell konservativ).
+            let lm = logbookManager
+            wsjtxBridge.onQSOLogged = { msg in
+                guard let logID = lm.currentLogID,
+                      let activeLog = lm.logs.first(where: { $0.id == logID })
+                else { return }
+                let qso = WsjtxQSOConverter.qso(from: msg, into: activeLog)
+                // Doppelt-Schutz für QSOs aus WSJT-X (z.B. wenn der Operator
+                // zweimal "Log QSO" drückt): gleiches Call+Band+Mode innerhalb
+                // 60 Sek wird verworfen.
+                let isDupe = lm.currentQSOs.contains { e in
+                    e.call == qso.call
+                        && e.band == qso.band
+                        && e.mode == qso.mode
+                        && abs(e.datetime.timeIntervalSince(qso.datetime)) <= 60
+                }
+                guard !isDupe else { return }
+                lm.addQSO(qso)
+            }
+            if wsjtxSettings.enabled {
+                wsjtxBridge.start(port: wsjtxSettings.port)
+            }
+
             // Update-Check beim Start (max 1×/24h).
             updateChecker.autoCheckIfDue()
+        }
+        .onChange(of: wsjtxSettings.enabled) { _, newValue in
+            if newValue { wsjtxBridge.start(port: wsjtxSettings.port) }
+            else        { wsjtxBridge.stop() }
+        }
+        .onChange(of: wsjtxSettings.port) { _, _ in
+            if wsjtxSettings.enabled {
+                wsjtxBridge.restart(port: wsjtxSettings.port)
+            }
         }
         .onChange(of: updateChecker.state) { _, new in
             if case .updateAvailable(let payload) = new {
