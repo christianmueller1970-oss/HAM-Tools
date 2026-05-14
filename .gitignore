@@ -50,3 +50,8 @@ vendor/hamlib/rigctld
 # Projektverzeichnis landet.
 keypair.json
 *.keypair.json
+
+# Update-Manifest: generiertes Artefakt aus tools/sign-updates.swift, wird
+# nach jedem Release neu signiert (Signatur ist probabilistisch).
+# Live-Version liegt auf toolbox.funkwelt.net/app/updates.json.
+updates.json
