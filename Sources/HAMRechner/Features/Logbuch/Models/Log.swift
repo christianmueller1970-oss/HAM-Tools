@@ -31,6 +31,12 @@ struct Log: Identifiable, Codable, Hashable {
     // beim Wizard via CallValidator (Substring-Match an "/").
     var usedCallsign: String?
 
+    // OP-Liste pro Contest-Log (Multi-Op-Workflow, 1.8.2). Komma-getrennter
+    // String, beim Anlegen definiert. Befüllt das OP-Switcher-Dropdown im
+    // ContestEntryForm und damit qso.operatorCall. Diese Calls brauchen
+    // KEINE eigene Lizenz — sind reine Strings für Cabrillo/Statistik.
+    var contestOperators: String?
+
     var notes: String?
     let createdAt: Date
 
@@ -53,6 +59,7 @@ struct Log: Identifiable, Codable, Hashable {
          botaRefs: String? = nil,
          role: String? = nil,
          usedCallsign: String? = nil,
+         contestOperators: String? = nil,
          notes: String? = nil,
          createdAt: Date = Date()) {
         self.id = id
@@ -74,6 +81,7 @@ struct Log: Identifiable, Codable, Hashable {
         self.botaRefs = botaRefs
         self.role = role
         self.usedCallsign = usedCallsign
+        self.contestOperators = contestOperators
         self.notes = notes
         self.createdAt = createdAt
     }

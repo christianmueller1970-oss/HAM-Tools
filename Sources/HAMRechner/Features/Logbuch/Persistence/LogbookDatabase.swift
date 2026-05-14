@@ -12,7 +12,7 @@ final class LogbookDatabase {
     let fileURL: URL
     private let conn: SQLiteConnection
 
-    static let schemaVersion = 8
+    static let schemaVersion = 9
     static let fileExtension = "htlog"          // intern SQLite
 
     private(set) var log: Log
@@ -123,6 +123,7 @@ final class LogbookDatabase {
             botaRefs TEXT,
             role TEXT,
             usedCallsign TEXT,
+            contestOperators TEXT,
             notes TEXT,
             createdAt REAL NOT NULL
         );
@@ -285,6 +286,16 @@ final class LogbookDatabase {
             }
         }
 
+        // v8 → v9: Contest-Operator-Liste pro Log (Multi-Op-Workflow).
+        // Komma-getrennter String; nil → kein OP-Switcher im ContestEntryForm.
+        if current < 9 {
+            if !columnExists(conn: conn, table: "log_meta", column: "contestOperators") {
+                if !conn.exec("ALTER TABLE log_meta ADD COLUMN contestOperators TEXT;") {
+                    throw LogbookError.writeFailed(conn.lastErrorMessage)
+                }
+            }
+        }
+
         // v2 → v3: Contest-Etappe-1-Felder (Serial, Sent/Recv-Exchange, Run/S&P).
         if current < 3 {
             let migrations: [(table: String, column: String, type: String)] = [
@@ -354,7 +365,8 @@ final class LogbookDatabase {
                    sotaSummitRefs,
                    wwffRef, wwffRefs,
                    botaRef, botaRefs,
-                   usedCallsign
+                   usedCallsign,
+                   contestOperators
             FROM log_meta LIMIT 1;
         """)
         guard stmt.step() == SQLITE_ROW,
@@ -386,6 +398,7 @@ final class LogbookDatabase {
             botaRefs: stmt.columnText(19),
             role: stmt.columnText(12),
             usedCallsign: stmt.columnText(20),
+            contestOperators: stmt.columnText(21),
             notes: stmt.columnText(13),
             createdAt: Date(timeIntervalSince1970: createdTS)
         )
@@ -399,8 +412,9 @@ final class LogbookDatabase {
                 sotaSummitRefs,
                 wwffRef, wwffRefs,
                 botaRef, botaRefs,
-                usedCallsign)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)
+                usedCallsign,
+                contestOperators)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 type=excluded.type,
@@ -420,6 +434,7 @@ final class LogbookDatabase {
                 botaRefs=excluded.botaRefs,
                 role=excluded.role,
                 usedCallsign=excluded.usedCallsign,
+                contestOperators=excluded.contestOperators,
                 notes=excluded.notes;
         """)
         stmt.bind(1,  log.id.uuidString)
@@ -443,6 +458,7 @@ final class LogbookDatabase {
         stmt.bind(19, log.botaRef)
         stmt.bind(20, log.botaRefs)
         stmt.bind(21, log.usedCallsign)
+        stmt.bind(22, log.contestOperators)
         guard stmt.step() == SQLITE_DONE else {
             throw LogbookError.writeFailed(conn.lastErrorMessage)
         }

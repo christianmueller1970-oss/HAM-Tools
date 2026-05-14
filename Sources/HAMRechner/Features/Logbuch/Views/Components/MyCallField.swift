@@ -38,6 +38,31 @@ struct MyCallField: View {
                 .font(.subheadline.bold())
                 .foregroundStyle(theme.textSecondary)
 
+            // Quick-Picker bei Multi-Call-Lizenz (Club-Call etc.): ein Tap
+            // füllt das Eingabefeld vor. User kann anschließend Portabel-
+            // Suffixe (/P, /MM) anhängen, ohne den Base-Call neu zu tippen.
+            if licensedCalls.count > 1 {
+                HStack(spacing: 6) {
+                    ForEach(licensedCalls, id: \.self) { c in
+                        Button {
+                            call = c
+                        } label: {
+                            Text(c)
+                                .font(.caption.monospaced())
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(
+                                    normalized == c
+                                        ? theme.accentBlue.opacity(0.25)
+                                        : theme.bgCard2
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
             HStack(spacing: 8) {
                 TextField("z.B. HB9HJI, HB9HJI/P, DL/HB9HJI", text: $call)
                     .textFieldStyle(.roundedBorder)

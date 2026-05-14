@@ -18,6 +18,7 @@ struct AwardsTab: View {
         case sota = "SOTA"
         case wwff = "WWFF"
         case bota = "BOTA"
+        case ops  = "OPs"   // Multi-Op-Statistik, nur im Contest-Modus sichtbar
         var id: String { rawValue }
     }
 
@@ -33,9 +34,72 @@ struct AwardsTab: View {
             case .sota: sotaView
             case .wwff: wwffView
             case .bota: botaView
+            case .ops:  opsView
             }
         }
         .background(theme.bgApp)
+    }
+
+    // MARK: - Multi-Op-Statistik (Contest)
+    //
+    // Aggregiert die QSOs des aktiven Logs nach `operatorCall`. Leere/nil-
+    // Operator-Felder landen unter "(kein OP gesetzt)" — so sieht man auch
+    // historische Single-Op-QSOs ohne explizite Initialen.
+    private struct OpStatRow: Identifiable {
+        let id: String          // Operator-String (eindeutig pro Zeile)
+        let op: String
+        let qsoCount: Int
+    }
+
+    private var opsBreakdown: [OpStatRow] {
+        var counts: [String: Int] = [:]
+        for q in manager.currentQSOs {
+            let key = (q.operatorCall?.trimmingCharacters(in: .whitespaces).uppercased())
+                .flatMap { $0.isEmpty ? nil : $0 }
+                ?? "(kein OP gesetzt)"
+            counts[key, default: 0] += 1
+        }
+        return counts
+            .map { OpStatRow(id: $0.key, op: $0.key, qsoCount: $0.value) }
+            .sorted { $0.qsoCount > $1.qsoCount }
+    }
+
+    private var opsView: some View {
+        let rows = opsBreakdown
+        return Group {
+            if rows.isEmpty {
+                emptyState(
+                    icon: "person.2",
+                    title: "Noch keine QSOs",
+                    subtitle: "Sobald Contest-QSOs eingetragen sind, zeigt diese Tabelle die Verteilung pro Operator."
+                )
+            } else {
+                Table(rows) {
+                    TableColumn("Operator") { r in
+                        Text(r.op)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(theme.textPrimary)
+                    }
+                    .width(min: 140, ideal: 200)
+
+                    TableColumn("QSOs") { r in
+                        Text("\(r.qsoCount)")
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(theme.textSecondary)
+                    }
+                    .width(min: 60, ideal: 80)
+
+                    TableColumn("Anteil") { r in
+                        let total = rows.reduce(0) { $0 + $1.qsoCount }
+                        let pct = total > 0 ? Double(r.qsoCount) / Double(total) * 100 : 0
+                        Text(String(format: "%.1f %%", pct))
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(theme.textDim)
+                    }
+                    .width(min: 70, ideal: 90)
+                }
+            }
+        }
     }
 
     // MARK: - DXCC

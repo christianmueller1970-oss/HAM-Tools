@@ -24,6 +24,10 @@ struct ContestEntryForm: View {
     @State private var values: [String: String] = [:]
     @State private var notes: String = ""
     @State private var lastError: String?
+    // Multi-Op: aktuell aktiver Operator (aus log.contestOperators).
+    // Leer → kein Switcher sichtbar oder Single-Op-Modus (Fallback auf
+    // AppStorage `operatorCall`).
+    @State private var selectedOperator: String = ""
 
     // Etappe 2: Run vs Search&Pounce — persistiert in QSO.contestIsRun.
     // Default: Run (eigene Frequenz, CQ-Modus). User togglet beim Wechsel
@@ -45,6 +49,23 @@ struct ContestEntryForm: View {
             return logCall.uppercased()
         }
         return myCallsign.trimmingCharacters(in: .whitespaces).uppercased()
+    }
+
+    /// OP-Liste aus log.contestOperators (Komma-getrennt). Leer = Single-Op.
+    /// Reihenfolge wie eingetragen; Duplikate werden im Wizard schon entfernt.
+    private var operatorOptions: [String] {
+        guard let raw = activeLog?.contestOperators else { return [] }
+        return raw
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces).uppercased() }
+            .filter { !$0.isEmpty }
+    }
+
+    /// Welcher Operator wird ins QSO geschrieben? Vorrang: OP-Switcher → AppStorage
+    /// `operatorCall` → leer (Single-Op ohne separaten Operator).
+    private var effectiveOperator: String {
+        if !selectedOperator.isEmpty { return selectedOperator }
+        return operatorCall.trimmingCharacters(in: .whitespaces).uppercased()
     }
 
     private var template: ContestTemplate? {
@@ -105,6 +126,12 @@ struct ContestEntryForm: View {
             if !allowedModes.contains(mode), let first = allowedModes.first {
                 mode = first
             }
+            // OP-Switcher initialisieren: Default = erster Eintrag. Falls
+            // der letzte aktive Operator nicht mehr in der Liste ist (Log
+            // gewechselt), auf den ersten Eintrag zurückspringen.
+            if !operatorOptions.contains(selectedOperator) {
+                selectedOperator = operatorOptions.first ?? ""
+            }
             refreshAutoFills()
             consumeBridgeIfPending()
         }
@@ -141,6 +168,23 @@ struct ContestEntryForm: View {
                     .foregroundStyle(theme.textDim)
             }
             Spacer()
+            // OP-Switcher: nur sichtbar wenn das Log eine OP-Liste hat
+            // (Multi-Op-Workflow). Wechsel betrifft das nächste QSO.
+            if !operatorOptions.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "person.fill")
+                        .font(.caption)
+                        .foregroundStyle(theme.accentBlue)
+                    Picker("OP", selection: $selectedOperator) {
+                        ForEach(operatorOptions, id: \.self) { op in
+                            Text(op).tag(op)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 110)
+                }
+            }
             Text("Scope: \(effectiveScope == .log ? "pro Log" : "pro Band")")
                 .font(.caption2)
                 .foregroundStyle(theme.textDim)
@@ -409,7 +453,7 @@ struct ContestEntryForm: View {
             rstSent: rstSent,
             rstReceived: rstRecv,
             comment: notes.isEmpty ? nil : notes,
-            operatorCall: operatorCall.isEmpty ? nil : operatorCall,
+            operatorCall: effectiveOperator.isEmpty ? nil : effectiveOperator,
             stationCall: effectiveStationCall.isEmpty ? nil : effectiveStationCall
         )
         qso.contest = tpl.id

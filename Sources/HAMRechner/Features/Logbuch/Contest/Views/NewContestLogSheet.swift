@@ -34,6 +34,7 @@ struct NewContestLogSheet: View {
     @State private var catAssisted: String = "NON-ASSISTED"
     @State private var catTime:     String = "24-HOURS"
     @State private var usedCallsign: String = ""
+    @State private var operatorList: String = ""
     @AppStorage("callsign") private var defaultCallsign = ""
 
     private var theme: AppTheme { themeManager.theme }
@@ -216,6 +217,19 @@ struct NewContestLogSheet: View {
 
             MyCallField(call: $usedCallsign)
 
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Operatoren (Multi-Op, optional)")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(theme.textSecondary)
+                TextField("z.B. HB9HJI, HB9XYZ, HB9ABC", text: $operatorList)
+                    .textFieldStyle(.roundedBorder)
+                    .textCase(.uppercase)
+                    .autocorrectionDisabled()
+                Text("Komma-getrennte Liste. Im Contest-Form erscheint daraus ein OP-Switcher; die ausgewählte OP-Initialen landen pro QSO im OPERATOR-Feld (Cabrillo + ADIF). Leerlassen wenn Single-Op.")
+                    .font(.caption2)
+                    .foregroundStyle(theme.textDim)
+            }
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("Cabrillo-Kategorien")
                     .font(.subheadline.bold())
@@ -379,6 +393,15 @@ struct NewContestLogSheet: View {
             contestModeCategory: catMode
         )
         log.usedCallsign = trimmedCall.isEmpty ? nil : trimmedCall.uppercased()
+        // OP-Liste normalisieren: trimmen + uppercase + Duplikate raus,
+        // ursprüngliche Reihenfolge beibehalten.
+        let normalizedOps = operatorList
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces).uppercased() }
+            .filter { !$0.isEmpty }
+        var seenOps: Set<String> = []
+        let uniqueOps = normalizedOps.filter { seenOps.insert($0).inserted }
+        log.contestOperators = uniqueOps.isEmpty ? nil : uniqueOps.joined(separator: ", ")
         manager.createLog(log)
         dismiss()
     }

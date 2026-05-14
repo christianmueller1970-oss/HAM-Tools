@@ -567,7 +567,12 @@ struct LogbuchView: View {
         if currentLogIsSOTA { return [.sota] }
         if currentLogIsWWFF { return [.wwff] }
         if currentLogIsBOTA { return [.bota] }
-        return AwardsTab.AwardsSubTab.allCases
+        // Standard-Log: alle Awards außer Multi-Op-Stats.
+        // Contest: zusätzlich .ops für die Pro-Operator-Aufschlüsselung.
+        return AwardsTab.AwardsSubTab.allCases.filter { sub in
+            if sub == .ops { return currentLogIsContest }
+            return true
+        }
     }
 
     private var awardsContextBar: some View {
@@ -625,7 +630,21 @@ struct LogbuchView: View {
         case .sota: return manager.awards.sotaActivatorSummits + manager.awards.sotaChaserSummits
         case .wwff: return manager.awards.wwffActivatorRefs + manager.awards.wwffHunterRefs
         case .bota: return manager.awards.botaActivatorRefs + manager.awards.botaHunterRefs
+        case .ops:  return uniqueOpsInCurrentLog
         }
+    }
+
+    // Anzahl unique Operator-Calls im aktiven Log (incl. "kein OP"-Bucket).
+    // Nur für die OP-Pill in der Awards-Bar.
+    private var uniqueOpsInCurrentLog: Int {
+        var seen: Set<String> = []
+        for q in manager.currentQSOs {
+            let key = (q.operatorCall?.trimmingCharacters(in: .whitespaces).uppercased())
+                .flatMap { $0.isEmpty ? nil : $0 }
+                ?? "—"
+            seen.insert(key)
+        }
+        return seen.count
     }
 
     private func summaryText(for sub: AwardsTab.AwardsSubTab,
@@ -645,6 +664,8 @@ struct LogbuchView: View {
             return "\(a.wwffActivatorRefs) Activator-Refs · \(a.wwffHunterRefs) Hunter-Refs · \(a.wwffR2R) R2R · \(a.wwffPrograms) Programme"
         case .bota:
             return "\(a.botaActivatorRefs) Activator-Bunker · \(a.botaHunterRefs) Hunter-Bunker · \(a.botaB2B) B2B · \(a.botaPrograms) Programme"
+        case .ops:
+            return "\(uniqueOpsInCurrentLog) Operatoren · \(manager.currentQSOs.count) QSOs gesamt"
         }
     }
 
