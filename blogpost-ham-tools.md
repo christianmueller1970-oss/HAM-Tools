@@ -137,6 +137,10 @@ Das ursprüngliche Herzstück und der Grund, warum die App intern noch
   SWR-Simulator, Linkbudget / Reichweite (Friis), **QTH-Locator** mit
   Maidenhead-Konvertierung, Karte, Höhenprofil, Fresnel-Zonen und
   LOS-Berechnung mit Erdkrümmung
+- **NEC2-Antennensimulator** im Browser via WebAssembly — Drahtmodell
+  zeichnen, Strahlungsdiagramm und SWR-Sweep direkt im Web; in der
+  nativen App per WKWebView eingebettet, sodass nur eine Code-Basis
+  gepflegt werden muss
 
 ## Auch im Browser: toolbox.funkwelt.net
 
@@ -197,9 +201,8 @@ Auf der Roadmap stehen unter anderem:
 - **Voice-Keyer / Audio-Recordings** (Phase 11)
 - Weitere **Award-Programme** im Outdoor-Sub-Picker
 - **Contest-Engine** mit live Score, Super-Check-Partial und F1–F8-Macros
-- Ein **Web-NEC2-Antennensimulator** als Folge-Projekt — Drahtmodell,
-  Pattern und SWR-Berechnung direkt im Browser via WebAssembly, später
-  als WebView auch in die native App eingebettet
+- Erweiterung des **NEC2-Simulators** um 3D-Pattern und komplexere
+  Mehrelement-Antennen
 
 ## Feedback gesucht!
 
