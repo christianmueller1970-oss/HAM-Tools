@@ -2,6 +2,50 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.1 — 2026-05-14
+
+**WWFF + BOTA komplett · Outdoor-Tab-Refactor · Testlauf-Fixes**
+
+### Phase 4e — WWFF (Worldwide Flora & Fauna)
+- Lokale Reference-Datenbank mit Doppelpfad: URL-Download von wwff-cc.org
+  oder manueller CSV-Import via Datei-Picker (fail-safe wenn die Haupt-URL
+  nicht erreichbar)
+- NewWWFFLogSheet mit Activator/Hunter + Multi-Reference-Hopping
+- WWFFEntryForm mit **44-QSO-Aktivierungs-Counter** (strikter als POTA/SOTA)
+- WWFF-Spots-Tab als gefilterter DX-Cluster-Stream
+- WWFF-Map-Tab mit R2R-Indikator
+- Awards-Sub-Tab mit Activator/Hunter/R2R/Programme-Counter
+- ADIF mit `MY_SIG=WWFF`, `MY_WWFF_REF`, `WWFF_REF`
+- Schema-Migration v5 → v6
+
+### Phase 4f — BOTA (Bunkers On The Air)
+- CSV-Import-primärer Pfad (kein zentrales öffentliches API verfügbar)
+- NewBOTALogSheet, BOTAEntryForm ohne QSO-Counter (1 QSO reicht)
+- BOTA-Spots gefiltert aus DX-Cluster mit DB-Lookup (vermeidet
+  Pattern-Konflikte mit POTA/WWFF)
+- BOTA-Map mit Shield-Pins + B2B-Indikator
+- Awards-Sub-Tab mit Activator/Hunter/B2B/Programme
+- Proprietäre `APP_HAMTOOLS_MY_BOTA_REF` ADIF-Felder
+- Schema-Migration v6 → v7
+- `bota_demo.csv` im Repo mit 15 echten EU-Bunkern für Sofort-Test
+
+### Outdoor-Sammel-Tab
+- QSO-Panel: DX/Contest/**Outdoor** als drei Haupt-Tabs
+- Outdoor-Sub-Bar mit POTA/SOTA/WWFF/BOTA-Sub-Tabs
+- Skaliert sauber auf weitere zukünftige Award-Programme
+
+### Testlauf-Fixes
+- **QSO-Tabellen-Spalten** programm-abhängig: SOTA → Region + Their Summit,
+  WWFF → Country + Their Reference, BOTA → Their Bunker
+- **Bottom-Tab-Bar** zeigt im Programm-Modus nur die relevanten Tabs
+- **DXClusters-Tab-Label** dynamisch: „POTA-Spots" / „SOTA-Spots" / …
+- **WWFF-DNS-Fehler-UX**: CSV-Import-Button bei Server-Ausfall hervorgehoben
+- **Awards-Tab** im Programm-Modus auf das jeweilige Programm fokussiert
+- **Enter** speichert QSO direkt in allen Logging-Forms (statt Cmd+Enter)
+- **Update-Check** zeigt Alert auch bei „up to date" und „Fehler"
+- **Helvetia-Contest**: myCanton-Picker in den Station-Settings
+- **ContestStatsPanel** Alignment .top (war zentriert)
+
 ## 1.8.0 — 2026-05-14
 
 **SOTA-Modul komplett (Phase 4d)**

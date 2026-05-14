@@ -12,7 +12,7 @@ final class LogbookDatabase {
     let fileURL: URL
     private let conn: SQLiteConnection
 
-    static let schemaVersion = 6
+    static let schemaVersion = 7
     static let fileExtension = "htlog"          // intern SQLite
 
     private(set) var log: Log
@@ -119,6 +119,8 @@ final class LogbookDatabase {
             sotaSummitRefs TEXT,
             wwffRef TEXT,
             wwffRefs TEXT,
+            botaRef TEXT,
+            botaRefs TEXT,
             role TEXT,
             notes TEXT,
             createdAt REAL NOT NULL
@@ -161,6 +163,9 @@ final class LogbookDatabase {
             myWwffRef TEXT,
             myWwffRefs TEXT,
             theirWwffRef TEXT,
+            myBotaRef TEXT,
+            myBotaRefs TEXT,
+            theirBotaRef TEXT,
             qslSentDate REAL,
             qslSentVia TEXT,
             qslReceivedDate REAL,
@@ -252,6 +257,23 @@ final class LogbookDatabase {
             }
         }
 
+        // v6 → v7: BOTA-Felder analog WWFF.
+        if current < 7 {
+            let migrations: [(table: String, column: String, type: String)] = [
+                ("log_meta", "botaRef",      "TEXT"),
+                ("log_meta", "botaRefs",     "TEXT"),
+                ("qsos",     "myBotaRef",    "TEXT"),
+                ("qsos",     "myBotaRefs",   "TEXT"),
+                ("qsos",     "theirBotaRef", "TEXT")
+            ]
+            for m in migrations where !columnExists(conn: conn, table: m.table, column: m.column) {
+                let sql = "ALTER TABLE \(m.table) ADD COLUMN \(m.column) \(m.type);"
+                if !conn.exec(sql) {
+                    throw LogbookError.writeFailed(conn.lastErrorMessage)
+                }
+            }
+        }
+
         // v2 → v3: Contest-Etappe-1-Felder (Serial, Sent/Recv-Exchange, Run/S&P).
         if current < 3 {
             let migrations: [(table: String, column: String, type: String)] = [
@@ -319,7 +341,8 @@ final class LogbookDatabase {
                    contestSerialScope, contestModeCategory,
                    potaParkRef, potaParkRefs, sotaSummitRef, role, notes, createdAt,
                    sotaSummitRefs,
-                   wwffRef, wwffRefs
+                   wwffRef, wwffRefs,
+                   botaRef, botaRefs
             FROM log_meta LIMIT 1;
         """)
         guard stmt.step() == SQLITE_ROW,
@@ -347,6 +370,8 @@ final class LogbookDatabase {
             sotaSummitRefs: stmt.columnText(15),
             wwffRef: stmt.columnText(16),
             wwffRefs: stmt.columnText(17),
+            botaRef: stmt.columnText(18),
+            botaRefs: stmt.columnText(19),
             role: stmt.columnText(12),
             notes: stmt.columnText(13),
             createdAt: Date(timeIntervalSince1970: createdTS)
@@ -359,8 +384,9 @@ final class LogbookDatabase {
                 contestCategory, contestSerialScope, contestModeCategory,
                 potaParkRef, potaParkRefs, sotaSummitRef, role, notes, createdAt,
                 sotaSummitRefs,
-                wwffRef, wwffRefs)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)
+                wwffRef, wwffRefs,
+                botaRef, botaRefs)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 type=excluded.type,
@@ -376,6 +402,8 @@ final class LogbookDatabase {
                 sotaSummitRefs=excluded.sotaSummitRefs,
                 wwffRef=excluded.wwffRef,
                 wwffRefs=excluded.wwffRefs,
+                botaRef=excluded.botaRef,
+                botaRefs=excluded.botaRefs,
                 role=excluded.role,
                 notes=excluded.notes;
         """)
@@ -397,6 +425,8 @@ final class LogbookDatabase {
         stmt.bind(16, log.sotaSummitRefs)
         stmt.bind(17, log.wwffRef)
         stmt.bind(18, log.wwffRefs)
+        stmt.bind(19, log.botaRef)
+        stmt.bind(20, log.botaRefs)
         guard stmt.step() == SQLITE_DONE else {
             throw LogbookError.writeFailed(conn.lastErrorMessage)
         }
@@ -419,7 +449,8 @@ final class LogbookDatabase {
                    contestSerial, contestExchangeSent, contestExchangeRecv, contestIsRun,
                    createdAt, modifiedAt,
                    mySotaRefs,
-                   myWwffRef, myWwffRefs, theirWwffRef
+                   myWwffRef, myWwffRefs, theirWwffRef,
+                   myBotaRef, myBotaRefs, theirBotaRef
             FROM qsos ORDER BY datetime DESC;
         """)
         var out: [QSO] = []
@@ -492,6 +523,9 @@ final class LogbookDatabase {
             qso.myWwffRef          = stmt.columnText(49)
             qso.myWwffRefs         = stmt.columnText(50)
             qso.theirWwffRef       = stmt.columnText(51)
+            qso.myBotaRef          = stmt.columnText(52)
+            qso.myBotaRefs         = stmt.columnText(53)
+            qso.theirBotaRef       = stmt.columnText(54)
             out.append(qso)
         }
         return out
@@ -514,11 +548,13 @@ final class LogbookDatabase {
                 contestSerial, contestExchangeSent, contestExchangeRecv, contestIsRun,
                 createdAt, modifiedAt,
                 mySotaRefs,
-                myWwffRef, myWwffRefs, theirWwffRef)
+                myWwffRef, myWwffRefs, theirWwffRef,
+                myBotaRef, myBotaRefs, theirBotaRef)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16,
                     ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28,
                     ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39, ?40,
-                    ?41, ?42, ?43, ?44, ?45, ?46, ?47, ?48, ?49, ?50, ?51, ?52);
+                    ?41, ?42, ?43, ?44, ?45, ?46, ?47, ?48, ?49, ?50, ?51, ?52,
+                    ?53, ?54, ?55);
             """
         } else {
             sql = """
@@ -538,7 +574,8 @@ final class LogbookDatabase {
                 contestSerial=?43, contestExchangeSent=?44, contestExchangeRecv=?45, contestIsRun=?46,
                 createdAt=?47, modifiedAt=?48,
                 mySotaRefs=?49,
-                myWwffRef=?50, myWwffRefs=?51, theirWwffRef=?52
+                myWwffRef=?50, myWwffRefs=?51, theirWwffRef=?52,
+                myBotaRef=?53, myBotaRefs=?54, theirBotaRef=?55
             WHERE id=?1;
             """
         }
@@ -595,6 +632,9 @@ final class LogbookDatabase {
         stmt.bind(50, qso.myWwffRef)
         stmt.bind(51, qso.myWwffRefs)
         stmt.bind(52, qso.theirWwffRef)
+        stmt.bind(53, qso.myBotaRef)
+        stmt.bind(54, qso.myBotaRefs)
+        stmt.bind(55, qso.theirBotaRef)
 
         guard stmt.step() == SQLITE_DONE else {
             throw LogbookError.writeFailed(conn.lastErrorMessage)

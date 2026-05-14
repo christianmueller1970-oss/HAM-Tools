@@ -182,6 +182,23 @@ enum ADIFCodec {
             s += field("WWFF_REF", v)
         }
 
+        // BOTA — kein ADIF-Standard-Tag. Proprietäre APP_HAMTOOLS-Felder
+        // sichern den Wert für Re-Import in dieselbe App. Multi-Bunker
+        // analog WWFF: bei Hopping bevorzugen wir die Komma-Liste.
+        let myBotaPrimary: String? = {
+            if let raw = q.myBotaRefs?.trimmingCharacters(in: .whitespaces),
+               !raw.isEmpty { return raw }
+            if let r = q.myBotaRef?.trimmingCharacters(in: .whitespaces),
+               !r.isEmpty { return r }
+            return nil
+        }()
+        if let v = myBotaPrimary {
+            s += field("APP_HAMTOOLS_MY_BOTA_REF", v)
+        }
+        if let v = q.theirBotaRef, !v.isEmpty {
+            s += field("APP_HAMTOOLS_BOTA_REF", v)
+        }
+
         // QSL-Status — nur schreiben wenn tatsächlich gesendet/bestätigt.
         // "N" für jeden Eintrag pumpt das ADIF unnötig auf und manche
         // Aufnahmedienste (pota.app, eQSL) ignorieren oder warnen darüber.
@@ -367,6 +384,15 @@ enum ADIFCodec {
         }
         q.theirWwffRef = fields["WWFF_REF"]
                      ?? (fields["SIG"] == "WWFF" ? fields["SIG_INFO"] : nil)
+        // BOTA — proprietäre APP_HAMTOOLS-Felder, kein Standard-ADIF-Tag.
+        if let raw = fields["APP_HAMTOOLS_MY_BOTA_REF"], !raw.isEmpty {
+            let refs = raw.split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            q.myBotaRef  = refs.first
+            q.myBotaRefs = refs.count > 1 ? refs.joined(separator: ",") : nil
+        }
+        q.theirBotaRef = fields["APP_HAMTOOLS_BOTA_REF"]
 
         q.lotwSent      = parseBool(fields["LOTW_QSL_SENT"])
         q.lotwConfirmed = parseBool(fields["LOTW_QSL_RCVD"])

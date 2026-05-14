@@ -55,6 +55,10 @@ enum WsjtxQSOConverter {
             qso.myWwffRef  = log.wwffRef
             qso.myWwffRefs = log.wwffRefs
 
+        case .bota:
+            qso.myBotaRef  = log.botaRef
+            qso.myBotaRefs = log.botaRefs
+
         case .contest:
             qso.contest = log.contestID
             qso.contestExchangeSent = msg.exchangeSent.nilIfEmpty

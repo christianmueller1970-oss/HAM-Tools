@@ -28,8 +28,8 @@ export default defineConfig({
     // OpenGraph für Social-Sharing (Twitter, Mastodon, Facebook, LinkedIn)
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'HAM-Tools Help' }],
-    ['meta', { property: 'og:title', content: 'HAM-Tools — Logbuch, Contest, POTA & SOTA für macOS' }],
-    ['meta', { property: 'og:description', content: 'Anleitungen, FAQ und Tipps zum HAM-Tools macOS-Logger. Multi-Log, Contest mit 14 Templates, POTA + SOTA Workflow, CAT für Yaesu/Icom/Kenwood/Elecraft.' }],
+    ['meta', { property: 'og:title', content: 'HAM-Tools — Logbuch, Contest, POTA/SOTA/WWFF/BOTA für macOS' }],
+    ['meta', { property: 'og:description', content: 'Anleitungen, FAQ und Tipps zum HAM-Tools macOS-Logger. Multi-Log, Contest mit 14 Templates, vier Award-Programme (POTA, SOTA, WWFF, BOTA), CAT für Yaesu/Icom/Kenwood/Elecraft.' }],
     ['meta', { property: 'og:url', content: 'https://toolbox.funkwelt.net/help/' }],
     ['meta', { property: 'og:image', content: 'https://toolbox.funkwelt.net/help/og-image.png' }],
     ['meta', { property: 'og:locale', content: 'de_CH' }],
@@ -37,7 +37,7 @@ export default defineConfig({
     // Twitter / X Card
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:title', content: 'HAM-Tools — macOS-Logger für Funkamateure' }],
-    ['meta', { name: 'twitter:description', content: 'Logbuch, Contest, POTA, SOTA, CAT-Steuerung. Native macOS-App.' }],
+    ['meta', { name: 'twitter:description', content: 'Logbuch, Contest, POTA/SOTA/WWFF/BOTA, CAT-Steuerung. Native macOS-App.' }],
     ['meta', { name: 'twitter:image', content: 'https://toolbox.funkwelt.net/help/og-image.png' }],
 
     // Strukturierte Daten (Schema.org) für Google Rich Results
@@ -47,7 +47,7 @@ export default defineConfig({
       name: 'HAM-Tools',
       operatingSystem: 'macOS 14+',
       applicationCategory: 'CommunicationApplication',
-      description: 'Native macOS-Logger für Funkamateure mit Logbuch, Contest-Modus, POTA- und SOTA-Workflow, DX-Cluster, CAT-Steuerung und Antennen-Rechnern.',
+      description: 'Native macOS-Logger für Funkamateure mit Logbuch, Contest-Modus, vier Award-Programmen (POTA, SOTA, WWFF, BOTA), DX-Cluster, CAT-Steuerung und Antennen-Rechnern.',
       url: 'https://toolbox.funkwelt.net/help/',
       author: {
         '@type': 'Person',
@@ -92,6 +92,8 @@ export default defineConfig({
             { text: 'Contest', link: '/modules/contest' },
             { text: 'POTA', link: '/modules/pota' },
             { text: 'SOTA', link: '/modules/sota' },
+            { text: 'WWFF', link: '/modules/wwff' },
+            { text: 'BOTA', link: '/modules/bota' },
             { text: 'DX-Cluster', link: '/modules/dx-cluster' },
             { text: 'CAT / Radio-Steuerung', link: '/modules/cat' },
             { text: 'Rechner', link: '/modules/rechner' },

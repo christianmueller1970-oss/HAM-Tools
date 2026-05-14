@@ -21,6 +21,7 @@ struct HAMRechnerApp: App {
     @StateObject private var sotaSummitService: SotaSummitService
     @StateObject private var sotaSpotsService: SotaSpotsService = SotaSpotsService()
     @StateObject private var wwffRefService: WWFFRefService
+    @StateObject private var botaRefService: BOTARefService
     @StateObject private var contestService:   ContestService = ContestService()
     @StateObject private var licenseService:   LicenseService = LicenseService()
     @StateObject private var updateChecker:    UpdateChecker  = UpdateChecker()
@@ -96,6 +97,14 @@ struct HAMRechnerApp: App {
         } catch {
             fatalError("WWFF-Reference-Service konnte nicht initialisiert werden: \(error)")
         }
+
+        // BOTA-Ref-DB. Primär File-Import (kein offener API-Endpoint).
+        do {
+            let svc = try BOTARefService(dataRoot: root)
+            _botaRefService = StateObject(wrappedValue: svc)
+        } catch {
+            fatalError("BOTA-Reference-Service konnte nicht initialisiert werden: \(error)")
+        }
     }
 
     var body: some Scene {
@@ -119,6 +128,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(sotaSummitService)
                 .environmentObject(sotaSpotsService)
                 .environmentObject(wwffRefService)
+                .environmentObject(botaRefService)
                 .environmentObject(contestService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)
@@ -166,6 +176,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(sotaSummitService)
                 .environmentObject(sotaSpotsService)
                 .environmentObject(wwffRefService)
+                .environmentObject(botaRefService)
                 .environmentObject(contestService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)

@@ -389,6 +389,12 @@ final class LogbookManager: ObservableObject {
         var wwffActivatorRefs: Set<String> = []
         var wwffHunterRefs:    Set<String> = []
         var wwffPrograms:      Set<String> = []  // "DLFF", "HBFF", "KFF", …
+        var botaActivatorQSOs = 0
+        var botaHunterQSOs    = 0
+        var botaB2B           = 0
+        var botaActivatorRefs: Set<String> = []
+        var botaHunterRefs:    Set<String> = []
+        var botaPrograms:      Set<String> = []
 
         for log in logs {
             let qsos: [QSO]
@@ -464,6 +470,31 @@ final class LogbookManager: ObservableObject {
                     wwffR2R += 1
                 }
 
+                // BOTA-Counts — gleiche Logik wie WWFF.
+                let myBotaSet    = potaRefSet(qso.myBotaRef, qso.myBotaRefs)
+                let theirBotaSet = potaRefSet(qso.theirBotaRef, nil)
+                if !myBotaSet.isEmpty {
+                    botaActivatorQSOs += 1
+                    botaActivatorRefs.formUnion(myBotaSet)
+                    for ref in myBotaSet {
+                        if let dash = ref.firstIndex(of: "-") {
+                            botaPrograms.insert(String(ref[..<dash]))
+                        }
+                    }
+                }
+                if !theirBotaSet.isEmpty {
+                    botaHunterQSOs += 1
+                    botaHunterRefs.formUnion(theirBotaSet)
+                    for ref in theirBotaSet {
+                        if let dash = ref.firstIndex(of: "-") {
+                            botaPrograms.insert(String(ref[..<dash]))
+                        }
+                    }
+                }
+                if !myBotaSet.isEmpty && !theirBotaSet.isEmpty {
+                    botaB2B += 1
+                }
+
                 if let c = qso.country?.trimmingCharacters(in: .whitespaces),
                    !c.isEmpty {
                     byCountry[c, default: DXCCAccumulator(country: c)]
@@ -525,7 +556,13 @@ final class LogbookManager: ObservableObject {
             wwffHunterQSOs:       wwffHunterQSOs,
             wwffHunterRefs:       wwffHunterRefs.count,
             wwffR2R:              wwffR2R,
-            wwffPrograms:         wwffPrograms.count
+            wwffPrograms:         wwffPrograms.count,
+            botaActivatorQSOs:    botaActivatorQSOs,
+            botaActivatorRefs:    botaActivatorRefs.count,
+            botaHunterQSOs:       botaHunterQSOs,
+            botaHunterRefs:       botaHunterRefs.count,
+            botaB2B:              botaB2B,
+            botaPrograms:         botaPrograms.count
         )
     }
 
@@ -694,6 +731,14 @@ struct AwardCounts {
     var wwffHunterRefs:      Int = 0   // eindeutige theirWwffRef
     var wwffR2R:             Int = 0
     var wwffPrograms:        Int = 0   // einzigartige Country-Programme (DLFF, HBFF, …)
+
+    // BOTA — analog WWFF, ohne strikte Aktivierungsregel.
+    var botaActivatorQSOs:   Int = 0
+    var botaActivatorRefs:   Int = 0
+    var botaHunterQSOs:      Int = 0
+    var botaHunterRefs:      Int = 0
+    var botaB2B:             Int = 0   // Bunker-to-Bunker
+    var botaPrograms:        Int = 0
 }
 
 // Detail-Eintrag pro DXCC-Country (für die Awards-Tab-Liste).

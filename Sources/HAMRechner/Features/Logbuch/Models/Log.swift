@@ -20,6 +20,8 @@ struct Log: Identifiable, Codable, Hashable {
     var sotaSummitRefs: String?    // Komma-Liste aller Summits (Multi-Summit-Hopping); nil bei Single-Summit
     var wwffRef: String?           // primäre WWFF-Ref
     var wwffRefs: String?          // Komma-Liste bei Multi-Ref-Aktivierung
+    var botaRef: String?           // primäre BOTA-Ref
+    var botaRefs: String?          // Komma-Liste bei Multi-Bunker-Aktivierung
     var role: String?
 
     var notes: String?
@@ -40,6 +42,8 @@ struct Log: Identifiable, Codable, Hashable {
          sotaSummitRefs: String? = nil,
          wwffRef: String? = nil,
          wwffRefs: String? = nil,
+         botaRef: String? = nil,
+         botaRefs: String? = nil,
          role: String? = nil,
          notes: String? = nil,
          createdAt: Date = Date()) {
@@ -58,6 +62,8 @@ struct Log: Identifiable, Codable, Hashable {
         self.sotaSummitRefs = sotaSummitRefs
         self.wwffRef = wwffRef
         self.wwffRefs = wwffRefs
+        self.botaRef = botaRef
+        self.botaRefs = botaRefs
         self.role = role
         self.notes = notes
         self.createdAt = createdAt

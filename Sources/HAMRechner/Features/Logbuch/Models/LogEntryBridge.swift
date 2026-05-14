@@ -25,6 +25,11 @@ final class LogEntryBridge: ObservableObject {
     // gefiltert (kein eigenes API). Slot hält den letzten Copy-Click.
     @Published var pendingWwffSpot: WWFFSpot? = nil
 
+    // BOTA-spezifisch: analog WWFF. BOTA-Spots werden gegen die lokale
+    // bota_refs-DB gematcht statt nur per Regex, weil das BOTA-Pattern
+    // (XX-NNNN) zu allgemein ist und mit POTA-Refs kollidieren würde.
+    @Published var pendingBotaSpot: BOTASpot? = nil
+
 
     static let shared = LogEntryBridge()
     private init() {}

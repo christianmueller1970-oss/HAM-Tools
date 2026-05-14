@@ -17,6 +17,7 @@ struct AwardsTab: View {
         case pota = "POTA"
         case sota = "SOTA"
         case wwff = "WWFF"
+        case bota = "BOTA"
         var id: String { rawValue }
     }
 
@@ -31,6 +32,7 @@ struct AwardsTab: View {
             case .pota: potaView
             case .sota: sotaView
             case .wwff: wwffView
+            case .bota: botaView
             }
         }
         .background(theme.bgApp)
@@ -647,6 +649,117 @@ struct AwardsTab: View {
             } else {
                 Text("—").font(.caption2).foregroundStyle(theme.textDim)
             }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.bgCard)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.separator, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    // MARK: - BOTA
+
+    private var botaView: some View {
+        let a = manager.awards
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                botaHeader
+                botaCardGrid(awards: a)
+                botaHint
+            }
+            .padding(16)
+        }
+    }
+
+    private var botaHeader: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "shield.fill")
+                .font(.title2)
+                .foregroundStyle(.gray)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("BOTA — Bunkers On The Air")
+                    .font(.headline)
+                    .foregroundStyle(theme.textPrimary)
+                Text("Lokal aggregiert · keine zentrale öffentliche API verfügbar")
+                    .font(.caption2)
+                    .foregroundStyle(theme.textSecondary)
+            }
+            Spacer()
+        }
+        .padding(12)
+        .background(theme.bgCard2)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func botaCardGrid(awards a: AwardCounts) -> some View {
+        LazyVGrid(columns: [
+            GridItem(.flexible()), GridItem(.flexible())
+        ], spacing: 10) {
+            botaStatCard(title: "Activator-Bunker",
+                         value: a.botaActivatorRefs,
+                         secondaryValue: a.botaActivatorQSOs,
+                         secondaryLabel: "QSOs",
+                         icon: "shield.lefthalf.filled")
+            botaStatCard(title: "Hunter-Bunker",
+                         value: a.botaHunterRefs,
+                         secondaryValue: a.botaHunterQSOs,
+                         secondaryLabel: "QSOs",
+                         icon: "binoculars.fill")
+            botaStatCard(title: "Bunker-to-Bunker",
+                         value: a.botaB2B,
+                         secondaryValue: nil,
+                         secondaryLabel: "QSOs",
+                         icon: "arrow.left.arrow.right")
+            botaStatCard(title: "Programme",
+                         value: a.botaPrograms,
+                         secondaryValue: a.botaActivatorRefs + a.botaHunterRefs,
+                         secondaryLabel: "Refs insgesamt",
+                         icon: "globe")
+        }
+    }
+
+    private func botaStatCard(title: String, value: Int,
+                              secondaryValue: Int?, secondaryLabel: String,
+                              icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: icon).foregroundStyle(.gray)
+                Text(title).font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.textSecondary)
+            }
+            Text("\(value)")
+                .font(.system(.title, design: .rounded).weight(.bold))
+                .foregroundStyle(theme.textPrimary)
+                .monospacedDigit()
+            if let s = secondaryValue {
+                Text("\(s) \(secondaryLabel)")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(theme.textDim)
+            } else {
+                Text("—").font(.caption2).foregroundStyle(theme.textDim)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.bgCard)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.separator, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var botaHint: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Hinweise")
+                .font(.caption.bold())
+                .foregroundStyle(theme.textSecondary)
+            Text("• Activator/Hunter-Bunker = eindeutige Refs aus myBotaRef/theirBotaRef.")
+                .font(.caption2)
+                .foregroundStyle(theme.textDim)
+            Text("• B2B = QSOs zwischen zwei Bunkern (beide Refs gesetzt).")
+                .font(.caption2)
+                .foregroundStyle(theme.textDim)
+            Text("• Programme = einzigartige Länder-Prefixe (DE, BU, F, …) aus der Ref-Liste.")
+                .font(.caption2)
+                .foregroundStyle(theme.textDim)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)

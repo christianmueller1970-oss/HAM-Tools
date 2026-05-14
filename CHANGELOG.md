@@ -5,6 +5,62 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.8.1] — 2026-05-14
+
+### Phase 4e — WWFF (Worldwide Flora & Fauna)
+Komplette WWFF-Integration analog POTA/SOTA mit den Programm-Eigenheiten:
+**Doppelpfad-Datenquelle** (URL `wwff-cc.org` + manueller CSV-Import via
+Datei-Picker — wwff-cc.org war beim Build down, daher fail-safe-Architektur),
+NewWWFFLogSheet mit Activator/Hunter + Multi-Reference-Hopping,
+WWFFEntryForm mit **44-QSO-Aktivierungs-Counter** (deutlich strikter als
+POTA(10) / SOTA(4)), R2R-Erkennung (Reference-to-Reference) mit DB-Lookup,
+WWFF-Spots als gefilterter DX-Cluster-Stream (kein offenes WWFF-Spots-API),
+WWFF-Map mit Reference-Pins (Leaf-Icon, Pink), Awards-Sub-Tab mit
+Activator/Hunter/R2R/Country-Programme-Counter. ADIF schreibt
+`MY_SIG=WWFF`, `MY_WWFF_REF`, `WWFF_REF`. **Schema v5 → v6** mit fünf
+neuen Spalten (log_meta.wwffRef/Refs + qsos.myWwffRef/Refs/theirWwffRef).
+
+### Phase 4f — BOTA (Bunkers On The Air)
+CSV-Import-primärer Pfad weil **kein zentrales öffentliches API** existiert
+(bunkersontheair.com nur Stub, GMA kein BOTA-Endpoint). NewBOTALogSheet,
+**BOTAEntryForm ohne QSO-Counter** (BOTA hat keine strikten Regeln),
+B2B-Erkennung, BOTA-Spots mit Pattern-Match GEGEN die lokale Bunker-DB
+(vermeidet Pattern-Konflikte mit POTA/WWFF), BOTA-Map mit Shield-Pins,
+Awards-Sub-Tab. Proprietäre `APP_HAMTOOLS_MY_BOTA_REF` ADIF-Felder weil
+kein Standard-Tag existiert. **Schema v6 → v7**. `bota_demo.csv` im Repo
+mit 15 echten EU-Bunkern als Start-Datenset.
+
+### Outdoor-Sammel-Tab (Phase 4e-0)
+QSO-Panel umgebaut von **DX/Contest/POTA/SOTA** (4 Tabs) auf
+**DX/Contest/Outdoor** (3 Tabs) mit zweistöckiger Sub-Tab-Bar
+POTA/SOTA/WWFF/BOTA. Skaliert auf weitere zukünftige Award-Programme
+ohne UI-Überfüllung.
+
+### Testlauf-Polish (User-Bug-Reports)
+- **QSO-Tabellen-Spalten** programm-abhängig: SOTA zeigt „Region" + „Their
+  Summit", WWFF „Country" + „Their Reference", BOTA „Their Bunker"
+- **Bottom-Tab-Bar** im POTA/SOTA/WWFF/BOTA-Modus auf programm-spezifische
+  Tabs reduziert (Log, [Programm]-Spots, [Programm]-Map, Awards, Memories)
+- **DXClusters-Tab-Label** dynamisch („POTA-Spots" / „SOTA-Spots" / …)
+- **WWFF-DNS-Fehler-UX**: CSV-Import-Button hervorgehoben bei Server-Ausfall
+- **Awards-Sub-Tab-Picker** im Programm-Modus auf das aktive Programm
+  fokussiert
+- **Enter** speichert QSO direkt in allen Logging-Forms (statt Cmd+Enter)
+- **Update-Check** zeigt Alert auch bei „up to date" / Fehler
+- **Helvetia-Contest**: myCanton-Picker in den Station-Settings
+- **ContestStatsPanel** Alignment .top (war .center → leerer Bereich oben)
+
+## [1.8.0] — 2026-05-14
+
+### Phase 4d — SOTA (Summits On The Air)
+Komplette SOTA-Integration: ~181'000 Summits aus sotadata.org.uk,
+NewSOTALogSheet mit Activator/Chaser + Multi-Summit-Hopping,
+SOTAEntryForm mit 4-QSO-Counter + Winterbonus-Anzeige (NH: 1.12.–15.03.,
+SH: 1.6.–15.9.), S2S-Erkennung, SOTA-Spots-Tab mit Live-Polling aus
+api2.sota.org.uk, SOTA-Map mit Summit-Pins + S2S-Indikator, Awards-Sub-Tab
+SOTA, ADIF mit MY_SIG=SOTA + MY_SOTA_REF + proprietäre Punkte-Persistenz.
+Schema v4 → v5 für sotaSummitRefs/mySotaRefs.
+
 ## [1.6.1] — 2026-05-12
 
 ### Neu: POTA-Modul (Phase 4c)

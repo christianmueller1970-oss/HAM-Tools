@@ -55,20 +55,17 @@ struct QSOEntryPanel: View {
     // zeigen. POTA/SOTA (und künftig WWFF/BOTA) sind Sub-Modi unter Outdoor
     // — sichtbar als zweite Tab-Bar wenn entryMode == .outdoor.
     private var entryMode: EntryMode {
-        if isContestLogActive                                     { return .contest }
-        if isPOTALogActive || isSOTALogActive || isWWFFLogActive  { return .outdoor }
+        if isContestLogActive                                                       { return .contest }
+        if isPOTALogActive || isSOTALogActive || isWWFFLogActive || isBOTALogActive { return .outdoor }
         return .dx
     }
 
-    // Wenn entryMode == .outdoor: welcher Sub-Mode ist aktiv? Wird aus dem
-    // Log-Typ abgeleitet. Bei einem nicht-Outdoor-Log (z.B. DX) ist es
-    // sinnvoll, das letzte verwendete Outdoor-Programm zu merken — vorerst
-    // pragmatisch: Default POTA, kein @AppStorage nötig solange POTA das
-    // häufigere Programm ist.
+    // Wenn entryMode == .outdoor: welcher Sub-Mode ist aktiv?
     private var outdoorMode: OutdoorMode {
         if isPOTALogActive { return .pota }
         if isSOTALogActive { return .sota }
         if isWWFFLogActive { return .wwff }
+        if isBOTALogActive { return .bota }
         return .pota
     }
     @State private var lastFilledFromSpot: Date? = nil
@@ -78,6 +75,7 @@ struct QSOEntryPanel: View {
     @State private var showNewContestSheet: Bool = false
     @State private var showNewSOTASheet: Bool = false
     @State private var showNewWWFFSheet: Bool = false
+    @State private var showNewBOTASheet: Bool = false
 
     // Aktive Log-Variante (Log-Objekt, nicht nur ID) für Render-Entscheidungen
     private var activeLog: Log? {
@@ -95,6 +93,9 @@ struct QSOEntryPanel: View {
     }
     private var isWWFFLogActive: Bool {
         activeLog?.type == .wwff
+    }
+    private var isBOTALogActive: Bool {
+        activeLog?.type == .bota
     }
 
     // Callbook-Lookup-Resultat: Bild-URL + QRZ-Link für die Header-Anzeige
@@ -156,15 +157,8 @@ struct QSOEntryPanel: View {
         case bota = "BOTA"
 
         var id: String { rawValue }
-        var isAvailable: Bool {
-            self == .pota || self == .sota || self == .wwff
-        }
-        var comingSoonNote: String {
-            switch self {
-            case .bota: return "Bunkers On The Air — Phase 4f"
-            default:    return ""
-            }
-        }
+        var isAvailable: Bool { true }
+        var comingSoonNote: String { "" }
     }
 
     private var theme: AppTheme { themeManager.theme }
@@ -199,6 +193,9 @@ struct QSOEntryPanel: View {
             } else if isWWFFLogActive {
                 // Schlanke WWFF-Form ersetzt das DX-Grid + ActionBar
                 WWFFEntryForm()
+            } else if isBOTALogActive {
+                // Schlanke BOTA-Form ersetzt das DX-Grid + ActionBar
+                BOTAEntryForm()
             } else {
                 if lastFilledFromSpot != nil {
                     spotBanner
@@ -230,6 +227,9 @@ struct QSOEntryPanel: View {
         }
         .sheet(isPresented: $showNewWWFFSheet) {
             NewWWFFLogSheet()
+        }
+        .sheet(isPresented: $showNewBOTASheet) {
+            NewBOTALogSheet()
         }
         .background(theme.bgCard)
         .overlay(
@@ -284,12 +284,10 @@ struct QSOEntryPanel: View {
     }
 
     private func consumeBridge() {
-        // Im Contest-/POTA-/SOTA-/WWFF-Modus übernimmt das jeweilige
-        // spezialisierte Form den Draft selbst. Sonst hier konsumieren
-        // ist eine Race-Condition — Parent fängt den Draft ab bevor das
-        // Child-Form ihn sieht.
+        // Im Contest-/POTA-/SOTA-/WWFF-/BOTA-Modus übernimmt das jeweilige
+        // spezialisierte Form den Draft selbst.
         guard !isContestLogActive, !isPOTALogActive,
-              !isSOTALogActive, !isWWFFLogActive else { return }
+              !isSOTALogActive, !isWWFFLogActive, !isBOTALogActive else { return }
         guard let draft = logBridge.consume() else { return }
         applyDraft(draft)
     }
@@ -450,8 +448,13 @@ struct QSOEntryPanel: View {
                     }
                 }
             case .bota:
-                // disabled — Tooltip übernimmt die Kommunikation
-                break
+                if !isBOTALogActive {
+                    if manager.logs.contains(where: { $0.type == .bota }) {
+                        manager.switchToLastLog(of: .bota)
+                    } else {
+                        showNewBOTASheet = true
+                    }
+                }
             }
         } label: {
             HStack(spacing: 3) {

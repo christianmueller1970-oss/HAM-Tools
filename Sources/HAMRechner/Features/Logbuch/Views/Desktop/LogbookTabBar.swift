@@ -16,6 +16,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
     case potaMap     = "POTA-Map"
     case sotaMap     = "SOTA-Map"
     case wwffMap     = "WWFF-Map"
+    case botaMap     = "BOTA-Map"
     case contestMap  = "Contest-Map"
     case bandplan    = "Bandplan"
     case labels      = "Labels"
@@ -36,6 +37,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
         case .potaMap:    return "tree.circle"
         case .sotaMap:    return "mountain.2.circle"
         case .wwffMap:    return "leaf.circle"
+        case .botaMap:    return "shield.lefthalf.filled"
         case .contestMap: return "globe.europe.africa"
         case .bandplan:   return "chart.bar.xaxis"
         case .labels:     return "tag"
@@ -45,7 +47,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
     var isAvailable: Bool {
         switch self {
         case .log, .dxClusters, .awards, .map, .bands,
-             .history, .memories, .potaMap, .sotaMap, .wwffMap,
+             .history, .memories, .potaMap, .sotaMap, .wwffMap, .botaMap,
              .contestMap, .bandplan: return true
         default:                                                            return false
         }
@@ -76,7 +78,7 @@ struct LogbookTabBar: View {
             switch currentLogType {
             case .contest:
                 switch tab {
-                case .awards, .memories, .potaMap, .sotaMap, .wwffMap, .history: return false
+                case .awards, .memories, .potaMap, .sotaMap, .wwffMap, .botaMap, .history: return false
                 default: return true
                 }
             case .pota:
@@ -92,6 +94,11 @@ struct LogbookTabBar: View {
             case .wwff:
                 switch tab {
                 case .log, .dxClusters, .wwffMap, .awards, .memories: return true
+                default: return false
+                }
+            case .bota:
+                switch tab {
+                case .log, .dxClusters, .botaMap, .awards, .memories: return true
                 default: return false
                 }
             case .standard, .none:
@@ -132,6 +139,7 @@ struct LogbookTabBar: View {
             case .pota: return "POTA-Spots"
             case .sota: return "SOTA-Spots"
             case .wwff: return "WWFF-Spots"
+            case .bota: return "BOTA-Spots"
             default:    return tab.rawValue
             }
         }

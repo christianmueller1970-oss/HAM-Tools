@@ -209,6 +209,7 @@ private struct DatenTab: View {
     @EnvironmentObject var pota:     PotaParkService
     @EnvironmentObject var sota:     SotaSummitService
     @EnvironmentObject var wwff:     WWFFRefService
+    @EnvironmentObject var bota:     BOTARefService
 
     var body: some View {
         ScrollView {
@@ -264,6 +265,7 @@ private struct DatenTab: View {
                 potaParksGroup
                 sotaSummitsGroup
                 wwffRefsGroup
+                botaRefsGroup
             }
             .padding(16)
         }
@@ -569,6 +571,112 @@ private struct DatenTab: View {
         panel.canChooseDirectories = false
         if panel.runModal() == .OK, let url = panel.url {
             Task { await wwff.importCSV(from: url) }
+        }
+    }
+
+    // MARK: - BOTA Refs DB
+
+    // Primär File-Import (kein zentrales öffentliches API gefunden).
+    // URL-Slot ist Platzhalter und schlägt typischerweise fehl —
+    // CSV-Import-Button daher direkt borderedProminent.
+    private var botaRefsGroup: some View {
+        GroupBox("BOTA-Reference-Datenbank") {
+            VStack(alignment: .leading, spacing: 8) {
+                botaStatusLine
+                HStack {
+                    Button("CSV importieren …") { pickBOTACSV() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(botaIsBusy)
+                        .help("BOTA hat keinen offenen Datenfeed — lokale CSV vom Programm-Coordinator einlesen")
+
+                    Button(bota.isLoaded ? "URL erneut versuchen" : "URL versuchen") {
+                        Task { await bota.refresh() }
+                    }
+                    .disabled(botaIsBusy)
+                    .help("Platzhalter — wenn ein zentraler Mirror auftaucht, wird die URL angepasst")
+
+                    if bota.shouldOfferRefresh && bota.isLoaded {
+                        Text("ältere Daten — Update empfohlen")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    Spacer()
+                }
+                if let err = bota.lastError, case .errored = bota.status {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .textSelection(.enabled)
+                }
+                Text("Bunkers On The Air — kein zentrales API. Lokale CSV (z.B. vom Programm-Coordinator oder GMA-Export) importieren. Wird in \(dataRoot.cacheDir.path)/bota_refs.sqlite gespeichert.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(4)
+        }
+    }
+
+    private var botaStatusLine: some View {
+        HStack(spacing: 8) {
+            Image(systemName: botaStatusIcon).foregroundStyle(botaStatusColor)
+            Text(botaStatusText)
+                .font(.callout)
+            Spacer()
+        }
+    }
+
+    private var botaIsBusy: Bool {
+        switch bota.status {
+        case .downloading, .parsing: return true
+        default: return false
+        }
+    }
+
+    private var botaStatusIcon: String {
+        switch bota.status {
+        case .unknown:     return "questionmark.circle"
+        case .downloading: return "arrow.down.circle"
+        case .parsing:     return "gear.circle"
+        case .ready:       return "checkmark.circle.fill"
+        case .errored:     return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var botaStatusColor: Color {
+        switch bota.status {
+        case .unknown:     return .gray
+        case .downloading, .parsing: return .blue
+        case .ready:       return .green
+        case .errored:     return .red
+        }
+    }
+
+    private var botaStatusText: String {
+        switch bota.status {
+        case .unknown:           return "Noch keine Daten geladen — bitte CSV importieren"
+        case .downloading:       return "Lade …"
+        case .parsing:           return "Verarbeite CSV …"
+        case .ready(let date, let count, let activeCount):
+            let cnt = "\(count) Refs (\(activeCount) aktiv)"
+            if let d = date {
+                let df = DateFormatter()
+                df.dateStyle = .medium
+                df.timeStyle = .short
+                return "\(cnt) · Stand: \(df.string(from: d))"
+            }
+            return cnt
+        case .errored(let m):    return "Fehler: \(m)"
+        }
+    }
+
+    private func pickBOTACSV() {
+        let panel = NSOpenPanel()
+        panel.title = "BOTA-CSV importieren"
+        panel.allowedContentTypes = [.commaSeparatedText, .plainText]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        if panel.runModal() == .OK, let url = panel.url {
+            Task { await bota.importCSV(from: url) }
         }
     }
 

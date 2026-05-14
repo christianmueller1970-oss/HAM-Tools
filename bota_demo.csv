@@ -1,0 +1,16 @@
+reference,name,country,type,status,latitude,longitude
+DE-0001,Bunker Höxter,Germany,WWII,active,51.7770,9.3815
+DE-0002,Bunker Bremen Valentin,Germany,WWII,active,53.2167,8.5167
+DE-0017,Atombunker Hannover,Germany,Kalter Krieg,active,52.3759,9.7320
+DE-0034,Bunker Marienthal,Germany,Kalter Krieg,active,50.5340,7.1010
+DE-0089,Westwall-Bunker,Germany,WWII,active,49.6500,6.8500
+HB-0001,Festung Furigen,Switzerland,Kalter Krieg,active,46.9530,8.4250
+HB-0007,Forte Airolo,Switzerland,Festung,active,46.5320,8.6080
+OE-0003,Festung Hochosterwitz,Austria,Mittelalter,active,46.7570,14.4500
+F-0011,Maginot-Linie Schoenenbourg,France,WWII,active,48.9667,7.9333
+F-0022,Ouvrage Hackenberg,France,WWII,active,49.3833,6.4167
+PL-0001,Bunker Hitlers Wolfschanze,Poland,WWII,active,54.0795,21.4923
+PL-0014,Festung Modlin,Poland,Festung,active,52.4333,20.6833
+CZ-0005,Bunker Hanicka,Czech Republic,WWII,active,50.2333,16.5667
+BU-099,RB Test Bunker Moscow,Russia,Kalter Krieg,active,55.7558,37.6173
+G-0044,Dover Castle,United Kingdom,Mittelalter,active,51.1294,1.3217

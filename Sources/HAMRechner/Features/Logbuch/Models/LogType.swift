@@ -10,6 +10,7 @@ enum LogType: String, Codable, CaseIterable, Identifiable {
     case pota
     case sota
     case wwff
+    case bota
 
     var id: String { rawValue }
 
@@ -20,6 +21,7 @@ enum LogType: String, Codable, CaseIterable, Identifiable {
         case .pota:     return "POTA-Session"
         case .sota:     return "SOTA-Session"
         case .wwff:     return "WWFF-Session"
+        case .bota:     return "BOTA-Session"
         }
     }
 
@@ -30,6 +32,7 @@ enum LogType: String, Codable, CaseIterable, Identifiable {
         case .pota:     return "Parks On The Air, Activator/Hunter"
         case .sota:     return "Summits On The Air, Activator/Chaser"
         case .wwff:     return "Worldwide Flora & Fauna, Activator/Hunter (44-QSO-Regel)"
+        case .bota:     return "Bunkers On The Air, Activator/Hunter"
         }
     }
 
@@ -40,12 +43,13 @@ enum LogType: String, Codable, CaseIterable, Identifiable {
         case .pota:     return "tree"
         case .sota:     return "mountain.2"
         case .wwff:     return "leaf"
+        case .bota:     return "shield"
         }
     }
 
-    // Standard + POTA + Contest + SOTA + WWFF sind umgesetzt.
+    // Standard + POTA + Contest + SOTA + WWFF + BOTA sind umgesetzt.
     var isAvailable: Bool {
         self == .standard || self == .pota || self == .contest
-            || self == .sota || self == .wwff
+            || self == .sota || self == .wwff || self == .bota
     }
 }

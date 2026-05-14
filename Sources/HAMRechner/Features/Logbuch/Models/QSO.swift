@@ -46,6 +46,9 @@ struct QSO: Identifiable, Codable, Hashable {
     var myWwffRef: String?
     var myWwffRefs: String?
     var theirWwffRef: String?
+    var myBotaRef: String?
+    var myBotaRefs: String?
+    var theirBotaRef: String?
 
     // QSL (Phase 6)
     var qslSentDate: Date?

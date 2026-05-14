@@ -52,6 +52,13 @@ struct LogbuchView: View {
         return log.type == .wwff
     }
 
+    // Hilfs-Property: true wenn das aktuelle Log eine BOTA-Session ist.
+    private var currentLogIsBOTA: Bool {
+        guard let id = manager.currentLogID,
+              let log = manager.logs.first(where: { $0.id == id }) else { return false }
+        return log.type == .bota
+    }
+
     let onBackToHome: () -> Void
 
     @State private var showNewLogSheet: Bool = false
@@ -59,6 +66,7 @@ struct LogbuchView: View {
     @State private var showNewContestSheet: Bool = false
     @State private var showNewSOTASheet: Bool = false
     @State private var showNewWWFFSheet: Bool = false
+    @State private var showNewBOTASheet: Bool = false
     @State private var showLogsPopover: Bool = false
 
     // Alle Tab-State-Werte sind persistent über AppStorage — Wunsch des
@@ -172,7 +180,11 @@ struct LogbuchView: View {
         }
         .onChange(of: currentLogIsWWFF) { _, isWWFF in
             if isWWFF { awardsSubTab = .wwff }
-            else if !currentLogIsPOTA && !currentLogIsSOTA { awardsSubTab = .dxcc }
+            else if !currentLogIsPOTA && !currentLogIsSOTA && !currentLogIsBOTA { awardsSubTab = .dxcc }
+        }
+        .onChange(of: currentLogIsBOTA) { _, isBOTA in
+            if isBOTA { awardsSubTab = .bota }
+            else if !currentLogIsPOTA && !currentLogIsSOTA && !currentLogIsWWFF { awardsSubTab = .dxcc }
         }
         .sheet(isPresented: $showNewLogSheet) {
             NewLogSheet(onCreate: { newLog in
@@ -194,6 +206,10 @@ struct LogbuchView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                     showNewWWFFSheet = true
                 }
+            }, onSelectBOTA: {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    showNewBOTASheet = true
+                }
             })
             .environmentObject(themeManager)
             .environmentObject(settings)
@@ -212,6 +228,10 @@ struct LogbuchView: View {
         }
         .sheet(isPresented: $showNewWWFFSheet) {
             NewWWFFLogSheet()
+                .environmentObject(themeManager)
+        }
+        .sheet(isPresented: $showNewBOTASheet) {
+            NewBOTALogSheet()
                 .environmentObject(themeManager)
         }
         .sheet(isPresented: $showNewMemorySheet) {
@@ -265,6 +285,12 @@ struct LogbuchView: View {
             } else if currentLogIsWWFF {
                 TabContextBarShell {
                     Text("WWFF-Spots — gefiltert aus dem DX-Cluster (Refs im Kommentar)")
+                        .font(.caption)
+                        .foregroundStyle(theme.textDim)
+                }
+            } else if currentLogIsBOTA {
+                TabContextBarShell {
+                    Text("BOTA-Spots — gefiltert aus dem DX-Cluster, gegen lokale Bunker-DB gematcht")
                         .font(.caption)
                         .foregroundStyle(theme.textDim)
                 }
@@ -540,6 +566,7 @@ struct LogbuchView: View {
         if currentLogIsPOTA { return [.pota] }
         if currentLogIsSOTA { return [.sota] }
         if currentLogIsWWFF { return [.wwff] }
+        if currentLogIsBOTA { return [.bota] }
         return AwardsTab.AwardsSubTab.allCases
     }
 
@@ -597,6 +624,7 @@ struct LogbuchView: View {
         case .pota: return manager.awards.potaActivatorParks + manager.awards.potaHunterParks
         case .sota: return manager.awards.sotaActivatorSummits + manager.awards.sotaChaserSummits
         case .wwff: return manager.awards.wwffActivatorRefs + manager.awards.wwffHunterRefs
+        case .bota: return manager.awards.botaActivatorRefs + manager.awards.botaHunterRefs
         }
     }
 
@@ -615,6 +643,8 @@ struct LogbuchView: View {
             return "\(a.sotaActivatorSummits) Activator-Summits · \(a.sotaChaserSummits) Chaser-Summits · \(a.sotaS2S) S2S"
         case .wwff:
             return "\(a.wwffActivatorRefs) Activator-Refs · \(a.wwffHunterRefs) Hunter-Refs · \(a.wwffR2R) R2R · \(a.wwffPrograms) Programme"
+        case .bota:
+            return "\(a.botaActivatorRefs) Activator-Bunker · \(a.botaHunterRefs) Hunter-Bunker · \(a.botaB2B) B2B · \(a.botaPrograms) Programme"
         }
     }
 
@@ -649,6 +679,10 @@ struct LogbuchView: View {
                 WWFFSpotsView { spot in
                     logBridge.pendingWwffSpot = spot
                 }
+            } else if currentLogIsBOTA {
+                BOTASpotsView { spot in
+                    logBridge.pendingBotaSpot = spot
+                }
             } else {
                 LogbookClusterTab()
             }
@@ -670,6 +704,8 @@ struct LogbuchView: View {
             SOTAMapTab()
         case .wwffMap:
             WWFFMapTab()
+        case .botaMap:
+            BOTAMapTab()
         case .contestMap:
             ContestMapTab()
         case .bandplan:

@@ -4,7 +4,7 @@ layout: home
 hero:
   name: HAM-Tools
   text: Anleitungen & Tipps
-  tagline: Der macOS-Logger für DX, Contest und POTA — von HB9HJI für die Funkwelt.
+  tagline: Der macOS-Logger für DX, Contest, POTA, SOTA, WWFF und BOTA — von HB9HJI für die Funkwelt.
   image:
     src: /icon.svg
     alt: HAM-Tools
@@ -17,7 +17,7 @@ hero:
       link: /modules/logbuch
     - theme: alt
       text: Download
-      link: https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.7.1.dmg
+      link: https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.1.dmg
 
 features:
   - icon: 📒
@@ -27,14 +27,14 @@ features:
     title: Contest-Modus
     details: 14 Templates (HB-Helvetia, CQ-WW, CQ-WPX, IARU, ARRL-DX, WAE, DARC-WAG …) mit Wizard, Live-Score, Dupe-Markierung und Cabrillo-Export.
   - icon: 🌲
-    title: POTA-Workflow
-    details: Parks-DB mit Auto-Complete, Activator/Hunter-Modi, Park-Hopping, POTA-Map mit Multi-Park-Linien, direkter pota.app-Spots-Feed.
+    title: POTA + SOTA + WWFF + BOTA
+    details: Vier komplette Award-Programme mit lokalen Ref-Datenbanken, Activator/Hunter-Workflow, programm-spezifischen Spots-Feeds, Maps und Awards-Aggregation. Outdoor-Sub-Picker im QSO-Panel.
   - icon: 📡
     title: CAT-Anbindung
     details: 24 Radio-Modelle (Yaesu, Icom, Kenwood, Elecraft) via Hamlib. ICOM mit korrekter CI-V-Adresse pro Modell. Multi-Config zum schnellen Wechseln.
   - icon: 🌐
     title: DX-Cluster
-    details: Eigener DXSpider plus POTA- und SOTA-Feeds. Spots gefiltert auf Watchlist, Award-relevante Modes, Contest-Bänder. Klick füllt Log + setzt CAT.
+    details: Eigener DXSpider plus POTA/SOTA-Live-Feeds und WWFF/BOTA-Filter aus dem DX-Cluster. Spots gefiltert auf Watchlist, Award-relevante Modes, Contest-Bänder. Klick füllt Log + setzt CAT.
   - icon: 🧮
     title: 25+ Rechner
     details: Antennen-Dimensionierung (Dipol, Yagi, Magnetic Loop, Hexbeam …), Balun, SWR, Smith-Chart, Linkbudget, QTH-Locator, Antennen-Simulator.
@@ -43,7 +43,7 @@ features:
 ## Was ist HAM-Tools?
 
 Eine native **macOS-App** für Funkamateure mit Fokus auf:
-- **Logbuch** mit allen üblichen Award-Workflows (DXCC, WAZ, WAS, POTA, SOTA)
+- **Logbuch** mit allen üblichen Award-Workflows (DXCC, WAZ, WAS, POTA, SOTA, WWFF, BOTA)
 - **Contest-Logger** mit Cabrillo V3-Export für die wichtigsten Major-Contests
 - **CAT-Anbindung** für Yaesu / Icom / Kenwood / Elecraft via Hamlib
 - **Antennen-Rechner** für Drahtantennen, Richtstrahler, Spezialantennen, Spulen

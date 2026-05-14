@@ -1,20 +1,30 @@
 # HAM-Tools
 
-**Amateurfunk-Rechner für macOS** — eine native SwiftUI-App mit Berechnungswerkzeugen für Antennen, Leitungen, Spulen und Signale sowie Live-Tools für den aktiven Amateurfunk-Betrieb.
+**Native macOS-App für Funkamateure** — Logbuch mit vier Award-Programmen
+(POTA, SOTA, WWFF, BOTA), Contest-Logger mit Cabrillo V3, CAT-Steuerung
+via Hamlib für Yaesu/Icom/Kenwood/Elecraft, DX-Cluster-Integration und
+über 25 Berechnungswerkzeuge für Antennen, Leitungen, Spulen und Signale.
 
 Entwickelt von **Christian Mueller HB9HJI**
 
 ---
 
-## Funktionen (V1.5)
+## Funktionen (V1.8.1)
 
-### Logbuch (NEU in V1.5)
+### Logbuch
 
-Vollständiges Logger-Modul im Desktop-Logger-Stil mit Multi-Log-Architektur, Online-Lookups und Cross-Modul-Integration.
+Vollständiges Logger-Modul im Desktop-Logger-Stil mit Multi-Log-Architektur,
+Online-Lookups und Cross-Modul-Integration. Vier voll umgesetzte Award-
+Programme (POTA, SOTA, WWFF, BOTA) mit gemeinsamem Outdoor-Sub-Picker.
 
 | Feature | Beschreibung |
 |---|---|
-| Multi-Log-Architektur | Eine SQLite-Datei pro Logbuch (.htlog), Standard / Contest / POTA / SOTA |
+| Multi-Log-Architektur | Eine SQLite-Datei pro Logbuch (.htlog), Standard / Contest / POTA / SOTA / WWFF / BOTA |
+| **POTA-Modus** | ~91k Parks aus pota.app, Activator/Hunter, 10-QSO-Counter, Multi-Park-Hopping, Live-Spots, Map, Awards (Phase 4c) |
+| **SOTA-Modus** | ~181k Summits aus sotadata.org.uk, Activator/Chaser, 4-QSO-Counter + Winterbonus, S2S, Live-Spots, Map, Awards (Phase 4d) |
+| **WWFF-Modus** | Doppelpfad-DB (URL + CSV-Import), Activator/Hunter, 44-QSO-Counter, R2R, DX-Cluster-gefilterte Spots, Map, Awards (Phase 4e) |
+| **BOTA-Modus** | CSV-Import-DB, Activator/Hunter (1 QSO), B2B, DX-Cluster-gefilterte Spots mit DB-Match, Map, Awards (Phase 4f) |
+| **Outdoor-Sub-Picker** | DX/Contest/Outdoor als 3 Haupt-Tabs, sub-bar POTA/SOTA/WWFF/BOTA — skaliert auf weitere Programme |
 | Konfigurierbarer Datenordner | Default `~/Documents/HAM-Tools/`, alle Daten zentral (Logs/Cache/Exports/Backups/Audio) |
 | QSO-Eingabe-Panel | Drei-Spalten-Form im Desktop-Logger-Look mit Auto-Band, RST-Mode-Defaults, Time-On-Live |
 | Frequenz aus Radio-Panel | Zentrale Quelle (manuell oder ab Phase 5 via CAT/Hamlib) |
