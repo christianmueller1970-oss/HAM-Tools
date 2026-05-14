@@ -76,8 +76,8 @@ struct LogActionBar: View {
             }
             .buttonStyle(.plain)
             .disabled(!canLog)
-            .keyboardShortcut(.return, modifiers: [.command])
-            .help("QSO speichern (⌘↩)")
+            .keyboardShortcut(.return, modifiers: [])
+            .help("QSO speichern (↩)")
 
             Divider()
                 .frame(height: 18)

@@ -271,18 +271,22 @@ struct QSOTableView: View {
                 .defaultVisibility(.hidden)
             }
 
-            // POTA-relevante Spalten — default sichtbar.
+            // Programm-Refs — Spalten-Titel und -Inhalt folgen dem Log-Typ:
+            //   POTA  → "State"   / "Their Park"      (theirPotaRef)
+            //   SOTA  → "Region"  / "Their Summit"    (theirSotaRef)
+            //   WWFF  → "Country" / "Their Reference" (theirWwffRef)
+            //   Standard / Contest → wie POTA
             Group {
-                TableColumn("State") { (qso: QSO) in
-                    Text(stateForQSO(qso))
+                TableColumn("\(regionalColumnLabel)") { (qso: QSO) in
+                    Text(regionalValue(for: qso))
                         .font(.caption)
                         .foregroundStyle(uploadColor(for: qso))
                 }
                 .width(min: 60, ideal: 80)
                 .customizationID("state")
 
-                TableColumn("Their Park") { (qso: QSO) in
-                    Text(qso.theirPotaRef ?? "")
+                TableColumn("\(theirRefColumnLabel)") { (qso: QSO) in
+                    Text(theirRefValue(for: qso))
                         .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(uploadColor(for: qso))
                 }
@@ -428,6 +432,55 @@ struct QSOTableView: View {
 
     // MARK: - State aus POTA-Park-DB
     //
+    // MARK: - Programm-abhängige Spalten-Beschriftung
+
+    // Linke Programm-Spalte (regional info): bei POTA der US-State o.ä.
+    // aus der Park-DB, bei SOTA die Region (aus Ref-Mittelteil), bei WWFF
+    // das Country aus dem QSO.
+    private var regionalColumnLabel: String {
+        switch currentLog?.type {
+        case .sota: return "Region"
+        case .wwff: return "Country"
+        default:    return "State"
+        }
+    }
+
+    private func regionalValue(for qso: QSO) -> String {
+        switch currentLog?.type {
+        case .sota:
+            // SOTA-Ref-Format "HB/BE-001" → "BE" als Region
+            guard let ref = qso.theirSotaRef, !ref.isEmpty else { return "" }
+            if let slash = ref.firstIndex(of: "/"),
+               let dash = ref.firstIndex(of: "-"),
+               slash < dash {
+                return String(ref[ref.index(after: slash)..<dash])
+            }
+            return ""
+        case .wwff:
+            return qso.country ?? ""
+        default:
+            return stateForQSO(qso)
+        }
+    }
+
+    // Rechte Programm-Spalte (their reference): zeigt die Gegen-Ref des
+    // jeweiligen Programms.
+    private var theirRefColumnLabel: String {
+        switch currentLog?.type {
+        case .sota: return "Their Summit"
+        case .wwff: return "Their Reference"
+        default:    return "Their Park"
+        }
+    }
+
+    private func theirRefValue(for qso: QSO) -> String {
+        switch currentLog?.type {
+        case .sota: return qso.theirSotaRef ?? ""
+        case .wwff: return qso.theirWwffRef ?? ""
+        default:    return qso.theirPotaRef ?? ""
+        }
+    }
+
     // Hamlib-CSV speichert in locationDesc "US-ME" / "DA-NW" / "CH-AG,CH-ZG".
     // Wir extrahieren den State (Teil nach dem Bindestrich) und joinen
     // Mehrfach-Refs mit Komma. Bei Parks ohne locationDesc → leer.

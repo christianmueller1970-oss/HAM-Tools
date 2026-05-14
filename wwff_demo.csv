@@ -1,0 +1,25 @@
+reference,name,country,iuc_cat,status,latitude,longitude
+HBFF-0001,Schweizerischer Nationalpark,Switzerland,National Park,active,46.6573,10.1764
+HBFF-0006,Naturpark Beverin,Switzerland,Regional Park,active,46.6800,9.4000
+HBFF-0010,Naturpark Diemtigtal,Switzerland,Regional Park,active,46.6500,7.5600
+HBFF-0019,Jurapark Aargau,Switzerland,Regional Park,active,47.4500,8.1000
+HBFF-0020,Parc Ela,Switzerland,Regional Park,active,46.6500,9.6500
+DLFF-0001,Bayerischer Wald,Germany,National Park,active,48.9333,13.4167
+DLFF-0002,Berchtesgaden,Germany,National Park,active,47.5500,12.9500
+DLFF-0003,Hainich,Germany,National Park,active,51.0833,10.5000
+DLFF-0009,Schwarzwald,Germany,National Park,active,48.5500,8.2500
+DLFF-0010,Eifel,Germany,National Park,active,50.5167,6.4000
+DLFF-0040,Naturpark Pfälzerwald,Germany,Nature Park,active,49.3000,7.8333
+OEFF-0001,Hohe Tauern,Austria,National Park,active,47.0000,12.6667
+OEFF-0003,Neusiedler See,Austria,National Park,active,47.8000,16.7500
+ONFF-0001,Hautes Fagnes,Belgium,Nature Reserve,active,50.5200,6.0700
+ONFF-0117,Zwin,Belgium,Nature Reserve,active,51.3500,3.3667
+F-FF-0001,Cévennes,France,National Park,active,44.1500,3.7833
+F-FF-0011,Mercantour,France,National Park,active,44.1167,7.1000
+G-FF-0001,Lake District,United Kingdom,National Park,active,54.4609,-3.0886
+G-FF-0024,Snowdonia,United Kingdom,National Park,active,52.9000,-3.8500
+KFF-0001,Acadia National Park,United States,National Park,active,44.3386,-68.2733
+KFF-0028,Grand Canyon,United States,National Park,active,36.1069,-112.1129
+KFF-1234,Cleveland National Forest,United States,National Forest,active,33.3500,-116.7000
+VKFF-0001,Australian Alps,Australia,National Park,active,-36.7000,148.2000
+VKFF-0008,Blue Mountains,Australia,National Park,active,-33.5000,150.3000

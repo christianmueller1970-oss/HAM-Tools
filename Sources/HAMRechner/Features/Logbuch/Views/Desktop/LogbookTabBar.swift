@@ -65,20 +65,42 @@ struct LogbookTabBar: View {
         return log.type
     }
 
-    // Im Contest-Modus werden Tabs ausgeblendet, die keinen Mehrwert bringen
-    // (Awards/Memories/POTA-Map/History) — sonst lenkt das beim Loggen ab.
-    // Die Contest-Map ist umgekehrt NUR im Contest sichtbar.
+    // Programm-Modus-Filter: im POTA/SOTA/WWFF-Log nur die jeweils
+    // programm-spezifischen Tabs zeigen. Generische Map, Bands, History,
+    // Bandplan und die anderen Programm-Maps werden ausgeblendet — das
+    // räumt die Tab-Bar deutlich auf und macht klar in welchem Programm
+    // man gerade ist.
     private var visibleTabs: [LogbookBottomTab] {
         LogbookBottomTab.allCases.filter { tab in
             guard tab.isAvailable else { return false }
-            if currentLogType == .contest {
+            switch currentLogType {
+            case .contest:
                 switch tab {
                 case .awards, .memories, .potaMap, .sotaMap, .wwffMap, .history: return false
                 default: return true
                 }
-            } else {
-                // Außerhalb Contest: Contest-Map ist sinnlos
+            case .pota:
+                switch tab {
+                case .log, .dxClusters, .potaMap, .awards, .memories: return true
+                default: return false
+                }
+            case .sota:
+                switch tab {
+                case .log, .dxClusters, .sotaMap, .awards, .memories: return true
+                default: return false
+                }
+            case .wwff:
+                switch tab {
+                case .log, .dxClusters, .wwffMap, .awards, .memories: return true
+                default: return false
+                }
+            case .standard, .none:
+                // Außerhalb Contest/Programm: Programm-spezifische Maps
+                // + Contest-Map sind sinnlos
                 return tab != .contestMap
+                    && tab != .potaMap
+                    && tab != .sotaMap
+                    && tab != .wwffMap
             }
         }
     }
@@ -101,6 +123,21 @@ struct LogbookTabBar: View {
         }
     }
 
+    // Dynamisches Label für den DXClusters-Tab: zeigt klar an, welcher
+    // Spots-Feed gerade gerendert wird. Im SOTA-Log "SOTA-Spots" statt
+    // generischem "DXClusters" — sonst denkt der User es kommt POTA-Inhalt.
+    private func label(for tab: LogbookBottomTab) -> String {
+        if tab == .dxClusters {
+            switch currentLogType {
+            case .pota: return "POTA-Spots"
+            case .sota: return "SOTA-Spots"
+            case .wwff: return "WWFF-Spots"
+            default:    return tab.rawValue
+            }
+        }
+        return tab.rawValue
+    }
+
     private func tabButton(_ tab: LogbookBottomTab) -> some View {
         let isSelected = selected == tab
         return Button {
@@ -109,7 +146,7 @@ struct LogbookTabBar: View {
             HStack(spacing: 4) {
                 Image(systemName: tab.systemImage)
                     .font(.caption2)
-                Text(tab.rawValue)
+                Text(label(for: tab))
                     .font(.caption.weight(isSelected ? .semibold : .regular))
             }
             .foregroundStyle(

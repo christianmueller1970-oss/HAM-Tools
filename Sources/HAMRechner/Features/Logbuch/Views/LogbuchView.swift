@@ -532,12 +532,24 @@ struct LogbuchView: View {
         }
     }
 
+    // Awards-Sub-Tabs im Programm-Modus: User-Wunsch ist "auf POTA-Awards
+    // zugeschnitten" — also bei aktivem POTA-Log nur den POTA-Sub-Tab
+    // zeigen, analog für SOTA + WWFF. Im Standard-Log und Contest bleiben
+    // alle Sub-Tabs (DXCC/WAZ/WAS/POTA/SOTA/WWFF) sichtbar.
+    private var visibleAwardsSubTabs: [AwardsTab.AwardsSubTab] {
+        if currentLogIsPOTA { return [.pota] }
+        if currentLogIsSOTA { return [.sota] }
+        if currentLogIsWWFF { return [.wwff] }
+        return AwardsTab.AwardsSubTab.allCases
+    }
+
     private var awardsContextBar: some View {
         let a = manager.awards
         return TabContextBarShell {
             HStack(spacing: 8) {
-                // Sub-Tab-Switcher
-                ForEach(AwardsTab.AwardsSubTab.allCases) { sub in
+                // Sub-Tab-Switcher — im Programm-Modus auf das jeweilige
+                // Programm zugeschnitten.
+                ForEach(visibleAwardsSubTabs) { sub in
                     Button {
                         awardsSubTab = sub
                     } label: {

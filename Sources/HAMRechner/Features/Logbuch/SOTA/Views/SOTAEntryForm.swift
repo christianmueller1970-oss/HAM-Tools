@@ -155,6 +155,9 @@ struct SOTAEntryForm: View {
                                 if up != n { call = up; return }
                                 scheduleLookup(for: up)
                             }
+                            .onSubmit {
+                                if canSave { saveQSO() }
+                            }
                         if let name = lookupName {
                             HStack(spacing: 4) {
                                 Image(systemName: "person.fill")
@@ -279,10 +282,10 @@ struct SOTAEntryForm: View {
                 HStack(spacing: 4) {
                     Image(systemName: "tray.and.arrow.down")
                     Text("Log QSO")
-                    Text("⌘↩").font(.caption2).foregroundStyle(.secondary)
+                    Text("↩").font(.caption2).foregroundStyle(.secondary)
                 }
             }
-            .keyboardShortcut(.return, modifiers: .command)
+            .keyboardShortcut(.return, modifiers: [])
             .buttonStyle(.borderedProminent)
             .disabled(!canSave)
         }

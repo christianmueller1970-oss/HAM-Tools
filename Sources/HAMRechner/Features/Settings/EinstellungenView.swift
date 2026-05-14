@@ -455,11 +455,19 @@ private struct DatenTab: View {
                     }
                     .disabled(wwffIsBusy)
 
-                    Button("CSV importieren …") {
-                        pickWWFFCSV()
+                    // Bei DNS-/Server-Fehler den CSV-Import-Button als
+                    // borderedProminent hervorheben, damit der User klar
+                    // sieht: das ist der Ausweg.
+                    if wwffServerFailure {
+                        Button("CSV importieren …") { pickWWFFCSV() }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(wwffIsBusy)
+                            .help("wwff-cc.org nicht erreichbar — lokale CSV-Datei einlesen")
+                    } else {
+                        Button("CSV importieren …") { pickWWFFCSV() }
+                            .disabled(wwffIsBusy)
+                            .help("Lokale CSV-Datei (z.B. vom Country-Coordinator) einlesen — Fallback falls wwff-cc.org nicht erreichbar.")
                     }
-                    .disabled(wwffIsBusy)
-                    .help("Lokale CSV-Datei (z.B. vom Country-Coordinator) einlesen — Fallback falls wwff-cc.org nicht erreichbar.")
 
                     if wwff.shouldOfferRefresh && wwff.isLoaded {
                         Text("ältere Daten — Update empfohlen")
@@ -469,10 +477,17 @@ private struct DatenTab: View {
                     Spacer()
                 }
                 if let err = wwff.lastError, case .errored = wwff.status {
-                    Text(err)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .textSelection(.enabled)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(err)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .textSelection(.enabled)
+                        if wwffServerFailure {
+                            Text("→ wwff-cc.org ist gerade nicht erreichbar. Lade dir die Country-CSV vom WWFF-Koordinator herunter und klicke »CSV importieren …«.")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    }
                 }
                 Text("Directory aus wwff-cc.org. Wird in \(dataRoot.cacheDir.path)/wwff_refs.sqlite gespeichert. Falls die Haupt-URL aktuell nicht erreichbar ist, kannst du eine offizielle Country-CSV manuell importieren.")
                     .font(.caption)
@@ -480,6 +495,17 @@ private struct DatenTab: View {
             }
             .padding(4)
         }
+    }
+
+    /// Heuristik: Wenn der Error-Text auf DNS-/Hostname-Probleme deutet,
+    /// ist der CSV-Import die einzige Option. Hervorheben.
+    private var wwffServerFailure: Bool {
+        guard let err = wwff.lastError?.lowercased() else { return false }
+        return err.contains("hostname")
+            || err.contains("could not be found")
+            || err.contains("offline")
+            || err.contains("timeout")
+            || err.contains("connection")
     }
 
     private var wwffStatusLine: some View {
