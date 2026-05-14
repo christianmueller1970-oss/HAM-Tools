@@ -37,6 +37,16 @@ struct ContestEntryForm: View {
         return manager.logs.first(where: { $0.id == id })
     }
 
+    /// Pro-Log-Override (1.8.2) → globaler Settings-Call → "". Wird als
+    /// stationCall in jedes QSO geschrieben.
+    private var effectiveStationCall: String {
+        if let logCall = activeLog?.usedCallsign?
+            .trimmingCharacters(in: .whitespaces), !logCall.isEmpty {
+            return logCall.uppercased()
+        }
+        return myCallsign.trimmingCharacters(in: .whitespaces).uppercased()
+    }
+
     private var template: ContestTemplate? {
         guard let id = activeLog?.contestID else { return nil }
         return contests.template(forID: id)
@@ -400,7 +410,7 @@ struct ContestEntryForm: View {
             rstReceived: rstRecv,
             comment: notes.isEmpty ? nil : notes,
             operatorCall: operatorCall.isEmpty ? nil : operatorCall,
-            stationCall: myCallsign.isEmpty ? nil : myCallsign
+            stationCall: effectiveStationCall.isEmpty ? nil : effectiveStationCall
         )
         qso.contest = tpl.id
         qso.contestSerial = serialSent

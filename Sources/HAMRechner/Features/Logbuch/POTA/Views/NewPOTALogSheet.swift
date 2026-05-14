@@ -24,6 +24,8 @@ struct NewPOTALogSheet: View {
     @State private var suggestions: [Park] = []
     @State private var creating: Bool = false
     @State private var errorText: String?
+    @State private var usedCallsign: String = ""
+    @AppStorage("callsign") private var defaultCallsign = ""
 
     // Parst die Hopping-Eingabe in eine Liste eindeutiger Park-Refs.
     // Validierung gegen die Park-DB ist optional (Hinweis im UI).
@@ -77,6 +79,7 @@ struct NewPOTALogSheet: View {
             // Wenn es bestehende POTA-Logs gibt: Default = "Öffnen" anzeigen.
             mode = existingPOTALogs.isEmpty ? .new : .open
             regenerateName()
+            if usedCallsign.isEmpty { usedCallsign = defaultCallsign }
         }
     }
 
@@ -203,6 +206,8 @@ struct NewPOTALogSheet: View {
                 TextField("Name", text: $sessionName)
                     .textFieldStyle(.roundedBorder)
             }
+
+            MyCallField(call: $usedCallsign)
 
             if let err = errorText {
                 Text(err)
@@ -354,6 +359,8 @@ struct NewPOTALogSheet: View {
             createdAt: Date()
         )
         log.role = role.rawValue
+        let trimmedCall = usedCallsign.trimmingCharacters(in: .whitespaces)
+        log.usedCallsign = trimmedCall.isEmpty ? nil : trimmedCall.uppercased()
         log.potaParkRef = role == .activator ? myParkSelected?.reference : nil
         // Multi-Park-Hopping nur setzen, wenn echt > 1 Park gewählt wurde.
         // Single-Park-Aktivierungen lassen potaParkRefs = nil, damit

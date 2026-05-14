@@ -836,6 +836,23 @@ struct QSOEntryPanel: View {
         qso.ituZone = Int(itu.trimmingCharacters(in: .whitespaces))
         qso.myPotaRef = pota.isEmpty ? nil : pota
         qso.mySotaRef = sota.isEmpty ? nil : sota
+
+        // stationCall/operatorCall: bevorzugt Log.usedCallsign (Pro-Log-Override
+        // für Portabel/Ausland), Fallback auf Settings-Default. Konsistent mit
+        // den Award-EntryForms (POTA/SOTA/WWFF/BOTA).
+        let myCall: String = {
+            if let logCall = activeLog?.usedCallsign?
+                .trimmingCharacters(in: .whitespaces), !logCall.isEmpty {
+                return logCall.uppercased()
+            }
+            return UserDefaults.standard.string(forKey: "callsign")?
+                .trimmingCharacters(in: .whitespaces).uppercased() ?? ""
+        }()
+        if !myCall.isEmpty {
+            qso.operatorCall = myCall
+            qso.stationCall  = myCall
+        }
+
         manager.addQSO(qso)
         resetForm()
     }

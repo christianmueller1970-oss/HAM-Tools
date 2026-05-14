@@ -24,6 +24,8 @@ struct NewSOTALogSheet: View {
     @State private var suggestions: [Summit] = []
     @State private var creating: Bool = false
     @State private var errorText: String?
+    @State private var usedCallsign: String = ""
+    @AppStorage("callsign") private var defaultCallsign = ""
 
     private var hoppingRefs: [String] {
         hoppingInput.split(separator: ",")
@@ -72,6 +74,7 @@ struct NewSOTALogSheet: View {
         .onAppear {
             mode = existingSOTALogs.isEmpty ? .new : .open
             regenerateName()
+            if usedCallsign.isEmpty { usedCallsign = defaultCallsign }
         }
     }
 
@@ -198,6 +201,8 @@ struct NewSOTALogSheet: View {
                 TextField("Name", text: $sessionName)
                     .textFieldStyle(.roundedBorder)
             }
+
+            MyCallField(call: $usedCallsign)
 
             if let err = errorText {
                 Text(err)
@@ -366,6 +371,8 @@ struct NewSOTALogSheet: View {
             createdAt: Date()
         )
         log.role = role.rawValue
+        let trimmedCall = usedCallsign.trimmingCharacters(in: .whitespaces)
+        log.usedCallsign = trimmedCall.isEmpty ? nil : trimmedCall.uppercased()
         log.sotaSummitRef = role == .activator ? mySummitSelected?.reference : nil
         if role == .activator, allSummitRefs.count > 1 {
             log.sotaSummitRefs = allSummitRefs.joined(separator: ",")

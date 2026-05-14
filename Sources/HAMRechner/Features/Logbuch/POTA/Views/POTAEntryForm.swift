@@ -290,11 +290,17 @@ struct POTAEntryForm: View {
         qso.powerW = Double(powerW.replacingOccurrences(of: ",", with: "."))
         qso.comment = comments.isEmpty ? nil : comments
 
-        // Operator + Station-Call aus den App-Settings — pota.app braucht
-        // dies in der Upload-ADIF (OPERATOR + STATION_CALLSIGN), sonst weiß
-        // pota nicht WER aktiviert hat.
-        let myCall = UserDefaults.standard.string(forKey: "callsign")?
-            .trimmingCharacters(in: .whitespaces).uppercased() ?? ""
+        // Operator + Station-Call: bevorzugt Log.usedCallsign (Pro-Log-Override
+        // für Portabel/Ausland/Club), Fallback auf den globalen Settings-Default.
+        // pota.app braucht das in der Upload-ADIF (OPERATOR + STATION_CALLSIGN).
+        let myCall: String = {
+            if let logCall = currentLog?.usedCallsign?
+                .trimmingCharacters(in: .whitespaces), !logCall.isEmpty {
+                return logCall.uppercased()
+            }
+            return UserDefaults.standard.string(forKey: "callsign")?
+                .trimmingCharacters(in: .whitespaces).uppercased() ?? ""
+        }()
         if !myCall.isEmpty {
             qso.operatorCall = myCall
             qso.stationCall  = myCall

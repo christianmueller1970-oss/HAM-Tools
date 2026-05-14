@@ -24,6 +24,13 @@ struct Log: Identifiable, Codable, Hashable {
     var botaRefs: String?          // Komma-Liste bei Multi-Bunker-Aktivierung
     var role: String?
 
+    // Pro-Log-Callsign (1.8.2): überschreibt den globalen Settings-Default,
+    // damit Portabel- (HB9HJI/P), Ausland- (DL/HB9HJI) oder Club-Calls pro
+    // Log möglich sind, ohne die Settings dauerhaft umzustellen. nil → Fallback
+    // auf `@AppStorage("callsign")`. Validierung gegen die Lizenz erfolgt
+    // beim Wizard via CallValidator (Substring-Match an "/").
+    var usedCallsign: String?
+
     var notes: String?
     let createdAt: Date
 
@@ -45,6 +52,7 @@ struct Log: Identifiable, Codable, Hashable {
          botaRef: String? = nil,
          botaRefs: String? = nil,
          role: String? = nil,
+         usedCallsign: String? = nil,
          notes: String? = nil,
          createdAt: Date = Date()) {
         self.id = id
@@ -65,6 +73,7 @@ struct Log: Identifiable, Codable, Hashable {
         self.botaRef = botaRef
         self.botaRefs = botaRefs
         self.role = role
+        self.usedCallsign = usedCallsign
         self.notes = notes
         self.createdAt = createdAt
     }

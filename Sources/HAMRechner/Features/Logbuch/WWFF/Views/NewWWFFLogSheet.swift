@@ -26,6 +26,8 @@ struct NewWWFFLogSheet: View {
     @State private var suggestions: [WWFFReference] = []
     @State private var creating: Bool = false
     @State private var errorText: String?
+    @State private var usedCallsign: String = ""
+    @AppStorage("callsign") private var defaultCallsign = ""
 
     private var hoppingRefs: [String] {
         hoppingInput.split(separator: ",")
@@ -74,6 +76,7 @@ struct NewWWFFLogSheet: View {
         .onAppear {
             mode = existingWWFFLogs.isEmpty ? .new : .open
             regenerateName()
+            if usedCallsign.isEmpty { usedCallsign = defaultCallsign }
         }
     }
 
@@ -200,6 +203,8 @@ struct NewWWFFLogSheet: View {
                 TextField("Name", text: $sessionName)
                     .textFieldStyle(.roundedBorder)
             }
+
+            MyCallField(call: $usedCallsign)
 
             // 44-QSO-Hinweis bei Activator — UX-Klarheit, weil die Hürde
             // deutlich höher ist als bei POTA(10) oder SOTA(4).
@@ -368,6 +373,8 @@ struct NewWWFFLogSheet: View {
             createdAt: Date()
         )
         log.role = role.rawValue
+        let trimmedCall = usedCallsign.trimmingCharacters(in: .whitespaces)
+        log.usedCallsign = trimmedCall.isEmpty ? nil : trimmedCall.uppercased()
         log.wwffRef = role == .activator ? myRefSelected?.reference : nil
         if role == .activator, allRefs.count > 1 {
             log.wwffRefs = allRefs.joined(separator: ",")

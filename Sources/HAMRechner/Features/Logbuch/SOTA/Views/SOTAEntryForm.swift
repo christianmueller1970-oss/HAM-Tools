@@ -333,8 +333,14 @@ struct SOTAEntryForm: View {
         qso.powerW = Double(powerW.replacingOccurrences(of: ",", with: "."))
         qso.comment = comments.isEmpty ? nil : comments
 
-        let myCall = UserDefaults.standard.string(forKey: "callsign")?
-            .trimmingCharacters(in: .whitespaces).uppercased() ?? ""
+        let myCall: String = {
+            if let logCall = currentLog?.usedCallsign?
+                .trimmingCharacters(in: .whitespaces), !logCall.isEmpty {
+                return logCall.uppercased()
+            }
+            return UserDefaults.standard.string(forKey: "callsign")?
+                .trimmingCharacters(in: .whitespaces).uppercased() ?? ""
+        }()
         if !myCall.isEmpty {
             qso.operatorCall = myCall
             qso.stationCall  = myCall

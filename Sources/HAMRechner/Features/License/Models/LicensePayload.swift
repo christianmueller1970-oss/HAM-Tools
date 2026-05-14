@@ -60,4 +60,15 @@ enum LicenseStatus: Equatable {
         if case .valid = self { return true }
         return false
     }
+
+    /// Auf welche Base-Calls die Lizenz ausgestellt ist (für UI-Validation
+    /// im Wizard etc.). Leer, wenn keine gültige Lizenz hinterlegt ist.
+    var licensedCalls: [String] {
+        switch self {
+        case .valid(let p), .needsRenewal(let p, _), .wrongCall(let p, _):
+            return p.calls
+        case .missingOrInvalid:
+            return []
+        }
+    }
 }

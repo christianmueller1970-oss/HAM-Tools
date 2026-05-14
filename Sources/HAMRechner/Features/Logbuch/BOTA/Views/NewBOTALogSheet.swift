@@ -26,6 +26,8 @@ struct NewBOTALogSheet: View {
     @State private var suggestions: [BOTAReference] = []
     @State private var creating: Bool = false
     @State private var errorText: String?
+    @State private var usedCallsign: String = ""
+    @AppStorage("callsign") private var defaultCallsign = ""
 
     private var hoppingRefs: [String] {
         hoppingInput.split(separator: ",")
@@ -74,6 +76,7 @@ struct NewBOTALogSheet: View {
         .onAppear {
             mode = existingBOTALogs.isEmpty ? .new : .open
             regenerateName()
+            if usedCallsign.isEmpty { usedCallsign = defaultCallsign }
         }
     }
 
@@ -200,6 +203,8 @@ struct NewBOTALogSheet: View {
                 TextField("Name", text: $sessionName)
                     .textFieldStyle(.roundedBorder)
             }
+
+            MyCallField(call: $usedCallsign)
 
             if let err = errorText {
                 Text(err)
@@ -356,6 +361,8 @@ struct NewBOTALogSheet: View {
             createdAt: Date()
         )
         log.role = role.rawValue
+        let trimmedCall = usedCallsign.trimmingCharacters(in: .whitespaces)
+        log.usedCallsign = trimmedCall.isEmpty ? nil : trimmedCall.uppercased()
         log.botaRef = role == .activator ? myRefSelected?.reference : nil
         if role == .activator, allRefs.count > 1 {
             log.botaRefs = allRefs.joined(separator: ",")

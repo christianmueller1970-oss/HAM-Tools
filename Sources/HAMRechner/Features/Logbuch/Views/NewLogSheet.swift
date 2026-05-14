@@ -19,6 +19,8 @@ struct NewLogSheet: View {
     @State private var name: String = ""
     @State private var selectedType: LogType = .standard
     @State private var notes: String = ""
+    @State private var usedCallsign: String = ""
+    @AppStorage("callsign") private var defaultCallsign = ""
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -90,6 +92,8 @@ struct NewLogSheet: View {
                     .textFieldStyle(.roundedBorder)
             }
 
+            MyCallField(call: $usedCallsign)
+
             // Speicherort-Anzeige (read-only — zentral konfigurierbar
             // in den Einstellungen → Daten)
             VStack(alignment: .leading, spacing: 6) {
@@ -133,9 +137,11 @@ struct NewLogSheet: View {
                 Button("Abbrechen") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Button("Anlegen") {
+                    let trimmedCall = usedCallsign.trimmingCharacters(in: .whitespaces)
                     let log = Log(
                         name: name.trimmingCharacters(in: .whitespaces),
                         type: selectedType,
+                        usedCallsign: trimmedCall.isEmpty ? nil : trimmedCall.uppercased(),
                         notes: notes.isEmpty ? nil : notes
                     )
                     onCreate(log)
@@ -148,6 +154,9 @@ struct NewLogSheet: View {
         .padding(20)
         .frame(width: 520)
         .background(theme.bgCard)
+        .onAppear {
+            if usedCallsign.isEmpty { usedCallsign = defaultCallsign }
+        }
     }
 }
 

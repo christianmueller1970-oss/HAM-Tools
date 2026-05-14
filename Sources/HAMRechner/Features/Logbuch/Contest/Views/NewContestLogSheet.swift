@@ -33,6 +33,8 @@ struct NewContestLogSheet: View {
     @State private var catStation:  String = "FIXED"
     @State private var catAssisted: String = "NON-ASSISTED"
     @State private var catTime:     String = "24-HOURS"
+    @State private var usedCallsign: String = ""
+    @AppStorage("callsign") private var defaultCallsign = ""
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -79,6 +81,7 @@ struct NewContestLogSheet: View {
         .background(theme.bgCard)
         .onAppear {
             mode = existingContestLogs.isEmpty ? .new : .open
+            if usedCallsign.isEmpty { usedCallsign = defaultCallsign }
         }
     }
 
@@ -210,6 +213,8 @@ struct NewContestLogSheet: View {
                 TextField("Anzeigename", text: $logName)
                     .textFieldStyle(.roundedBorder)
             }
+
+            MyCallField(call: $usedCallsign)
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Cabrillo-Kategorien")
@@ -364,7 +369,8 @@ struct NewContestLogSheet: View {
     private func createLog() {
         guard let tpl = selected else { return }
         let scope = scopeForSelection(template: tpl)
-        let log = Log(
+        let trimmedCall = usedCallsign.trimmingCharacters(in: .whitespaces)
+        var log = Log(
             name: logName.trimmingCharacters(in: .whitespaces),
             type: .contest,
             contestID: tpl.id,
@@ -372,6 +378,7 @@ struct NewContestLogSheet: View {
             contestSerialScope: scope.rawValue,
             contestModeCategory: catMode
         )
+        log.usedCallsign = trimmedCall.isEmpty ? nil : trimmedCall.uppercased()
         manager.createLog(log)
         dismiss()
     }
