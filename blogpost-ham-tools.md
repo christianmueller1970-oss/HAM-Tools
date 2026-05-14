@@ -4,9 +4,10 @@ date: 2026-05-15
 author: Christian Mueller, HB9HJI
 tags: [Amateurfunk, Software, macOS, Logbuch, POTA, SOTA, WWFF, BOTA, DX-Cluster, CAT, Hamlib]
 summary: >
-  Eine native macOS-App, die Logbuch, vier Award-Programme, DX-Cluster,
-  CAT-Steuerung und über 25 Berechnungswerkzeuge in einem einzigen Tool
-  vereint — plus eine Web-Version für alle, die nicht auf dem Mac sitzen.
+  Eine native macOS-App (Beta), die Logbuch, vier Award-Programme,
+  DX-Cluster, CAT-Steuerung und über 25 Berechnungswerkzeuge in einem
+  einzigen Tool vereint — plus eine Web-Version für alle, die nicht
+  auf dem Mac sitzen.
 ---
 
 # HAM-Tools — Die Schweizer-Taschenmesser-App für Funkamateure
@@ -16,6 +17,16 @@ die letzten Monate intensiv gearbeitet habe: **HAM-Tools**, eine native
 macOS-Anwendung, die ich ursprünglich aus reinem Eigenbedarf gestartet
 habe und die inzwischen zu einer ausgewachsenen Funkamateurs-Workstation
 gewachsen ist.
+
+> ⚠️ **Wichtig: HAM-Tools ist Beta-Software.**  
+> Die App funktioniert im Alltag stabil und wird von mir selbst aktiv
+> für Logging, POTA-Aktivierungen und CAT-Steuerung eingesetzt — aber
+> sie ist noch jung, Bugs sind möglich und einzelne Features können
+> sich noch ändern. **Bitte führt parallel ein Backup eures Logs**
+> (die App legt selbst Auto-Backups vor jeder riskanten Aktion an, ein
+> regelmäßiger ADIF-Export schadet trotzdem nicht). Feedback und
+> Bug-Reports sind ausdrücklich willkommen — genau dafür ist die
+> Beta-Phase da.
 
 ## Warum noch eine Amateurfunk-App?
 
@@ -188,8 +199,8 @@ einsehbar:
 
 → [github.com/christianmuller1970-oss/HAM-Tools](https://github.com/christianmuller1970-oss/HAM-Tools)
 
-Die aktuelle Version **V1.8.2** gibt es als Developer-ID-signiertes DMG
-zum Download — direkt aus der App heraus über den Update-Check oder
+Die aktuelle Version **V1.8.2 Beta** gibt es als Developer-ID-signiertes
+DMG zum Download — direkt aus der App heraus über den Update-Check oder
 manuell unter toolbox.funkwelt.net.
 
 ## Was kommt als nächstes?
