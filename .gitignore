@@ -27,6 +27,10 @@ DerivedData/
 HAMRechner.app/
 *.dmg
 
+# Lizenz-Generator: Release-App-Bundle aus tools/HAMToolsLicenseGen/build.sh.
+# Wird reproduzierbar gebaut, gehört nicht ins Repo.
+tools/HAMToolsLicenseGen/dist/
+
 # Icon-Build (aus icon-source.svg generierbar)
 AppIcon.icns
 AppIcon.iconset/
