@@ -40,6 +40,7 @@ struct QSO: Identifiable, Codable, Hashable {
     var myPotaRefs: String?
     var theirPotaRef: String?
     var mySotaRef: String?
+    var mySotaRefs: String?
     var theirSotaRef: String?
     var theirSotaPoints: Int?
 

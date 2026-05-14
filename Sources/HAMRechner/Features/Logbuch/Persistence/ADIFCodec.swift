@@ -109,12 +109,45 @@ enum ADIFCodec {
             s += field("SIG_INFO", v)
             s += field("POTA_REF", v)
         }
-        // SOTA
-        if let v = q.mySotaRef, !v.isEmpty {
+        // SOTA — analog POTA strukturiert, mit MY_SIG für maximale
+        // Kompatibilität (manche Logger lesen nur SIG, nicht das spezifische
+        // MY_SOTA_REF-Feld). MY_SIG-Konflikt mit POTA: wenn beides gesetzt
+        // ist, gewinnt POTA (wir schreiben SOTA danach). Realistisch passiert
+        // das praktisch nie — ein QSO ist entweder auf einem Park oder einem
+        // Summit, selten auf beidem gleichzeitig.
+        //
+        // Multi-Summit-Hopping: SOTA-Regeln zählen Aktivierungen pro Summit
+        // getrennt. Im ADIF schreiben wir den primären Summit (mySotaRef
+        // bzw. erster Eintrag aus mySotaRefs). Pro-Summit-Aufteilung für
+        // sotadata.org.uk-Upload macht der CSV-Export in Phase 6.
+        let mySotaPrimary: String? = {
+            if let raw = q.mySotaRef?.trimmingCharacters(in: .whitespaces),
+               !raw.isEmpty { return raw }
+            if let multi = q.mySotaRefs?.split(separator: ",").first {
+                let s = String(multi).trimmingCharacters(in: .whitespaces)
+                return s.isEmpty ? nil : s
+            }
+            return nil
+        }()
+        if let v = mySotaPrimary {
+            s += field("MY_SIG", "SOTA")
+            s += field("MY_SIG_INFO", v)
             s += field("MY_SOTA_REF", v)
+            if let myGrid = UserDefaults.standard.string(forKey: "qthLocator")?
+                .trimmingCharacters(in: .whitespaces), !myGrid.isEmpty {
+                s += field("MY_GRIDSQUARE", myGrid)
+            }
         }
         if let v = q.theirSotaRef, !v.isEmpty {
+            s += field("SIG", "SOTA")
+            s += field("SIG_INFO", v)
             s += field("SOTA_REF", v)
+        }
+        // Punkte des Gegen-Summits als proprietäres Feld speichern —
+        // ADIF hat keinen Standard dafür, aber so überlebt der Wert
+        // beim Re-Import in dieselbe App.
+        if let v = q.theirSotaPoints {
+            s += field("APP_HAMTOOLS_THEIR_SOTA_POINTS", String(v))
         }
 
         // QSL-Status — nur schreiben wenn tatsächlich gesendet/bestätigt.
@@ -271,10 +304,23 @@ enum ADIFCodec {
         }
         q.theirPotaRef = fields["POTA_REF"]
                      ?? (fields["SIG"] == "POTA" ? fields["SIG_INFO"] : nil)
-        q.mySotaRef = fields["MY_SOTA_REF"]
-                   ?? (fields["MY_SIG"] == "SOTA" ? fields["MY_SIG_INFO"] : nil)
+        // SOTA — symmetrisch zum POTA-Pfad oben. Multi-Summit-Hopping wird
+        // beim Re-Import als Komma-Liste in mySotaRefs gespeichert; der
+        // erste Eintrag landet zusätzlich in mySotaRef für Single-Summit-
+        // Lesepfade.
+        let mySotaRaw = fields["MY_SOTA_REF"]
+                     ?? (fields["MY_SIG"] == "SOTA" ? fields["MY_SIG_INFO"] : nil)
+        if let raw = mySotaRaw, !raw.isEmpty {
+            let refs = raw.split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            q.mySotaRef  = refs.first
+            q.mySotaRefs = refs.count > 1 ? refs.joined(separator: ",") : nil
+        }
         q.theirSotaRef = fields["SOTA_REF"]
                      ?? (fields["SIG"] == "SOTA" ? fields["SIG_INFO"] : nil)
+        q.theirSotaPoints = fields["APP_HAMTOOLS_THEIR_SOTA_POINTS"]
+            .flatMap(Int.init)
 
         q.lotwSent      = parseBool(fields["LOTW_QSL_SENT"])
         q.lotwConfirmed = parseBool(fields["LOTW_QSL_RCVD"])

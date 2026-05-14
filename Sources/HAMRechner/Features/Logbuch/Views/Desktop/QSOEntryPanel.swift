@@ -50,12 +50,13 @@ struct QSOEntryPanel: View {
     @EnvironmentObject var clusterVM: DXClusterViewModel
     @EnvironmentObject var radio: RadioState
 
-    // entryMode wird aus dem aktiven Log abgeleitet, damit der DX/POTA/Contest-
+    // entryMode wird aus dem aktiven Log abgeleitet, damit der DX/POTA/Contest/SOTA-
     // Tab oben *und* der DX-Cluster-Tab unten immer dieselbe Welt zeigen.
-    // Klick auf DX/POTA/Contest wechselt das aktive Log (siehe modeTab).
+    // Klick auf DX/POTA/Contest/SOTA wechselt das aktive Log (siehe modeTab).
     private var entryMode: EntryMode {
         if isContestLogActive { return .contest }
         if isPOTALogActive    { return .pota }
+        if isSOTALogActive    { return .sota }
         return .dx
     }
     @State private var lastFilledFromSpot: Date? = nil
@@ -63,6 +64,7 @@ struct QSOEntryPanel: View {
     @State private var pendingDupe: DupeWarning? = nil
     @State private var showNewPOTASheet: Bool = false
     @State private var showNewContestSheet: Bool = false
+    @State private var showNewSOTASheet: Bool = false
 
     // Aktive Log-Variante (Log-Objekt, nicht nur ID) für Render-Entscheidungen
     private var activeLog: Log? {
@@ -74,6 +76,9 @@ struct QSOEntryPanel: View {
     }
     private var isContestLogActive: Bool {
         activeLog?.type == .contest
+    }
+    private var isSOTALogActive: Bool {
+        activeLog?.type == .sota
     }
 
     // Callbook-Lookup-Resultat: Bild-URL + QRZ-Link für die Header-Anzeige
@@ -124,7 +129,7 @@ struct QSOEntryPanel: View {
     @State private var url: String = ""
     @State private var dxDe: String = ""
 
-    enum EntryMode: String { case dx = "DX", contest = "Contest", pota = "POTA" }
+    enum EntryMode: String { case dx = "DX", contest = "Contest", pota = "POTA", sota = "SOTA" }
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -152,6 +157,9 @@ struct QSOEntryPanel: View {
             } else if isPOTALogActive {
                 // Schlanke POTA-Form ersetzt das DX-Grid + ActionBar
                 POTAEntryForm()
+            } else if isSOTALogActive {
+                // Schlanke SOTA-Form ersetzt das DX-Grid + ActionBar
+                SOTAEntryForm()
             } else {
                 if lastFilledFromSpot != nil {
                     spotBanner
@@ -177,6 +185,9 @@ struct QSOEntryPanel: View {
         }
         .sheet(isPresented: $showNewContestSheet) {
             NewContestLogSheet()
+        }
+        .sheet(isPresented: $showNewSOTASheet) {
+            NewSOTALogSheet()
         }
         .background(theme.bgCard)
         .overlay(
@@ -231,11 +242,11 @@ struct QSOEntryPanel: View {
     }
 
     private func consumeBridge() {
-        // Im Contest- oder POTA-Modus übernimmt das jeweilige spezialisierte
-        // Form (ContestEntryForm / POTAEntryForm) den Draft selbst. Sonst hier
-        // konsumieren ist eine Race-Condition — Parent fängt den Draft ab
-        // bevor das Child-Form ihn sieht.
-        guard !isContestLogActive, !isPOTALogActive else { return }
+        // Im Contest-/POTA-/SOTA-Modus übernimmt das jeweilige spezialisierte
+        // Form (ContestEntryForm / POTAEntryForm / SOTAEntryForm) den Draft
+        // selbst. Sonst hier konsumieren ist eine Race-Condition — Parent
+        // fängt den Draft ab bevor das Child-Form ihn sieht.
+        guard !isContestLogActive, !isPOTALogActive, !isSOTALogActive else { return }
         guard let draft = logBridge.consume() else { return }
         applyDraft(draft)
     }
@@ -273,6 +284,7 @@ struct QSOEntryPanel: View {
             modeTab(.dx, label: "DX")
             modeTab(.contest, label: "Contest")
             modeTab(.pota, label: "POTA")
+            modeTab(.sota, label: "SOTA")
             Spacer()
             if !canLog {
                 HStack(spacing: 4) {
@@ -293,10 +305,8 @@ struct QSOEntryPanel: View {
             guard enabled else { return }
             switch m {
             case .dx:
-                // POTA/Contest → Standard: zurück zum zuletzt offenen DX/Standard-Log.
-                // Damit fällt auch der DX-Cluster-Tab unten vom POTA-Spots-Feed
-                // automatisch wieder auf den normalen DX-Cluster zurück.
-                if isPOTALogActive || isContestLogActive {
+                // POTA/Contest/SOTA → Standard: zurück zum zuletzt offenen Standard-Log.
+                if isPOTALogActive || isContestLogActive || isSOTALogActive {
                     manager.switchToLastLog(of: .standard)
                 }
             case .pota:
@@ -317,6 +327,16 @@ struct QSOEntryPanel: View {
                         manager.switchToLastLog(of: .contest)
                     } else {
                         showNewContestSheet = true
+                    }
+                }
+            case .sota:
+                // DX/POTA/Contest → SOTA: zuletzt offene SOTA-Session öffnen,
+                // sonst Wizard anbieten.
+                if !isSOTALogActive {
+                    if manager.logs.contains(where: { $0.type == .sota }) {
+                        manager.switchToLastLog(of: .sota)
+                    } else {
+                        showNewSOTASheet = true
                     }
                 }
             }

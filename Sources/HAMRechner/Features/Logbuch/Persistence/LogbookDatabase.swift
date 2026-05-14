@@ -12,7 +12,7 @@ final class LogbookDatabase {
     let fileURL: URL
     private let conn: SQLiteConnection
 
-    static let schemaVersion = 4
+    static let schemaVersion = 5
     static let fileExtension = "htlog"          // intern SQLite
 
     private(set) var log: Log
@@ -116,6 +116,7 @@ final class LogbookDatabase {
             potaParkRef TEXT,
             potaParkRefs TEXT,
             sotaSummitRef TEXT,
+            sotaSummitRefs TEXT,
             role TEXT,
             notes TEXT,
             createdAt REAL NOT NULL
@@ -152,6 +153,7 @@ final class LogbookDatabase {
             myPotaRefs TEXT,
             theirPotaRef TEXT,
             mySotaRef TEXT,
+            mySotaRefs TEXT,
             theirSotaRef TEXT,
             theirSotaPoints INTEGER,
             qslSentDate REAL,
@@ -205,6 +207,22 @@ final class LogbookDatabase {
         if current < 4 {
             if !columnExists(conn: conn, table: "log_meta", column: "contestModeCategory") {
                 if !conn.exec("ALTER TABLE log_meta ADD COLUMN contestModeCategory TEXT;") {
+                    throw LogbookError.writeFailed(conn.lastErrorMessage)
+                }
+            }
+        }
+
+        // v4 → v5: SOTA-Multi-Summit-Hopping (log_meta.sotaSummitRefs) + QSO-
+        // Multi-Summit-Liste (qsos.mySotaRefs). Symmetrisch zu potaParkRefs /
+        // myPotaRefs aus v2.
+        if current < 5 {
+            let migrations: [(table: String, column: String, type: String)] = [
+                ("log_meta", "sotaSummitRefs", "TEXT"),
+                ("qsos",     "mySotaRefs",     "TEXT")
+            ]
+            for m in migrations where !columnExists(conn: conn, table: m.table, column: m.column) {
+                let sql = "ALTER TABLE \(m.table) ADD COLUMN \(m.column) \(m.type);"
+                if !conn.exec(sql) {
                     throw LogbookError.writeFailed(conn.lastErrorMessage)
                 }
             }
@@ -275,7 +293,8 @@ final class LogbookDatabase {
         let stmt = try conn.prepare("""
             SELECT id, name, type, startDate, endDate, contestID, contestCategory,
                    contestSerialScope, contestModeCategory,
-                   potaParkRef, potaParkRefs, sotaSummitRef, role, notes, createdAt
+                   potaParkRef, potaParkRefs, sotaSummitRef, role, notes, createdAt,
+                   sotaSummitRefs
             FROM log_meta LIMIT 1;
         """)
         guard stmt.step() == SQLITE_ROW,
@@ -300,6 +319,7 @@ final class LogbookDatabase {
             potaParkRef: stmt.columnText(9),
             potaParkRefs: stmt.columnText(10),
             sotaSummitRef: stmt.columnText(11),
+            sotaSummitRefs: stmt.columnText(15),
             role: stmt.columnText(12),
             notes: stmt.columnText(13),
             createdAt: Date(timeIntervalSince1970: createdTS)
@@ -310,8 +330,9 @@ final class LogbookDatabase {
         let stmt = try conn.prepare("""
             INSERT INTO log_meta(id, name, type, startDate, endDate, contestID,
                 contestCategory, contestSerialScope, contestModeCategory,
-                potaParkRef, potaParkRefs, sotaSummitRef, role, notes, createdAt)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
+                potaParkRef, potaParkRefs, sotaSummitRef, role, notes, createdAt,
+                sotaSummitRefs)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 type=excluded.type,
@@ -324,6 +345,7 @@ final class LogbookDatabase {
                 potaParkRef=excluded.potaParkRef,
                 potaParkRefs=excluded.potaParkRefs,
                 sotaSummitRef=excluded.sotaSummitRef,
+                sotaSummitRefs=excluded.sotaSummitRefs,
                 role=excluded.role,
                 notes=excluded.notes;
         """)
@@ -342,6 +364,7 @@ final class LogbookDatabase {
         stmt.bind(13, log.role)
         stmt.bind(14, log.notes)
         stmt.bind(15, date: log.createdAt)
+        stmt.bind(16, log.sotaSummitRefs)
         guard stmt.step() == SQLITE_DONE else {
             throw LogbookError.writeFailed(conn.lastErrorMessage)
         }
@@ -362,7 +385,8 @@ final class LogbookDatabase {
                    sfi, kIndex, aIndex,
                    distanceKm, bearingDeg,
                    contestSerial, contestExchangeSent, contestExchangeRecv, contestIsRun,
-                   createdAt, modifiedAt
+                   createdAt, modifiedAt,
+                   mySotaRefs
             FROM qsos ORDER BY datetime DESC;
         """)
         var out: [QSO] = []
@@ -431,6 +455,7 @@ final class LogbookDatabase {
             qso.contestExchangeSent = stmt.columnText(43)
             qso.contestExchangeRecv = stmt.columnText(44)
             qso.contestIsRun       = stmt.columnInt(45).map { $0 != 0 }
+            qso.mySotaRefs         = stmt.columnText(48)
             out.append(qso)
         }
         return out
@@ -451,11 +476,12 @@ final class LogbookDatabase {
                 sfi, kIndex, aIndex,
                 distanceKm, bearingDeg,
                 contestSerial, contestExchangeSent, contestExchangeRecv, contestIsRun,
-                createdAt, modifiedAt)
+                createdAt, modifiedAt,
+                mySotaRefs)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16,
                     ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28,
                     ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39, ?40,
-                    ?41, ?42, ?43, ?44, ?45, ?46, ?47, ?48);
+                    ?41, ?42, ?43, ?44, ?45, ?46, ?47, ?48, ?49);
             """
         } else {
             sql = """
@@ -473,7 +499,8 @@ final class LogbookDatabase {
                 sfi=?38, kIndex=?39, aIndex=?40,
                 distanceKm=?41, bearingDeg=?42,
                 contestSerial=?43, contestExchangeSent=?44, contestExchangeRecv=?45, contestIsRun=?46,
-                createdAt=?47, modifiedAt=?48
+                createdAt=?47, modifiedAt=?48,
+                mySotaRefs=?49
             WHERE id=?1;
             """
         }
@@ -526,6 +553,7 @@ final class LogbookDatabase {
         stmt.bind(46, qso.contestIsRun.map { $0 ? 1 : 0 })
         stmt.bind(47, date: qso.createdAt)
         stmt.bind(48, date: qso.modifiedAt)
+        stmt.bind(49, qso.mySotaRefs)
 
         guard stmt.step() == SQLITE_DONE else {
             throw LogbookError.writeFailed(conn.lastErrorMessage)
