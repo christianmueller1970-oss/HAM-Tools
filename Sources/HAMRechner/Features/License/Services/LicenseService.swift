@@ -82,8 +82,7 @@ final class LicenseService: ObservableObject {
             // OK, aber die App soll trotzdem Demo zeigen bis Call gesetzt ist.
             return .wrongCall(payload: payload, configuredCall: "(kein Call gesetzt)")
         }
-        let licensed = payload.calls.map { $0.uppercased().trimmingCharacters(in: .whitespaces) }
-        if licensed.contains(configured) {
+        if CallValidator.isLicensed(call: configured, licensedCalls: payload.calls) {
             return .valid(payload: payload)
         }
         return .wrongCall(payload: payload, configuredCall: configured)
