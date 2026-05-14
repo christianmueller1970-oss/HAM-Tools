@@ -16,6 +16,7 @@ struct AwardsTab: View {
         case was  = "WAS"
         case pota = "POTA"
         case sota = "SOTA"
+        case wwff = "WWFF"
         var id: String { rawValue }
     }
 
@@ -29,6 +30,7 @@ struct AwardsTab: View {
             case .was:  wasView
             case .pota: potaView
             case .sota: sotaView
+            case .wwff: wwffView
             }
         }
         .background(theme.bgApp)
@@ -548,6 +550,126 @@ struct AwardsTab: View {
                 .font(.caption2)
                 .foregroundStyle(theme.textDim)
             Text("• S2S = QSOs bei denen sowohl mein als auch das Gegen-Summit gesetzt ist.")
+                .font(.caption2)
+                .foregroundStyle(theme.textDim)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.bgCard)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.separator, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    // MARK: - WWFF
+
+    // Pure-Lokal-Auswertung. WWFF-Honor-Roll-System: jede unique Ref = 1
+    // Punkt sowohl für Activator als auch Hunter, kein Punkte-Multiplier
+    // wie SOTA. Upload zu wwff-cc.org bleibt manuell (ADIF-Submission an
+    // den Country-Coordinator).
+    private var wwffView: some View {
+        let a = manager.awards
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                wwffHeader
+                wwffCardGrid(awards: a)
+                wwffHint
+            }
+            .padding(16)
+        }
+    }
+
+    private var wwffHeader: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "leaf.fill")
+                .font(.title2)
+                .foregroundStyle(theme.colorWWFF)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("WWFF — Worldwide Flora & Fauna")
+                    .font(.headline)
+                    .foregroundStyle(theme.textPrimary)
+                Text("Lokal aggregiert aus allen Logs · Upload nach wwff-cc.org kommt in Phase 6")
+                    .font(.caption2)
+                    .foregroundStyle(theme.textSecondary)
+            }
+            Spacer()
+        }
+        .padding(12)
+        .background(theme.bgCard2)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func wwffCardGrid(awards a: AwardCounts) -> some View {
+        LazyVGrid(columns: [
+            GridItem(.flexible()), GridItem(.flexible())
+        ], spacing: 10) {
+            wwffStatCard(title: "Activator-Refs",
+                         value: a.wwffActivatorRefs,
+                         secondaryValue: a.wwffActivatorQSOs,
+                         secondaryLabel: "QSOs",
+                         icon: "leaf.circle.fill")
+            wwffStatCard(title: "Hunter-Refs",
+                         value: a.wwffHunterRefs,
+                         secondaryValue: a.wwffHunterQSOs,
+                         secondaryLabel: "QSOs",
+                         icon: "binoculars.fill")
+            wwffStatCard(title: "Reference-to-Reference",
+                         value: a.wwffR2R,
+                         secondaryValue: nil,
+                         secondaryLabel: "QSOs",
+                         icon: "arrow.left.arrow.right")
+            wwffStatCard(title: "Country-Programme",
+                         value: a.wwffPrograms,
+                         secondaryValue: a.wwffActivatorRefs + a.wwffHunterRefs,
+                         secondaryLabel: "Refs insgesamt",
+                         icon: "globe")
+        }
+    }
+
+    private func wwffStatCard(title: String, value: Int,
+                              secondaryValue: Int?, secondaryLabel: String,
+                              icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .foregroundStyle(theme.colorWWFF)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.textSecondary)
+            }
+            Text("\(value)")
+                .font(.system(.title, design: .rounded).weight(.bold))
+                .foregroundStyle(theme.textPrimary)
+                .monospacedDigit()
+            if let s = secondaryValue {
+                Text("\(s) \(secondaryLabel)")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(theme.textDim)
+            } else {
+                Text("—").font(.caption2).foregroundStyle(theme.textDim)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.bgCard)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.separator, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var wwffHint: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Hinweise zur Honor-Roll-Logik")
+                .font(.caption.bold())
+                .foregroundStyle(theme.textSecondary)
+            Text("• Activator-Refs = eindeutige Refs in myWwffRef + myWwffRefs (Hopping zählt jede Ref separat).")
+                .font(.caption2)
+                .foregroundStyle(theme.textDim)
+            Text("• Hunter-Refs = eindeutige Refs aus theirWwffRef.")
+                .font(.caption2)
+                .foregroundStyle(theme.textDim)
+            Text("• Aktivierung gültig ab 44 QSOs — die Auswertung pro Ref + Datum kommt mit Phase 6 (Upload zu wwff-cc.org).")
+                .font(.caption2)
+                .foregroundStyle(theme.textDim)
+            Text("• Country-Programme = einzigartige Land-Prefixe (DLFF, HBFF, KFF, VKFF, …).")
                 .font(.caption2)
                 .foregroundStyle(theme.textDim)
         }

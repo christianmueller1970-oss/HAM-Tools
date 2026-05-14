@@ -383,6 +383,12 @@ final class LogbookManager: ObservableObject {
         var sotaChaserPoints  = 0
         var sotaActivatorSummits: Set<String> = []
         var sotaChaserSummits:    Set<String> = []
+        var wwffActivatorQSOs = 0
+        var wwffHunterQSOs    = 0
+        var wwffR2R           = 0
+        var wwffActivatorRefs: Set<String> = []
+        var wwffHunterRefs:    Set<String> = []
+        var wwffPrograms:      Set<String> = []  // "DLFF", "HBFF", "KFF", …
 
         for log in logs {
             let qsos: [QSO]
@@ -430,6 +436,32 @@ final class LogbookManager: ObservableObject {
                 }
                 if let pts = qso.theirSotaPoints, pts > 0 {
                     sotaChaserPoints += pts
+                }
+
+                // WWFF-Counts — gleiche Logik wie POTA/SOTA. Programme aus
+                // Ref-Prefix abgeleitet (DLFF-0001 → "DLFF").
+                let myWwffSet    = potaRefSet(qso.myWwffRef, qso.myWwffRefs)
+                let theirWwffSet = potaRefSet(qso.theirWwffRef, nil)
+                if !myWwffSet.isEmpty {
+                    wwffActivatorQSOs += 1
+                    wwffActivatorRefs.formUnion(myWwffSet)
+                    for ref in myWwffSet {
+                        if let dash = ref.firstIndex(of: "-") {
+                            wwffPrograms.insert(String(ref[..<dash]))
+                        }
+                    }
+                }
+                if !theirWwffSet.isEmpty {
+                    wwffHunterQSOs += 1
+                    wwffHunterRefs.formUnion(theirWwffSet)
+                    for ref in theirWwffSet {
+                        if let dash = ref.firstIndex(of: "-") {
+                            wwffPrograms.insert(String(ref[..<dash]))
+                        }
+                    }
+                }
+                if !myWwffSet.isEmpty && !theirWwffSet.isEmpty {
+                    wwffR2R += 1
                 }
 
                 if let c = qso.country?.trimmingCharacters(in: .whitespaces),
@@ -487,7 +519,13 @@ final class LogbookManager: ObservableObject {
             sotaChaserQSOs:       sotaChaserQSOs,
             sotaChaserSummits:    sotaChaserSummits.count,
             sotaS2S:              sotaS2S,
-            sotaChaserPoints:     sotaChaserPoints
+            sotaChaserPoints:     sotaChaserPoints,
+            wwffActivatorQSOs:    wwffActivatorQSOs,
+            wwffActivatorRefs:    wwffActivatorRefs.count,
+            wwffHunterQSOs:       wwffHunterQSOs,
+            wwffHunterRefs:       wwffHunterRefs.count,
+            wwffR2R:              wwffR2R,
+            wwffPrograms:         wwffPrograms.count
         )
     }
 
@@ -646,6 +684,16 @@ struct AwardCounts {
     var sotaChaserSummits:    Int = 0
     var sotaS2S:              Int = 0  // QSOs mit mySotaRef + theirSotaRef
     var sotaChaserPoints:     Int = 0  // Σ theirSotaPoints
+
+    // WWFF — lokal aggregiert. Honor-Roll-System: jede unique Ref = 1 Punkt,
+    // sowohl für Activator als auch Hunter. R2R (Reference-to-Reference) ist
+    // analog POTA-P2P / SOTA-S2S.
+    var wwffActivatorQSOs:   Int = 0
+    var wwffActivatorRefs:   Int = 0   // eindeutige Refs aus myWwffRef + myWwffRefs
+    var wwffHunterQSOs:      Int = 0
+    var wwffHunterRefs:      Int = 0   // eindeutige theirWwffRef
+    var wwffR2R:             Int = 0
+    var wwffPrograms:        Int = 0   // einzigartige Country-Programme (DLFF, HBFF, …)
 }
 
 // Detail-Eintrag pro DXCC-Country (für die Awards-Tab-Liste).

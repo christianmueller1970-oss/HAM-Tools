@@ -21,6 +21,10 @@ final class LogEntryBridge: ObservableObject {
     // Autocomplete + Punkte-Lookup, das hier auslöst.
     @Published var pendingSotaSpot: SOTASpot? = nil
 
+    // WWFF-spezifisch: WWFF-Spots werden aus dem DX-Cluster-Stream
+    // gefiltert (kein eigenes API). Slot hält den letzten Copy-Click.
+    @Published var pendingWwffSpot: WWFFSpot? = nil
+
 
     static let shared = LogEntryBridge()
     private init() {}

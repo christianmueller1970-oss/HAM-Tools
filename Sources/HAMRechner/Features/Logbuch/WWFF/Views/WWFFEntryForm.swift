@@ -74,6 +74,9 @@ struct WWFFEntryForm: View {
             timeOn = Date()
             consumeDXDraftIfPending()
         }
+        .onChange(of: logBridge.pendingWwffSpot) { _, spot in
+            if let s = spot { applySpot(s); logBridge.pendingWwffSpot = nil }
+        }
         .onChange(of: logBridge.navigationRequest) { _, _ in
             consumeDXDraftIfPending()
         }
@@ -356,6 +359,18 @@ struct WWFFEntryForm: View {
         }
         resetForm(keepLastConfirmation: true)
         focusedField = .call
+    }
+
+    /// WWFF-Spot wurde im Spots-Tab via Copy-Button übernommen.
+    /// Activator-Call + WWFF-Ref + Frequenz vorausfüllen.
+    private func applySpot(_ s: WWFFSpot) {
+        call = s.dxCall.uppercased()
+        theirRef = s.reference
+        if s.frequencyMHz > 0 {
+            radio.frequencyMHz = s.frequencyMHz
+        }
+        resolveTheirRef(theirRef)
+        scheduleLookup(for: call)
     }
 
     /// Generischer DX-Cluster-Spot wurde geklickt während WWFF-Log aktiv.

@@ -44,6 +44,14 @@ struct LogbuchView: View {
         return log.type == .sota
     }
 
+    // Hilfs-Property: true wenn das aktuelle Log eine WWFF-Session ist.
+    // Schaltet den DX-Cluster-Tab auf den (gefilterten) WWFF-Spots-View.
+    private var currentLogIsWWFF: Bool {
+        guard let id = manager.currentLogID,
+              let log = manager.logs.first(where: { $0.id == id }) else { return false }
+        return log.type == .wwff
+    }
+
     let onBackToHome: () -> Void
 
     @State private var showNewLogSheet: Bool = false
@@ -154,15 +162,17 @@ struct LogbuchView: View {
         .onChange(of: currentLogIsPOTA) { _, isPOTA in
             // Awards-Sub-Tab folgt automatisch dem Log-Typ beim Wechsel.
             // User-manuelle Auswahl bleibt erhalten solange im selben Log;
-            // erst ein Typ-Wechsel (DX → POTA oder umgekehrt) setzt die
-            // Default-Sub-Tab.
+            // erst ein Typ-Wechsel setzt die Default-Sub-Tab.
             if isPOTA { awardsSubTab = .pota }
-            else if !currentLogIsSOTA { awardsSubTab = .dxcc }
+            else if !currentLogIsSOTA && !currentLogIsWWFF { awardsSubTab = .dxcc }
         }
         .onChange(of: currentLogIsSOTA) { _, isSOTA in
-            // Analog für SOTA-Logs.
             if isSOTA { awardsSubTab = .sota }
-            else if !currentLogIsPOTA { awardsSubTab = .dxcc }
+            else if !currentLogIsPOTA && !currentLogIsWWFF { awardsSubTab = .dxcc }
+        }
+        .onChange(of: currentLogIsWWFF) { _, isWWFF in
+            if isWWFF { awardsSubTab = .wwff }
+            else if !currentLogIsPOTA && !currentLogIsSOTA { awardsSubTab = .dxcc }
         }
         .sheet(isPresented: $showNewLogSheet) {
             NewLogSheet(onCreate: { newLog in
@@ -249,6 +259,12 @@ struct LogbuchView: View {
             } else if currentLogIsSOTA {
                 TabContextBarShell {
                     Text("SOTA-Spots — Live von sotadata.org.uk, kein DX-Cluster")
+                        .font(.caption)
+                        .foregroundStyle(theme.textDim)
+                }
+            } else if currentLogIsWWFF {
+                TabContextBarShell {
+                    Text("WWFF-Spots — gefiltert aus dem DX-Cluster (Refs im Kommentar)")
                         .font(.caption)
                         .foregroundStyle(theme.textDim)
                 }
@@ -568,6 +584,7 @@ struct LogbuchView: View {
         case .was:  return manager.awards.wasWorked
         case .pota: return manager.awards.potaActivatorParks + manager.awards.potaHunterParks
         case .sota: return manager.awards.sotaActivatorSummits + manager.awards.sotaChaserSummits
+        case .wwff: return manager.awards.wwffActivatorRefs + manager.awards.wwffHunterRefs
         }
     }
 
@@ -584,6 +601,8 @@ struct LogbuchView: View {
             return "\(a.potaActivatorParks) Activator-Parks · \(a.potaHunterParks) Hunter-Parks · \(a.potaP2P) P2P"
         case .sota:
             return "\(a.sotaActivatorSummits) Activator-Summits · \(a.sotaChaserSummits) Chaser-Summits · \(a.sotaS2S) S2S"
+        case .wwff:
+            return "\(a.wwffActivatorRefs) Activator-Refs · \(a.wwffHunterRefs) Hunter-Refs · \(a.wwffR2R) R2R · \(a.wwffPrograms) Programme"
         }
     }
 
@@ -614,6 +633,10 @@ struct LogbuchView: View {
                 SotaSpotsView { spot in
                     logBridge.pendingSotaSpot = spot
                 }
+            } else if currentLogIsWWFF {
+                WWFFSpotsView { spot in
+                    logBridge.pendingWwffSpot = spot
+                }
             } else {
                 LogbookClusterTab()
             }
@@ -633,6 +656,8 @@ struct LogbuchView: View {
             POTAMapTab()
         case .sotaMap:
             SOTAMapTab()
+        case .wwffMap:
+            WWFFMapTab()
         case .contestMap:
             ContestMapTab()
         case .bandplan:
