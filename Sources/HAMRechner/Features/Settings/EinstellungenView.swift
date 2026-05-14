@@ -615,6 +615,7 @@ private struct DatenTab: View {
 private struct StationTab: View {
     @AppStorage("callsign")   private var callsign   = ""
     @AppStorage("qthLocator") private var qthLocator = ""
+    @AppStorage("myCanton")   private var myCanton   = ""
 
     var body: some View {
         ScrollView {
@@ -636,6 +637,21 @@ private struct StationTab: View {
                                 .font(.system(.body, design: .monospaced))
                                 .frame(width: 160)
                                 .onChange(of: qthLocator) { qthLocator = qthLocator.uppercased() }
+                        }
+                        HStack {
+                            Text("Kanton (CH)").frame(width: 110, alignment: .leading)
+                            Picker("", selection: $myCanton) {
+                                Text("—").tag("")
+                                ForEach(SwissCanton.allCases) { c in
+                                    Text(c.rawValue).tag(c.rawValue)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
+                            .frame(width: 100, alignment: .leading)
+                            Text("nur HB-Stationen — wird in Helvetia-Contest als Sent-Multiplier ausgegeben")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
                         Text("Das Rufzeichen wird für den Cluster-Login und das Senden von DX-Spots verwendet.")
                             .font(.caption)

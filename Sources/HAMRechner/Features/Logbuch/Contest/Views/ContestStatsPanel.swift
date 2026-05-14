@@ -108,7 +108,10 @@ struct ContestStatsPanel: View {
             bandActivitySection
                 .padding(10)
         }
-        .frame(maxHeight: .infinity)
+        // Alignment .top explizit — sonst defaultet maxHeight:.infinity auf
+        // center und das ganze Panel rutscht vertikal in die Mitte, mit
+        // leerem Bereich über und unter dem Header.
+        .frame(maxHeight: .infinity, alignment: .top)
         .background(theme.bgPanel)
     }
 
