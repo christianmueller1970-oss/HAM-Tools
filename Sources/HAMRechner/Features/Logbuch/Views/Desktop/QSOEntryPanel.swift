@@ -50,14 +50,25 @@ struct QSOEntryPanel: View {
     @EnvironmentObject var clusterVM: DXClusterViewModel
     @EnvironmentObject var radio: RadioState
 
-    // entryMode wird aus dem aktiven Log abgeleitet, damit der DX/POTA/Contest/SOTA-
-    // Tab oben *und* der DX-Cluster-Tab unten immer dieselbe Welt zeigen.
-    // Klick auf DX/POTA/Contest/SOTA wechselt das aktive Log (siehe modeTab).
+    // entryMode wird aus dem aktiven Log abgeleitet, damit der DX/Contest/
+    // Outdoor-Tab oben *und* der DX-Cluster-Tab unten immer dieselbe Welt
+    // zeigen. POTA/SOTA (und künftig WWFF/BOTA) sind Sub-Modi unter Outdoor
+    // — sichtbar als zweite Tab-Bar wenn entryMode == .outdoor.
     private var entryMode: EntryMode {
-        if isContestLogActive { return .contest }
-        if isPOTALogActive    { return .pota }
-        if isSOTALogActive    { return .sota }
+        if isContestLogActive                  { return .contest }
+        if isPOTALogActive || isSOTALogActive  { return .outdoor }
         return .dx
+    }
+
+    // Wenn entryMode == .outdoor: welcher Sub-Mode ist aktiv? Wird aus dem
+    // Log-Typ abgeleitet. Bei einem nicht-Outdoor-Log (z.B. DX) ist es
+    // sinnvoll, das letzte verwendete Outdoor-Programm zu merken — vorerst
+    // pragmatisch: Default POTA, kein @AppStorage nötig solange POTA das
+    // häufigere Programm ist.
+    private var outdoorMode: OutdoorMode {
+        if isPOTALogActive { return .pota }
+        if isSOTALogActive { return .sota }
+        return .pota
     }
     @State private var lastFilledFromSpot: Date? = nil
     @State private var lastFilledFromCallbook: Date? = nil
@@ -129,7 +140,26 @@ struct QSOEntryPanel: View {
     @State private var url: String = ""
     @State private var dxDe: String = ""
 
-    enum EntryMode: String { case dx = "DX", contest = "Contest", pota = "POTA", sota = "SOTA" }
+    enum EntryMode: String { case dx = "DX", contest = "Contest", outdoor = "Outdoor" }
+
+    // Sub-Modi unter Outdoor. POTA + SOTA sind live, WWFF/BOTA sind disabled
+    // bis Phase 4e/4f. Sortierung nach Implementierungs-Reihenfolge.
+    enum OutdoorMode: String, CaseIterable, Identifiable {
+        case pota = "POTA"
+        case sota = "SOTA"
+        case wwff = "WWFF"
+        case bota = "BOTA"
+
+        var id: String { rawValue }
+        var isAvailable: Bool { self == .pota || self == .sota }
+        var comingSoonNote: String {
+            switch self {
+            case .wwff: return "Worldwide Flora & Fauna — Phase 4e"
+            case .bota: return "Bunkers On The Air — Phase 4f"
+            default:    return ""
+            }
+        }
+    }
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -277,22 +307,35 @@ struct QSOEntryPanel: View {
         lastFilledFromSpot = Date()
     }
 
-    // MARK: - Header mit DX | Contest-Tabs
+    // MARK: - Header mit DX | Contest | Outdoor Tabs (+ Sub-Bar)
 
     private var modeTabs: some View {
-        HStack(spacing: 4) {
-            modeTab(.dx, label: "DX")
-            modeTab(.contest, label: "Contest")
-            modeTab(.pota, label: "POTA")
-            modeTab(.sota, label: "SOTA")
-            Spacer()
-            if !canLog {
-                HStack(spacing: 4) {
-                    Image(systemName: "info.circle")
-                    Text("Pflichtfelder: Call + Frequenz")
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                modeTab(.dx, label: "DX")
+                modeTab(.contest, label: "Contest")
+                modeTab(.outdoor, label: "Outdoor")
+                Spacer()
+                if !canLog {
+                    HStack(spacing: 4) {
+                        Image(systemName: "info.circle")
+                        Text("Pflichtfelder: Call + Frequenz")
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(theme.textDim)
                 }
-                .font(.caption2)
-                .foregroundStyle(theme.textDim)
+            }
+            // Zweite Zeile: Sub-Picker für Outdoor-Programme (POTA/SOTA/WWFF/BOTA).
+            // Nur sichtbar wenn Outdoor-Tab aktiv ist — sonst kostet das nur
+            // vertikalen Platz ohne Nutzen.
+            if entryMode == .outdoor {
+                HStack(spacing: 4) {
+                    ForEach(OutdoorMode.allCases) { sub in
+                        outdoorSubTab(sub)
+                    }
+                    Spacer()
+                }
+                .padding(.leading, 16)
             }
         }
         .padding(.horizontal, 8)
@@ -305,22 +348,12 @@ struct QSOEntryPanel: View {
             guard enabled else { return }
             switch m {
             case .dx:
-                // POTA/Contest/SOTA → Standard: zurück zum zuletzt offenen Standard-Log.
+                // Outdoor/Contest → Standard: zurück zum zuletzt offenen Standard-Log.
                 if isPOTALogActive || isContestLogActive || isSOTALogActive {
                     manager.switchToLastLog(of: .standard)
                 }
-            case .pota:
-                // DX → POTA: zuletzt offene POTA-Session öffnen. Wenn noch
-                // keine existiert, »Neue POTA-Session«-Sheet anbieten.
-                if !isPOTALogActive {
-                    if manager.logs.contains(where: { $0.type == .pota }) {
-                        manager.switchToLastLog(of: .pota)
-                    } else {
-                        showNewPOTASheet = true
-                    }
-                }
             case .contest:
-                // DX/POTA → Contest: zuletzt offenen Contest-Log öffnen,
+                // DX/Outdoor → Contest: zuletzt offenen Contest-Log öffnen,
                 // sonst Wizard anbieten.
                 if !isContestLogActive {
                     if manager.logs.contains(where: { $0.type == .contest }) {
@@ -329,14 +362,19 @@ struct QSOEntryPanel: View {
                         showNewContestSheet = true
                     }
                 }
-            case .sota:
-                // DX/POTA/Contest → SOTA: zuletzt offene SOTA-Session öffnen,
-                // sonst Wizard anbieten.
-                if !isSOTALogActive {
-                    if manager.logs.contains(where: { $0.type == .sota }) {
+            case .outdoor:
+                // DX/Contest → Outdoor: wenn schon ein POTA- oder SOTA-Log
+                // aktiv ist, machen wir nichts (entryMode ist dann schon
+                // .outdoor). Sonst pragmatisch: letztes Outdoor-Programm
+                // bevorzugen (POTA > SOTA — POTA ist im HB9HJI-Workflow
+                // häufiger). Falls auch das fehlt: POTA-Wizard.
+                if !isPOTALogActive && !isSOTALogActive {
+                    if manager.logs.contains(where: { $0.type == .pota }) {
+                        manager.switchToLastLog(of: .pota)
+                    } else if manager.logs.contains(where: { $0.type == .sota }) {
                         manager.switchToLastLog(of: .sota)
                     } else {
-                        showNewSOTASheet = true
+                        showNewPOTASheet = true
                     }
                 }
             }
@@ -362,6 +400,68 @@ struct QSOEntryPanel: View {
         .buttonStyle(.plain)
         .disabled(!enabled)
         .help(enabled ? "" : "Contest-Modus · Phase 4")
+    }
+
+    // Sub-Tab unter dem Outdoor-Haupt-Tab. Klick wechselt das aktive Log
+    // zum jeweiligen Programm bzw. zeigt den Anlege-Wizard wenn noch keine
+    // Session existiert. WWFF/BOTA sind disabled bis Phase 4e/4f — Klick
+    // gibt einen Tooltip-Hinweis.
+    private func outdoorSubTab(_ sub: OutdoorMode) -> some View {
+        let isActiveSub = entryMode == .outdoor && outdoorMode == sub
+        let enabled = sub.isAvailable
+        return Button {
+            guard enabled else { return }
+            switch sub {
+            case .pota:
+                if !isPOTALogActive {
+                    if manager.logs.contains(where: { $0.type == .pota }) {
+                        manager.switchToLastLog(of: .pota)
+                    } else {
+                        showNewPOTASheet = true
+                    }
+                }
+            case .sota:
+                if !isSOTALogActive {
+                    if manager.logs.contains(where: { $0.type == .sota }) {
+                        manager.switchToLastLog(of: .sota)
+                    } else {
+                        showNewSOTASheet = true
+                    }
+                }
+            case .wwff, .bota:
+                // disabled — Tooltip übernimmt die Kommunikation
+                break
+            }
+        } label: {
+            HStack(spacing: 3) {
+                Text(sub.rawValue)
+                if !enabled {
+                    // Mini-Marker für „kommt bald"
+                    Text("·")
+                        .font(.caption2)
+                        .foregroundStyle(theme.textDim)
+                }
+            }
+            .font(.caption2.bold())
+            .foregroundStyle(
+                !enabled ? theme.textDim
+                : isActiveSub ? .white
+                : theme.textSecondary
+            )
+            .padding(.horizontal, 10)
+            .padding(.vertical, 3)
+            .background(isActiveSub && enabled ? theme.colorPOTA.opacity(0.85) : theme.bgCard2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(isActiveSub && enabled ? theme.colorPOTA : theme.separator.opacity(0.6),
+                            lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+            .opacity(enabled ? 1.0 : 0.5)
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .help(enabled ? "" : "\(sub.comingSoonNote) — kommt bald")
     }
 
     // MARK: - Entry-Grid (drei Spalten)
