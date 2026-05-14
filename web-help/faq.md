@@ -8,7 +8,14 @@ description: Antworten zu Lizenz, Logbuch, Contest, CAT, Update-System und macOS
 ## Allgemein
 
 ### Auf welchen Macs läuft HAM-Tools?
-macOS 14 (Sonoma) oder neuer — sowohl Apple Silicon (M1+) als auch Intel. Die App ist als **Universal Binary** gebaut.
+**macOS 14 (Sonoma) oder neuer** — sowohl Apple Silicon (M1+) als auch Intel. Die App ist als **Universal Binary** gebaut.
+
+::: warning macOS 12 / 13 wird nicht unterstützt
+Auf älteren Systemen erscheint *„Du kannst diese Version des Programms nicht
+mit dieser Version von macOS verwenden"*. Grund: die App nutzt SwiftUI-APIs
+aus macOS 14 (MapKit-DSL, neue `onChange`-Signatur). macOS 14 ist ein
+**kostenloses Apple-Update** für alle Macs ab Baujahr **2018**.
+:::
 
 ### Brauche ich Internet?
 Nein. Für **DX-Cluster** und **POTA/SOTA-Spots** ja, für alles andere (Logbuch, Rechner, Cabrillo-Export, CAT) nicht. Die Lizenz-Validierung läuft **offline** (signiert).

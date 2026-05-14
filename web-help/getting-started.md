@@ -7,6 +7,26 @@ description: Installation, Lizenz aktivieren und erstes QSO loggen in 5 Minuten.
 
 Vom Download bis zum ersten geloggten QSO — in 5 Minuten.
 
+## Systemvoraussetzungen
+
+| Anforderung | Wert |
+|---|---|
+| **macOS** | **14.0 Sonoma** oder neuer |
+| **Architektur** | Apple Silicon (M1/M2/M3/M4) oder Intel (Universal2-Build) |
+| **Festplatte** | ~80 MB für die App + Logs |
+| **Internet** | nur für DX-Cluster, QRZ/HamQTH-Lookup, Updates — Logging selbst läuft offline |
+
+::: warning macOS 12 / 13 wird nicht unterstützt
+HAM-Tools nutzt SwiftUI-APIs aus macOS 14 (z.B. die neue MapKit-DSL und
+`onChange`-Signatur). Auf älteren Systemen erscheint *„Du kannst diese Version
+des Programms nicht mit dieser Version von macOS verwenden"*.
+
+macOS 14 ist als **kostenloses Apple-Update** für alle Macs ab Baujahr **2018**
+verfügbar. Falls dein Mac älter ist, gibt es leider aktuell keine Version für
+dich — ein Backport auf macOS 13 ist mittelfristig möglich, aber nicht für 1.x
+geplant.
+:::
+
 ## 1. App installieren
 
 1. Lade das aktuelle DMG: [HAM-Tools-1.7.1.dmg](https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.7.1.dmg)

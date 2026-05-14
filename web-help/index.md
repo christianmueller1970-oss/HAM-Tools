@@ -53,6 +53,10 @@ mit eingebauter **Update-Verteilung** (Cmd+Opt+U), Modell *Lifetime + 12 Monate 
 
 ## Schnellstart
 
+::: info Voraussetzung
+**macOS 14 (Sonoma) oder neuer**, Apple Silicon oder Intel. macOS 12/13 wird nicht unterstützt — siehe [FAQ](/faq#auf-welchen-macs-lauft-ham-tools).
+:::
+
 1. **DMG herunterladen** und in `/Applications` ziehen
 2. **App starten** (beim ersten Öffnen ggf. Systemeinstellungen → Datenschutz)
 3. **Lizenz-String** in **Einstellungen → Lizenz** einfügen (oder 50 QSO Demo testen)
