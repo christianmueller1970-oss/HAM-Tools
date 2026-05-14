@@ -77,8 +77,11 @@ struct LogbookTabBar: View {
             guard tab.isAvailable else { return false }
             switch currentLogType {
             case .contest:
+                // Awards ab 1.8.2 im Contest sichtbar — für den Multi-Op-
+                // Pro-Operator-Sub-Tab. Programm-spezifische Maps + Memories
+                // bleiben ausgeblendet, weil sie im Contest keinen Sinn ergeben.
                 switch tab {
-                case .awards, .memories, .potaMap, .sotaMap, .wwffMap, .botaMap, .history: return false
+                case .memories, .potaMap, .sotaMap, .wwffMap, .botaMap, .history: return false
                 default: return true
                 }
             case .pota:
