@@ -196,6 +196,13 @@ struct ContentView: View {
                 .environmentObject(updateChecker)
                 .environmentObject(licenseService)
         }
+        .alert(item: $updateChecker.manualCheckResult) { result in
+            Alert(
+                title: Text(result.title),
+                message: Text(result.message),
+                dismissButton: .default(Text("OK"))
+            )
+        }
         .sheet(isPresented: $showBugReport) {
             BugReportSheet()
                 .environmentObject(themeManager)

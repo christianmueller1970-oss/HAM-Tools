@@ -24,6 +24,18 @@ final class UpdateChecker: ObservableObject {
 
     @Published private(set) var state: State = .idle
 
+    /// Bei manuellem Check (Cmd+Opt+U) gefüllt mit dem Ergebnis, damit die
+    /// View einen Alert anzeigen kann — auch bei .upToDate und .error.
+    /// Beim Auto-Check (1×/24h) bleibt das nil, damit der Hintergrund-Check
+    /// stumm passiert.
+    @Published var manualCheckResult: ManualCheckResult? = nil
+
+    struct ManualCheckResult: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+    }
+
     @AppStorage("update.lastCheckTimestamp") private var lastCheckTimestamp: TimeInterval = 0
     @AppStorage("update.skippedVersion")    private var skippedVersion: String = ""
 
@@ -33,12 +45,13 @@ final class UpdateChecker: ObservableObject {
         let now = Date().timeIntervalSince1970
         let dayInSec: Double = 24 * 3600
         guard now - lastCheckTimestamp >= dayInSec else { return }
-        Task { await check(force: false) }
+        Task { await check(force: false, manualTrigger: false) }
     }
 
-    /// Manueller Check (Cmd+Opt+U). force=true ignoriert die Skip-Markierung.
+    /// Manueller Check (Cmd+Opt+U). force=true ignoriert die Skip-Markierung,
+    /// manualTrigger=true sorgt für UI-Feedback auch bei .upToDate / .error.
     func checkNow() {
-        Task { await check(force: true) }
+        Task { await check(force: true, manualTrigger: true) }
     }
 
     /// Skip eine konkrete Version. Wird beim Klick auf »Später« im Alert gesetzt.
@@ -54,10 +67,10 @@ final class UpdateChecker: ObservableObject {
 
     // MARK: - Core
 
-    private func check(force: Bool) async {
+    private func check(force: Bool, manualTrigger: Bool) async {
         await MainActor.run { state = .checking }
         guard let url = URL(string: BuildInfo.updateManifestURL) else {
-            await fail("Update-URL ungültig")
+            await fail("Update-URL ungültig", manualTrigger: manualTrigger)
             return
         }
         do {
@@ -66,17 +79,43 @@ final class UpdateChecker: ObservableObject {
             req.timeoutInterval = 15
             let (data, resp) = try await URLSession.shared.data(for: req)
             guard let http = resp as? HTTPURLResponse, http.statusCode == 200 else {
-                await fail("Server antwortete nicht (HTTP \(string(of: resp)))")
+                await fail("Server antwortete nicht (HTTP \(string(of: resp)))",
+                           manualTrigger: manualTrigger)
                 return
             }
             let envelope = try JSONDecoder().decode(UpdateManifestEnvelope.self, from: data)
             let payload  = try verifyAndDecode(envelope: envelope)
             await MainActor.run {
                 lastCheckTimestamp = Date().timeIntervalSince1970
-                state = decideState(payload: payload, force: force)
+                let newState = decideState(payload: payload, force: force)
+                state = newState
+
+                // Bei manuellem Check: Feedback erzwingen — auch wenn
+                // alles aktuell ist. Bei updateAvailable übernimmt der
+                // bestehende Sheet-Mechanismus die UI, hier nur stumm
+                // bleiben.
+                if manualTrigger {
+                    switch newState {
+                    case .upToDate(let buildDate):
+                        manualCheckResult = ManualCheckResult(
+                            title: "HAM-Tools ist aktuell",
+                            message: "Du nutzt bereits die neueste Version (Build \(buildDate))."
+                        )
+                    case .updateAvailable:
+                        break   // Sheet wird vom ContentView gezeigt
+                    case .error(let msg):
+                        manualCheckResult = ManualCheckResult(
+                            title: "Update-Check fehlgeschlagen",
+                            message: msg
+                        )
+                    case .idle, .checking:
+                        break
+                    }
+                }
             }
         } catch {
-            await fail("Update-Check fehlgeschlagen: \(error.localizedDescription)")
+            await fail("Update-Check fehlgeschlagen: \(error.localizedDescription)",
+                       manualTrigger: manualTrigger)
         }
     }
 
@@ -115,8 +154,16 @@ final class UpdateChecker: ObservableObject {
         return try JSONDecoder().decode(UpdateManifestPayload.self, from: payloadJSON)
     }
 
-    private func fail(_ msg: String) async {
-        await MainActor.run { state = .error(msg) }
+    private func fail(_ msg: String, manualTrigger: Bool) async {
+        await MainActor.run {
+            state = .error(msg)
+            if manualTrigger {
+                manualCheckResult = ManualCheckResult(
+                    title: "Update-Check fehlgeschlagen",
+                    message: msg
+                )
+            }
+        }
     }
 
     private func string(of resp: URLResponse?) -> String {
