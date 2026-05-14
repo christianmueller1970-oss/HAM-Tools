@@ -15,6 +15,7 @@ struct AwardsTab: View {
         case waz  = "WAZ"
         case was  = "WAS"
         case pota = "POTA"
+        case sota = "SOTA"
         var id: String { rawValue }
     }
 
@@ -27,6 +28,7 @@ struct AwardsTab: View {
             case .waz:  wazView
             case .was:  wasView
             case .pota: potaView
+            case .sota: sotaView
             }
         }
         .background(theme.bgApp)
@@ -438,5 +440,121 @@ struct AwardsTab: View {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd HH:mm"
         return f.string(from: d)
+    }
+
+    // MARK: - SOTA
+
+    // Pure-Lokal-Auswertung über alle Logs. Eine Anbindung an ein externes
+    // sotadata.org.uk-Profil ist nicht implementiert (kein öffentliches User-
+    // Profil-API wie pota.app); kommt ggf. mit Phase 6 (Upload-Pfad).
+    private var sotaView: some View {
+        let a = manager.awards
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                sotaHeader
+                sotaCardGrid(awards: a)
+                sotaHint
+            }
+            .padding(16)
+        }
+    }
+
+    private var sotaHeader: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "mountain.2.fill")
+                .font(.title2)
+                .foregroundStyle(theme.colorSOTA)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("SOTA — Summits on the Air")
+                    .font(.headline)
+                    .foregroundStyle(theme.textPrimary)
+                Text("Lokal aggregiert aus allen Logs · Upload nach sotadata.org.uk kommt in Phase 6")
+                    .font(.caption2)
+                    .foregroundStyle(theme.textSecondary)
+            }
+            Spacer()
+        }
+        .padding(12)
+        .background(theme.bgCard2)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func sotaCardGrid(awards a: AwardCounts) -> some View {
+        LazyVGrid(columns: [
+            GridItem(.flexible()), GridItem(.flexible())
+        ], spacing: 10) {
+            sotaStatCard(title: "Activator-Summits",
+                         value: a.sotaActivatorSummits,
+                         secondaryValue: a.sotaActivatorQSOs,
+                         secondaryLabel: "QSOs",
+                         icon: "mountain.2.circle.fill")
+            sotaStatCard(title: "Chaser-Summits",
+                         value: a.sotaChaserSummits,
+                         secondaryValue: a.sotaChaserQSOs,
+                         secondaryLabel: "QSOs",
+                         icon: "binoculars.fill")
+            sotaStatCard(title: "Summit-to-Summit",
+                         value: a.sotaS2S,
+                         secondaryValue: nil,
+                         secondaryLabel: "QSOs",
+                         icon: "arrow.left.arrow.right")
+            sotaStatCard(title: "Chaser-Punkte",
+                         value: a.sotaChaserPoints,
+                         secondaryValue: a.sotaChaserSummits,
+                         secondaryLabel: "Summits",
+                         icon: "star.fill")
+        }
+    }
+
+    private func sotaStatCard(title: String, value: Int,
+                              secondaryValue: Int?, secondaryLabel: String,
+                              icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .foregroundStyle(theme.colorSOTA)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.textSecondary)
+            }
+            Text("\(value)")
+                .font(.system(.title, design: .rounded).weight(.bold))
+                .foregroundStyle(theme.textPrimary)
+                .monospacedDigit()
+            if let s = secondaryValue {
+                Text("\(s) \(secondaryLabel)")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(theme.textDim)
+            } else {
+                Text("—").font(.caption2).foregroundStyle(theme.textDim)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.bgCard)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.separator, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var sotaHint: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Hinweise zur Punkte-Logik")
+                .font(.caption.bold())
+                .foregroundStyle(theme.textSecondary)
+            Text("• Chaser-Punkte = Σ der Punkte aus Gegen-Summits (theirSotaPoints im QSO).")
+                .font(.caption2)
+                .foregroundStyle(theme.textDim)
+            Text("• Activator-Punkte (inkl. Winterbonus) werden bei einer SOTA-Aktivierung pro Summit + Tag vergeben — die Detail-Auswertung kommt mit Phase 6.")
+                .font(.caption2)
+                .foregroundStyle(theme.textDim)
+            Text("• S2S = QSOs bei denen sowohl mein als auch das Gegen-Summit gesetzt ist.")
+                .font(.caption2)
+                .foregroundStyle(theme.textDim)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.bgCard)
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.separator, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }

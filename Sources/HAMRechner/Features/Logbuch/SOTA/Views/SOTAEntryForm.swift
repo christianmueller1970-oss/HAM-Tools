@@ -77,6 +77,9 @@ struct SOTAEntryForm: View {
             timeOn = Date()
             consumeDXDraftIfPending()
         }
+        .onChange(of: logBridge.pendingSotaSpot) { _, spot in
+            if let s = spot { applySpot(s); logBridge.pendingSotaSpot = nil }
+        }
         .onChange(of: logBridge.navigationRequest) { _, _ in
             consumeDXDraftIfPending()
         }
@@ -366,6 +369,19 @@ struct SOTAEntryForm: View {
         }
         resetForm(keepLastConfirmation: true)
         focusedField = .call
+    }
+
+    /// SOTA-Spot wurde im Spots-Tab via Copy-Button übernommen.
+    /// Activator-Call + Summit-Ref + Frequenz vorausfüllen, Their-Summit
+    /// gegen Summit-DB auflösen.
+    private func applySpot(_ s: SOTASpot) {
+        call = s.activatorCallsign.uppercased()
+        theirSummit = s.fullReference
+        if s.frequencyMHz > 0 {
+            radio.frequencyMHz = s.frequencyMHz
+        }
+        resolveTheirSummit(theirSummit)
+        scheduleLookup(for: call)
     }
 
     /// Generischer DX-Cluster-Spot wurde geklickt während SOTA-Log aktiv.

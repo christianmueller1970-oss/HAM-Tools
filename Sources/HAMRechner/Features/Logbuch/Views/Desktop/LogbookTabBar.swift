@@ -14,6 +14,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
     case qsl         = "QSL"
     case history     = "History"
     case potaMap     = "POTA-Map"
+    case sotaMap     = "SOTA-Map"
     case contestMap  = "Contest-Map"
     case bandplan    = "Bandplan"
     case labels      = "Labels"
@@ -32,6 +33,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
         case .qsl:        return "envelope"
         case .history:    return "clock"
         case .potaMap:    return "tree.circle"
+        case .sotaMap:    return "mountain.2.circle"
         case .contestMap: return "globe.europe.africa"
         case .bandplan:   return "chart.bar.xaxis"
         case .labels:     return "tag"
@@ -41,7 +43,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
     var isAvailable: Bool {
         switch self {
         case .log, .dxClusters, .awards, .map, .bands,
-             .history, .memories, .potaMap, .contestMap, .bandplan:         return true
+             .history, .memories, .potaMap, .sotaMap, .contestMap, .bandplan: return true
         default:                                                            return false
         }
     }
@@ -68,7 +70,7 @@ struct LogbookTabBar: View {
             guard tab.isAvailable else { return false }
             if currentLogType == .contest {
                 switch tab {
-                case .awards, .memories, .potaMap, .history: return false
+                case .awards, .memories, .potaMap, .sotaMap, .history: return false
                 default: return true
                 }
             } else {

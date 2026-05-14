@@ -19,6 +19,7 @@ struct HAMRechnerApp: App {
     @StateObject private var potaSpotsService: PotaSpotsService = PotaSpotsService()
     @StateObject private var potaStatsService: PotaStatsService
     @StateObject private var sotaSummitService: SotaSummitService
+    @StateObject private var sotaSpotsService: SotaSpotsService = SotaSpotsService()
     @StateObject private var contestService:   ContestService = ContestService()
     @StateObject private var licenseService:   LicenseService = LicenseService()
     @StateObject private var updateChecker:    UpdateChecker  = UpdateChecker()
@@ -106,6 +107,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(potaSpotsService)
                 .environmentObject(potaStatsService)
                 .environmentObject(sotaSummitService)
+                .environmentObject(sotaSpotsService)
                 .environmentObject(contestService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)
@@ -151,6 +153,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(potaSpotsService)
                 .environmentObject(potaStatsService)
                 .environmentObject(sotaSummitService)
+                .environmentObject(sotaSpotsService)
                 .environmentObject(contestService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)

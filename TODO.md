@@ -42,8 +42,8 @@ Convention:
     - [ ] **POTA Self-Spot** — "Spotten von hier"-Button in POTA-Status-Bar (POST api.pota.app/spot mit Auth) für QSY-Wechsel ohne externen Tab
     - [x] **WSJT-X UDP-Bridge** — UDP-Listener (Default Port 2237) für WSJT-X-Protokoll Typ-5 (`QSOLogged`), QSOs landen automatisch im aktuell aktiven HAM-Tools-Log (Commit 913bc44, 2026-05-14). Decode-Stream/Heartbeat-Anzeige bleibt für später.
     - [ ] **Phase 4** Contest-Engine vollständig (contests.json Templates + Live-Score + SCP + F1-F8 Macros + Run/S&P-Toggle) — Basis ist live (Contest-Mode 8a53606), Engine-Ausbau folgt
-    - [ ] **Phase 4d** SOTA-Modus (Summit-DB, Activator/Chaser, S2S, 4-QSO-Counter, SOTA-CSV-Export + sotadata.org.uk-Upload)
-    - [ ] **Phase 6** LoTW + eQSL + Club Log + SOTAwatch Upload (POTA-Upload aus Logbuch-Backlog vorgezogen)
+    - [x] **Phase 4d** SOTA-Modus komplett (2026-05-14): Summit-DB ~181k Summits aus sotadata.org.uk, NewSOTALogSheet mit Activator/Chaser + Multi-Summit-Hopping, SOTAEntryForm mit 4-QSO-Counter + Winterbonus-Anzeige, SOTA-Spots-Tab mit Live-Polling aus api2.sota.org.uk + Filter + Copy-CAT-QSY, SOTA-Map-Tab mit Summit-Pins + S2S-Indikator, Awards-Sub-Tab SOTA, ADIF-Export mit MY_SIG=SOTA + MY_SOTA_REF + SIG/SIG_INFO + proprietäre Punkte-Persistenz, Schema-Migration v4→v5 für sotaSummitRefs/mySotaRefs. **Offen für 4d-Polish:** SOTA-CSV-V2-Export für sotadata.org.uk-Upload kommt mit Phase 6 (Upload-APIs).
+    - [ ] **Phase 6** LoTW + eQSL + Club Log + POTA-Upload (pota.app) + SOTA-Upload (sotadata.org.uk)
     - [ ] **Phase 3-Rest**: Distance/Bearing-Berechnung pro QSO, QRZ-Image-Cache-Persistierung
     - [ ] **i18n** (DE/EN) — Localizable.xcstrings
     - [ ] **QSL-Tab** als Übersicht offener Konfirmationen

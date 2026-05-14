@@ -36,6 +36,14 @@ struct LogbuchView: View {
         return log.type == .contest
     }
 
+    // Hilfs-Property: true wenn das aktuelle Log eine SOTA-Session ist.
+    // Schaltet den DX-Cluster-Tab auf den SOTA-Spots-Feed.
+    private var currentLogIsSOTA: Bool {
+        guard let id = manager.currentLogID,
+              let log = manager.logs.first(where: { $0.id == id }) else { return false }
+        return log.type == .sota
+    }
+
     let onBackToHome: () -> Void
 
     @State private var showNewLogSheet: Bool = false
@@ -143,12 +151,17 @@ struct LogbuchView: View {
             }
         }
         .onChange(of: currentLogIsPOTA) { _, isPOTA in
-            // Awards-Sub-Tab folgt automatisch dem Log-Typ beim Wechsel —
-            // ähnlich wie der untere DXClusters-Tab schon auf POTA-Spots
-            // schaltet. User-manuelle Auswahl bleibt erhalten solange im
-            // selben Log; erst ein Typ-Wechsel (DX → POTA oder umgekehrt)
-            // setzt die Default-Sub-Tab.
-            awardsSubTab = isPOTA ? .pota : .dxcc
+            // Awards-Sub-Tab folgt automatisch dem Log-Typ beim Wechsel.
+            // User-manuelle Auswahl bleibt erhalten solange im selben Log;
+            // erst ein Typ-Wechsel (DX → POTA oder umgekehrt) setzt die
+            // Default-Sub-Tab.
+            if isPOTA { awardsSubTab = .pota }
+            else if !currentLogIsSOTA { awardsSubTab = .dxcc }
+        }
+        .onChange(of: currentLogIsSOTA) { _, isSOTA in
+            // Analog für SOTA-Logs.
+            if isSOTA { awardsSubTab = .sota }
+            else if !currentLogIsPOTA { awardsSubTab = .dxcc }
         }
         .sheet(isPresented: $showNewLogSheet) {
             NewLogSheet(onCreate: { newLog in
@@ -221,6 +234,12 @@ struct LogbuchView: View {
             if currentLogIsPOTA {
                 TabContextBarShell {
                     Text("POTA-Spots — Live von pota.app, kein DX-Cluster")
+                        .font(.caption)
+                        .foregroundStyle(theme.textDim)
+                }
+            } else if currentLogIsSOTA {
+                TabContextBarShell {
+                    Text("SOTA-Spots — Live von sotadata.org.uk, kein DX-Cluster")
                         .font(.caption)
                         .foregroundStyle(theme.textDim)
                 }
@@ -539,6 +558,7 @@ struct LogbuchView: View {
         case .waz:  return manager.awards.wazWorked
         case .was:  return manager.awards.wasWorked
         case .pota: return manager.awards.potaActivatorParks + manager.awards.potaHunterParks
+        case .sota: return manager.awards.sotaActivatorSummits + manager.awards.sotaChaserSummits
         }
     }
 
@@ -553,6 +573,8 @@ struct LogbuchView: View {
             return "\(a.wasWorked) / 50 States gearbeitet · \(a.wasConfirmed) bestätigt"
         case .pota:
             return "\(a.potaActivatorParks) Activator-Parks · \(a.potaHunterParks) Hunter-Parks · \(a.potaP2P) P2P"
+        case .sota:
+            return "\(a.sotaActivatorSummits) Activator-Summits · \(a.sotaChaserSummits) Chaser-Summits · \(a.sotaS2S) S2S"
         }
     }
 
@@ -579,6 +601,10 @@ struct LogbuchView: View {
                 PotaSpotsView { spot in
                     logBridge.pendingPotaSpot = spot
                 }
+            } else if currentLogIsSOTA {
+                SotaSpotsView { spot in
+                    logBridge.pendingSotaSpot = spot
+                }
             } else {
                 LogbookClusterTab()
             }
@@ -596,6 +622,8 @@ struct LogbuchView: View {
                         showOnlyUpcomingSkeds: $memoriesUpcomingOnly)
         case .potaMap:
             POTAMapTab()
+        case .sotaMap:
+            SOTAMapTab()
         case .contestMap:
             ContestMapTab()
         case .bandplan:

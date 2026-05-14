@@ -17,6 +17,10 @@ final class LogEntryBridge: ObservableObject {
     // ist (eigene @State-Felder) als das DX-Form.
     @Published var pendingPotaSpot: POTASpot? = nil
 
+    // SOTA-spezifisch: analog POTA-Slot. Das SOTA-Form hat Their-Summit-
+    // Autocomplete + Punkte-Lookup, das hier auslöst.
+    @Published var pendingSotaSpot: SOTASpot? = nil
+
 
     static let shared = LogEntryBridge()
     private init() {}

@@ -377,6 +377,12 @@ final class LogbookManager: ObservableObject {
         var potaP2P = 0
         var potaActivatorParks: Set<String> = []
         var potaHunterParks:    Set<String> = []
+        var sotaActivatorQSOs = 0
+        var sotaChaserQSOs    = 0
+        var sotaS2S           = 0
+        var sotaChaserPoints  = 0
+        var sotaActivatorSummits: Set<String> = []
+        var sotaChaserSummits:    Set<String> = []
 
         for log in logs {
             let qsos: [QSO]
@@ -406,6 +412,24 @@ final class LogbookManager: ObservableObject {
                 }
                 if !myParks.isEmpty && !theirParks.isEmpty {
                     potaP2P += 1
+                }
+
+                // SOTA-Counts — gleiche Logik wie POTA, plus Chaser-Punkte.
+                let mySummits    = potaRefSet(qso.mySotaRef, qso.mySotaRefs)
+                let theirSummits = potaRefSet(qso.theirSotaRef, nil)
+                if !mySummits.isEmpty {
+                    sotaActivatorQSOs += 1
+                    sotaActivatorSummits.formUnion(mySummits)
+                }
+                if !theirSummits.isEmpty {
+                    sotaChaserQSOs += 1
+                    sotaChaserSummits.formUnion(theirSummits)
+                }
+                if !mySummits.isEmpty && !theirSummits.isEmpty {
+                    sotaS2S += 1
+                }
+                if let pts = qso.theirSotaPoints, pts > 0 {
+                    sotaChaserPoints += pts
                 }
 
                 if let c = qso.country?.trimmingCharacters(in: .whitespaces),
@@ -457,7 +481,13 @@ final class LogbookManager: ObservableObject {
             potaActivatorParks: potaActivatorParks.count,
             potaHunterQSOs:     potaHunterQSOs,
             potaHunterParks:    potaHunterParks.count,
-            potaP2P:            potaP2P
+            potaP2P:            potaP2P,
+            sotaActivatorQSOs:    sotaActivatorQSOs,
+            sotaActivatorSummits: sotaActivatorSummits.count,
+            sotaChaserQSOs:       sotaChaserQSOs,
+            sotaChaserSummits:    sotaChaserSummits.count,
+            sotaS2S:              sotaS2S,
+            sotaChaserPoints:     sotaChaserPoints
         )
     }
 
@@ -605,6 +635,17 @@ struct AwardCounts {
     var potaHunterQSOs:     Int = 0    // QSOs mit theirPotaRef gesetzt
     var potaHunterParks:    Int = 0    // eindeutige fremde Park-Refs
     var potaP2P:            Int = 0    // QSOs mit beiden Feldern gesetzt
+
+    // SOTA — lokal aggregiert. Aktivierungs-Punkte (Base + Bonus) werden
+    // pro (Summit, Tag) gezählt — pragmatisch, weil mehrtägige Aktivierungen
+    // pro Tag einen neuen Aktivierungs-Eintrag bekommen. Chaser-Punkte
+    // direkt aus theirSotaPoints summiert (1× pro QSO).
+    var sotaActivatorQSOs:    Int = 0
+    var sotaActivatorSummits: Int = 0
+    var sotaChaserQSOs:       Int = 0
+    var sotaChaserSummits:    Int = 0
+    var sotaS2S:              Int = 0  // QSOs mit mySotaRef + theirSotaRef
+    var sotaChaserPoints:     Int = 0  // Σ theirSotaPoints
 }
 
 // Detail-Eintrag pro DXCC-Country (für die Awards-Tab-Liste).
