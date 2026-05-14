@@ -143,11 +143,13 @@ Das ursprüngliche Herzstück und der Grund, warum die App intern noch
 - **Spulen & Transformatoren:** Balun / Unun (1:1, 4:1, 9:1…),
   Strahler-Verlängerung, Luftspulen-Wickler
 - **Anpassung & Leitungen:** L-Netz, λ/4- und λ/2-Koax-Stub mit Schema,
-  Kabeldämpfung verschiedener Koax-Typen
+  Kabeldämpfung verschiedener Koax-Typen, **Smith-Chart** zur grafischen
+  Impedanz-Analyse
 - **Signale & Tools:** Pegel-Umrechner (dBm / dBW / V / µV / W),
   SWR-Simulator, Linkbudget / Reichweite (Friis), **QTH-Locator** mit
   Maidenhead-Konvertierung, Karte, Höhenprofil, Fresnel-Zonen und
-  LOS-Berechnung mit Erdkrümmung
+  LOS-Berechnung mit Erdkrümmung, **Bandplan**-Übersicht (IARU R1) als
+  schneller Nachschlage-View
 - **NEC2-Antennensimulator** im Browser via WebAssembly — Drahtmodell
   zeichnen, Strahlungsdiagramm und SWR-Sweep direkt im Web; in der
   nativen App per WKWebView eingebettet, sodass nur eine Code-Basis
