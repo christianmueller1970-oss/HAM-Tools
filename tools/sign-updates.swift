@@ -21,23 +21,30 @@ import CryptoKit
 
 // MARK: - RELEASE-DATEN (für jeden Release anpassen)
 
-let RELEASE_VERSION   = "1.8.1"
+let RELEASE_VERSION   = "1.8.2"
 let RELEASE_BUILDDATE = "2026-05-14"          // ISO 8601, YYYY-MM-DD
 let RELEASE_MIN_MACOS = "14.0"                 // oder nil
-let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.1.dmg"
+let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.2.dmg"
 let RELEASE_CRITICAL  = false                  // true zwingt User zur Installation (kein Skip)
 let RELEASE_NOTES = """
-SOTA + WWFF + BOTA Award-Programme komplett — drei neue Module mit eigenen \
-Reference-Datenbanken, Activator/Hunter-Workflow, programm-spezifischen \
-Spots-Feeds, Maps und Awards. Outdoor-Sub-Picker im QSO-Panel skaliert \
-sauber auf vier (und mehr) Programme.
+Multi-Call-Lizenz + Portabel-/Ausland-Calls: das Lizenz-Schema akzeptiert \
+jetzt mehrere Calls (z.B. Privat + Club). Eingaben wie HB9HJI/P, DL/HB9HJI \
+oder F/HB9HJI/MM werden via Substring-Match an "/"-Grenzen gegen die \
+Lizenz geprüft.
 
-Zusätzlich: Helvetia-Contest Kanton-Picker in den Station-Settings, \
-QSO-Tabellen-Spalten programm-abhängig, DXClusters-Tab-Label dynamisch, \
-Awards-Sub-Tab im Programm-Modus fokussiert, Enter speichert QSO direkt, \
-Update-Check zeigt Alert auch bei "aktuell"/"Fehler".
+Pro-Log-Callsign: jedes Log hält einen eigenen Station-Call (Wizard \
+zeigt "Mein Call (für dieses Log)" mit Live-Lizenz-Validation). Wird \
+in jedes QSO als stationCall + operatorCall geschrieben.
 
-Help-Site auf toolbox.funkwelt.net/help/ ist auf dem neuen Stand.
+Multi-Op-Contest: NewContestLogSheet bekommt ein Operatoren-Feld \
+(Komma-Liste), in der ContestEntryForm erscheint ein OP-Switcher \
+rechts in der Header-Bar. Awards-Tab hat einen neuen Sub-Tab "OPs" \
+mit Pro-Operator-Aufschlüsselung (QSOs + Anteil pro OP).
+
+Außerdem: Lizenz-Generator gibt's jetzt als signiertes App-Bundle \
+(kein swift run mehr nötig). Awards-Tab ist im Contest sichtbar \
+(vorher ausgeblendet). Help-Site dokumentiert die macOS-14-Voraussetzung \
+prominent.
 """
 
 // MARK: - Implementation (sollte stabil bleiben)

@@ -2,6 +2,42 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.2 — 2026-05-14
+
+**Multi-Call-Lizenz · Pro-Log-Callsign · Multi-Op-Contest · Generator als App-Bundle**
+
+### Multi-Call-Lizenz + Portabel-Validation
+- Lizenz-Schema akzeptiert mehrere Calls (z.B. Privatcall + Club-Call)
+- Substring-Match an `/`-Grenzen: `HB9HJI`, `DL/HB9HJI`, `HB9HJI/P`,
+  `F/HB9HJI/MM` sind ✓ — `HB0HJI` bleibt ✗ (kein Buchstaben-Drift)
+
+### Pro-Log-Callsign (Schema v7 → v8)
+- Jedes Log hält einen eigenen Station-Call (Portabel-/Ausland-/Club-Call)
+- MyCallField im Wizard mit Live-Lizenz-Validation (grünes Häkchen oder
+  orange Warnung)
+- Bei Multi-Call-Lizenz erscheint ein Quick-Picker über dem Feld
+- Pro-Log-Callsign landet in jedem QSO als `stationCall` + `operatorCall`
+- Leerlassen → Fallback auf Settings-Default
+
+### Multi-Op-Contest (Schema v8 → v9)
+- NewContestLogSheet bekommt ein Feld „Operatoren" (Komma-Liste)
+- ContestEntryForm zeigt einen OP-Switcher rechts in der Header-Bar
+- Awards-Tab im Contest-Modus mit neuem Sub-Tab „OPs" und
+  Pro-Operator-Aufschlüsselung (QSOs + Anteil pro OP, sortiert)
+
+### Lizenz-Generator als App-Bundle
+- `tools/HAMToolsLicenseGen/build.sh` erzeugt signiertes `.app`-Bundle
+- Drag&Drop nach `/Applications` — kein `swift run` mehr nötig
+- Privater Key bleibt extern (Sicherheits-Pattern)
+
+### Fixes
+- Awards-Tab im Contest-Modus war komplett ausgeblendet — jetzt sichtbar,
+  damit der neue OPs-Sub-Tab erreichbar ist
+- Help-Site dokumentiert macOS-14-Voraussetzung prominent (nach
+  Beta-Tester-Feedback mit macOS 12.7.6)
+
+---
+
 ## 1.8.1 — 2026-05-14
 
 **WWFF + BOTA komplett · Outdoor-Tab-Refactor · Testlauf-Fixes**
