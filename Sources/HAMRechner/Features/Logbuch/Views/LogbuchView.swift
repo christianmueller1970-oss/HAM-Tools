@@ -41,6 +41,7 @@ struct LogbuchView: View {
     @State private var showNewLogSheet: Bool = false
     @State private var showNewPOTASheet: Bool = false
     @State private var showNewContestSheet: Bool = false
+    @State private var showNewSOTASheet: Bool = false
     @State private var showLogsPopover: Bool = false
 
     // Alle Tab-State-Werte sind persistent über AppStorage — Wunsch des
@@ -161,6 +162,10 @@ struct LogbuchView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                     showNewContestSheet = true
                 }
+            }, onSelectSOTA: {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    showNewSOTASheet = true
+                }
             })
             .environmentObject(themeManager)
             .environmentObject(settings)
@@ -171,6 +176,10 @@ struct LogbuchView: View {
         }
         .sheet(isPresented: $showNewContestSheet) {
             NewContestLogSheet()
+                .environmentObject(themeManager)
+        }
+        .sheet(isPresented: $showNewSOTASheet) {
+            NewSOTALogSheet()
                 .environmentObject(themeManager)
         }
         .sheet(isPresented: $showNewMemorySheet) {

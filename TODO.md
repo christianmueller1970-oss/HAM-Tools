@@ -40,7 +40,7 @@ Convention:
     - [x] **Phase 5** CAT-Anbindung — Hamlib + IC-7300/705/9700 + S-Meter + VFO/Mode/Split + Multi-Config + CI-V-Adresse fertig
     - [ ] **POTA-Upload** (pota.app/user/api/upload) — Activator-Logs end-to-end aus der App hochladen. API-Key in Settings hinterlegen, Sheet "Hochladen" pro Session, Status-Anzeige
     - [ ] **POTA Self-Spot** — "Spotten von hier"-Button in POTA-Status-Bar (POST api.pota.app/spot mit Auth) für QSY-Wechsel ohne externen Tab
-    - [ ] **WSJT-X UDP-Bridge** — UDP-Listener (Default Port 2237) für WSJT-X-Protokoll Typ-5 (`QSOLogged`), QSOs landen automatisch im aktuell aktiven HAM-Tools-Log; bidirektional auch Status/Heartbeat parsen, später ggf. Decode-Stream anzeigen
+    - [x] **WSJT-X UDP-Bridge** — UDP-Listener (Default Port 2237) für WSJT-X-Protokoll Typ-5 (`QSOLogged`), QSOs landen automatisch im aktuell aktiven HAM-Tools-Log (Commit 913bc44, 2026-05-14). Decode-Stream/Heartbeat-Anzeige bleibt für später.
     - [ ] **Phase 4** Contest-Engine vollständig (contests.json Templates + Live-Score + SCP + F1-F8 Macros + Run/S&P-Toggle) — Basis ist live (Contest-Mode 8a53606), Engine-Ausbau folgt
     - [ ] **Phase 4d** SOTA-Modus (Summit-DB, Activator/Chaser, S2S, 4-QSO-Counter, SOTA-CSV-Export + sotadata.org.uk-Upload)
     - [ ] **Phase 6** LoTW + eQSL + Club Log + SOTAwatch Upload (POTA-Upload aus Logbuch-Backlog vorgezogen)

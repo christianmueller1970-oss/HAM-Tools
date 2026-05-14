@@ -12,6 +12,7 @@ struct NewLogSheet: View {
     var onCreate: (Log) -> Void
     var onSelectPOTA: () -> Void = {}   // POTA hat eigenen Wizard mit Park-Picker
     var onSelectContest: () -> Void = {} // Contest hat eigenen Wizard mit Template-Picker
+    var onSelectSOTA: () -> Void = {}   // SOTA hat eigenen Wizard mit Summit-Picker
 
     @State private var name: String = ""
     @State private var selectedType: LogType = .standard
@@ -45,6 +46,10 @@ struct NewLogSheet: View {
                             } else if type == .contest {
                                 // Contest hat eigenen Wizard (Template-Picker, Cabrillo-Categories).
                                 onSelectContest()
+                                dismiss()
+                            } else if type == .sota {
+                                // SOTA hat eigenen Wizard (Summit-Picker, Hopping).
+                                onSelectSOTA()
                                 dismiss()
                             } else if type.isAvailable {
                                 selectedType = type

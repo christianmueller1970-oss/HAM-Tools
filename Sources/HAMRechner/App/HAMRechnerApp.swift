@@ -18,6 +18,7 @@ struct HAMRechnerApp: App {
     @StateObject private var potaParkService:  PotaParkService
     @StateObject private var potaSpotsService: PotaSpotsService = PotaSpotsService()
     @StateObject private var potaStatsService: PotaStatsService
+    @StateObject private var sotaSummitService: SotaSummitService
     @StateObject private var contestService:   ContestService = ContestService()
     @StateObject private var licenseService:   LicenseService = LicenseService()
     @StateObject private var updateChecker:    UpdateChecker  = UpdateChecker()
@@ -76,6 +77,14 @@ struct HAMRechnerApp: App {
         // POTA-Stats kann nicht throwen (Cache-Load schlägt nur still fehl).
         _potaStatsService = StateObject(wrappedValue:
             PotaStatsService(dataRoot: root))
+
+        // SOTA-Summit-DB. Gleiche Fail-Strategie wie PotaParkService.
+        do {
+            let svc = try SotaSummitService(dataRoot: root)
+            _sotaSummitService = StateObject(wrappedValue: svc)
+        } catch {
+            fatalError("SOTA-Summit-Service konnte nicht initialisiert werden: \(error)")
+        }
     }
 
     var body: some Scene {
@@ -96,6 +105,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(potaParkService)
                 .environmentObject(potaSpotsService)
                 .environmentObject(potaStatsService)
+                .environmentObject(sotaSummitService)
                 .environmentObject(contestService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)
@@ -140,6 +150,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(potaParkService)
                 .environmentObject(potaSpotsService)
                 .environmentObject(potaStatsService)
+                .environmentObject(sotaSummitService)
                 .environmentObject(contestService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)

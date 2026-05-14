@@ -16,7 +16,8 @@ struct Log: Identifiable, Codable, Hashable {
     var contestModeCategory: String?   // "CW" | "PH" | "RY" | "DG" | "FM" | "MIXED" — vom Wizard gewählt
     var potaParkRef: String?       // primärer Park (auch der einzige bei Non-Hopping)
     var potaParkRefs: String?      // Komma-Liste aller Parks (Multi-Park-Hopping), inkl. primärer; nil bei Single-Park
-    var sotaSummitRef: String?
+    var sotaSummitRef: String?     // primärer Summit (auch der einzige bei Non-Hopping)
+    var sotaSummitRefs: String?    // Komma-Liste aller Summits (Multi-Summit-Hopping); nil bei Single-Summit
     var role: String?
 
     var notes: String?
@@ -34,6 +35,7 @@ struct Log: Identifiable, Codable, Hashable {
          potaParkRef: String? = nil,
          potaParkRefs: String? = nil,
          sotaSummitRef: String? = nil,
+         sotaSummitRefs: String? = nil,
          role: String? = nil,
          notes: String? = nil,
          createdAt: Date = Date()) {
@@ -49,6 +51,7 @@ struct Log: Identifiable, Codable, Hashable {
         self.potaParkRef = potaParkRef
         self.potaParkRefs = potaParkRefs
         self.sotaSummitRef = sotaSummitRef
+        self.sotaSummitRefs = sotaSummitRefs
         self.role = role
         self.notes = notes
         self.createdAt = createdAt

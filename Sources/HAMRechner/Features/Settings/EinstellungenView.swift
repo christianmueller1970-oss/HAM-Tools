@@ -206,6 +206,7 @@ private struct DatenTab: View {
     @EnvironmentObject var dataRoot: AppDataRoot
     @EnvironmentObject var manager:  LogbookManager
     @EnvironmentObject var pota:     PotaParkService
+    @EnvironmentObject var sota:     SotaSummitService
 
     var body: some View {
         ScrollView {
@@ -259,6 +260,7 @@ private struct DatenTab: View {
                 }
 
                 potaParksGroup
+                sotaSummitsGroup
             }
             .padding(16)
         }
@@ -339,6 +341,91 @@ private struct DatenTab: View {
         case .parsing:           return "Verarbeite CSV …"
         case .ready(let date, let count):
             let cnt = "\(count) Parks"
+            if let d = date {
+                let df = DateFormatter()
+                df.dateStyle = .medium
+                df.timeStyle = .short
+                return "\(cnt) · Stand: \(df.string(from: d))"
+            }
+            return cnt
+        case .errored(let m):    return "Fehler: \(m)"
+        }
+    }
+
+    // MARK: - SOTA Summits DB
+
+    private var sotaSummitsGroup: some View {
+        GroupBox("SOTA-Summit-Datenbank") {
+            VStack(alignment: .leading, spacing: 8) {
+                sotaStatusLine
+                HStack {
+                    Button(sota.isLoaded ? "Aktualisieren" : "Jetzt laden") {
+                        Task { await sota.refresh() }
+                    }
+                    .disabled(sotaIsBusy)
+                    if sota.shouldOfferRefresh && sota.isLoaded {
+                        Text("ältere Daten — Update empfohlen")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    Spacer()
+                }
+                if let err = sota.lastError, case .errored = sota.status {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .textSelection(.enabled)
+                }
+                Text("Summit-Liste aus sotadata.org.uk/summitslist.csv (~15 MB, ~181 000 Summits). Wird in \(dataRoot.cacheDir.path)/summits.sqlite gespeichert.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(4)
+        }
+    }
+
+    private var sotaStatusLine: some View {
+        HStack(spacing: 8) {
+            Image(systemName: sotaStatusIcon).foregroundStyle(sotaStatusColor)
+            Text(sotaStatusText)
+                .font(.callout)
+            Spacer()
+        }
+    }
+
+    private var sotaIsBusy: Bool {
+        switch sota.status {
+        case .downloading, .parsing: return true
+        default: return false
+        }
+    }
+
+    private var sotaStatusIcon: String {
+        switch sota.status {
+        case .unknown:     return "questionmark.circle"
+        case .downloading: return "arrow.down.circle"
+        case .parsing:     return "gear.circle"
+        case .ready:       return "checkmark.circle.fill"
+        case .errored:     return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var sotaStatusColor: Color {
+        switch sota.status {
+        case .unknown:     return .gray
+        case .downloading, .parsing: return .blue
+        case .ready:       return .green
+        case .errored:     return .red
+        }
+    }
+
+    private var sotaStatusText: String {
+        switch sota.status {
+        case .unknown:           return "Noch keine Daten geladen"
+        case .downloading:       return "Lade von sotadata.org.uk …"
+        case .parsing:           return "Verarbeite CSV …"
+        case .ready(let date, let count, let activeCount):
+            let cnt = "\(count) Summits (\(activeCount) aktiv)"
             if let d = date {
                 let df = DateFormatter()
                 df.dateStyle = .medium
