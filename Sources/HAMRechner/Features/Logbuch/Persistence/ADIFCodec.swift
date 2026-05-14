@@ -150,6 +150,38 @@ enum ADIFCodec {
             s += field("APP_HAMTOOLS_THEIR_SOTA_POINTS", String(v))
         }
 
+        // WWFF — analog POTA/SOTA. MY_SIG-Konflikt mit POTA ist hier
+        // realistisch (in EU sind viele Parks gleichzeitig POTA + WWFF) —
+        // wir schreiben WWFF zuletzt, damit MY_SIG=WWFF nach dem Re-Import
+        // gewinnt. MY_WWFF_REF und MY_POTA_REF bleiben aber beide
+        // erhalten, weil sie unterschiedliche Tag-Namen haben.
+        //
+        // Multi-Ref-Hopping: WWFF erlaubt es ähnlich wie POTA, dass eine
+        // Aktivierung mehrere Refs umfasst (z.B. überlappende Naturparks).
+        // Wir schreiben die Komma-Liste in MY_WWFF_REF wenn vorhanden,
+        // sonst die einzelne Ref.
+        let myWwffPrimary: String? = {
+            if let raw = q.myWwffRefs?.trimmingCharacters(in: .whitespaces),
+               !raw.isEmpty { return raw }
+            if let r = q.myWwffRef?.trimmingCharacters(in: .whitespaces),
+               !r.isEmpty { return r }
+            return nil
+        }()
+        if let v = myWwffPrimary {
+            s += field("MY_SIG", "WWFF")
+            s += field("MY_SIG_INFO", v)
+            s += field("MY_WWFF_REF", v)
+            if let myGrid = UserDefaults.standard.string(forKey: "qthLocator")?
+                .trimmingCharacters(in: .whitespaces), !myGrid.isEmpty {
+                s += field("MY_GRIDSQUARE", myGrid)
+            }
+        }
+        if let v = q.theirWwffRef, !v.isEmpty {
+            s += field("SIG", "WWFF")
+            s += field("SIG_INFO", v)
+            s += field("WWFF_REF", v)
+        }
+
         // QSL-Status — nur schreiben wenn tatsächlich gesendet/bestätigt.
         // "N" für jeden Eintrag pumpt das ADIF unnötig auf und manche
         // Aufnahmedienste (pota.app, eQSL) ignorieren oder warnen darüber.
@@ -321,6 +353,20 @@ enum ADIFCodec {
                      ?? (fields["SIG"] == "SOTA" ? fields["SIG_INFO"] : nil)
         q.theirSotaPoints = fields["APP_HAMTOOLS_THEIR_SOTA_POINTS"]
             .flatMap(Int.init)
+        // WWFF — symmetrisch zum POTA/SOTA-Pfad oben. Komma-Liste wird in
+        // myWwffRefs aufgehoben, erster Eintrag landet zusätzlich in
+        // myWwffRef für Single-Ref-Lesepfade.
+        let myWwffRaw = fields["MY_WWFF_REF"]
+                     ?? (fields["MY_SIG"] == "WWFF" ? fields["MY_SIG_INFO"] : nil)
+        if let raw = myWwffRaw, !raw.isEmpty {
+            let refs = raw.split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            q.myWwffRef  = refs.first
+            q.myWwffRefs = refs.count > 1 ? refs.joined(separator: ",") : nil
+        }
+        q.theirWwffRef = fields["WWFF_REF"]
+                     ?? (fields["SIG"] == "WWFF" ? fields["SIG_INFO"] : nil)
 
         q.lotwSent      = parseBool(fields["LOTW_QSL_SENT"])
         q.lotwConfirmed = parseBool(fields["LOTW_QSL_RCVD"])

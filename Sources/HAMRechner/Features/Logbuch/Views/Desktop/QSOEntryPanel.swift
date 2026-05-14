@@ -196,6 +196,9 @@ struct QSOEntryPanel: View {
             } else if isSOTALogActive {
                 // Schlanke SOTA-Form ersetzt das DX-Grid + ActionBar
                 SOTAEntryForm()
+            } else if isWWFFLogActive {
+                // Schlanke WWFF-Form ersetzt das DX-Grid + ActionBar
+                WWFFEntryForm()
             } else {
                 if lastFilledFromSpot != nil {
                     spotBanner
@@ -281,11 +284,12 @@ struct QSOEntryPanel: View {
     }
 
     private func consumeBridge() {
-        // Im Contest-/POTA-/SOTA-Modus übernimmt das jeweilige spezialisierte
-        // Form (ContestEntryForm / POTAEntryForm / SOTAEntryForm) den Draft
-        // selbst. Sonst hier konsumieren ist eine Race-Condition — Parent
-        // fängt den Draft ab bevor das Child-Form ihn sieht.
-        guard !isContestLogActive, !isPOTALogActive, !isSOTALogActive else { return }
+        // Im Contest-/POTA-/SOTA-/WWFF-Modus übernimmt das jeweilige
+        // spezialisierte Form den Draft selbst. Sonst hier konsumieren
+        // ist eine Race-Condition — Parent fängt den Draft ab bevor das
+        // Child-Form ihn sieht.
+        guard !isContestLogActive, !isPOTALogActive,
+              !isSOTALogActive, !isWWFFLogActive else { return }
         guard let draft = logBridge.consume() else { return }
         applyDraft(draft)
     }
