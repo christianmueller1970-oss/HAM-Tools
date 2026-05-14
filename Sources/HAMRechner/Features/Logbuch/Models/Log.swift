@@ -18,6 +18,8 @@ struct Log: Identifiable, Codable, Hashable {
     var potaParkRefs: String?      // Komma-Liste aller Parks (Multi-Park-Hopping), inkl. primärer; nil bei Single-Park
     var sotaSummitRef: String?     // primärer Summit (auch der einzige bei Non-Hopping)
     var sotaSummitRefs: String?    // Komma-Liste aller Summits (Multi-Summit-Hopping); nil bei Single-Summit
+    var wwffRef: String?           // primäre WWFF-Ref
+    var wwffRefs: String?          // Komma-Liste bei Multi-Ref-Aktivierung
     var role: String?
 
     var notes: String?
@@ -36,6 +38,8 @@ struct Log: Identifiable, Codable, Hashable {
          potaParkRefs: String? = nil,
          sotaSummitRef: String? = nil,
          sotaSummitRefs: String? = nil,
+         wwffRef: String? = nil,
+         wwffRefs: String? = nil,
          role: String? = nil,
          notes: String? = nil,
          createdAt: Date = Date()) {
@@ -52,6 +56,8 @@ struct Log: Identifiable, Codable, Hashable {
         self.potaParkRefs = potaParkRefs
         self.sotaSummitRef = sotaSummitRef
         self.sotaSummitRefs = sotaSummitRefs
+        self.wwffRef = wwffRef
+        self.wwffRefs = wwffRefs
         self.role = role
         self.notes = notes
         self.createdAt = createdAt

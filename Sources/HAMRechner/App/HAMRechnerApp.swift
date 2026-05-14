@@ -20,6 +20,7 @@ struct HAMRechnerApp: App {
     @StateObject private var potaStatsService: PotaStatsService
     @StateObject private var sotaSummitService: SotaSummitService
     @StateObject private var sotaSpotsService: SotaSpotsService = SotaSpotsService()
+    @StateObject private var wwffRefService: WWFFRefService
     @StateObject private var contestService:   ContestService = ContestService()
     @StateObject private var licenseService:   LicenseService = LicenseService()
     @StateObject private var updateChecker:    UpdateChecker  = UpdateChecker()
@@ -86,6 +87,15 @@ struct HAMRechnerApp: App {
         } catch {
             fatalError("SOTA-Summit-Service konnte nicht initialisiert werden: \(error)")
         }
+
+        // WWFF-Ref-DB. Service unterstützt sowohl URL-Download (wwff-cc.org)
+        // als auch manuellen CSV-Import via File-Picker.
+        do {
+            let svc = try WWFFRefService(dataRoot: root)
+            _wwffRefService = StateObject(wrappedValue: svc)
+        } catch {
+            fatalError("WWFF-Reference-Service konnte nicht initialisiert werden: \(error)")
+        }
     }
 
     var body: some Scene {
@@ -108,6 +118,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(potaStatsService)
                 .environmentObject(sotaSummitService)
                 .environmentObject(sotaSpotsService)
+                .environmentObject(wwffRefService)
                 .environmentObject(contestService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)
@@ -154,6 +165,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(potaStatsService)
                 .environmentObject(sotaSummitService)
                 .environmentObject(sotaSpotsService)
+                .environmentObject(wwffRefService)
                 .environmentObject(contestService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)

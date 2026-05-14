@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - Root
 
@@ -207,6 +208,7 @@ private struct DatenTab: View {
     @EnvironmentObject var manager:  LogbookManager
     @EnvironmentObject var pota:     PotaParkService
     @EnvironmentObject var sota:     SotaSummitService
+    @EnvironmentObject var wwff:     WWFFRefService
 
     var body: some View {
         ScrollView {
@@ -261,6 +263,7 @@ private struct DatenTab: View {
 
                 potaParksGroup
                 sotaSummitsGroup
+                wwffRefsGroup
             }
             .padding(16)
         }
@@ -434,6 +437,112 @@ private struct DatenTab: View {
             }
             return cnt
         case .errored(let m):    return "Fehler: \(m)"
+        }
+    }
+
+    // MARK: - WWFF Refs DB
+
+    // Doppelpfad: URL-Download (wwff-cc.org) + manueller File-Import.
+    // wwff-cc.org war beim Foundation-Bau zeitweise nicht erreichbar —
+    // File-Picker macht das Modul robust gegen Server-Ausfälle.
+    private var wwffRefsGroup: some View {
+        GroupBox("WWFF-Reference-Datenbank") {
+            VStack(alignment: .leading, spacing: 8) {
+                wwffStatusLine
+                HStack {
+                    Button(wwff.isLoaded ? "Aktualisieren" : "Jetzt laden") {
+                        Task { await wwff.refresh() }
+                    }
+                    .disabled(wwffIsBusy)
+
+                    Button("CSV importieren …") {
+                        pickWWFFCSV()
+                    }
+                    .disabled(wwffIsBusy)
+                    .help("Lokale CSV-Datei (z.B. vom Country-Coordinator) einlesen — Fallback falls wwff-cc.org nicht erreichbar.")
+
+                    if wwff.shouldOfferRefresh && wwff.isLoaded {
+                        Text("ältere Daten — Update empfohlen")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    Spacer()
+                }
+                if let err = wwff.lastError, case .errored = wwff.status {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .textSelection(.enabled)
+                }
+                Text("Directory aus wwff-cc.org. Wird in \(dataRoot.cacheDir.path)/wwff_refs.sqlite gespeichert. Falls die Haupt-URL aktuell nicht erreichbar ist, kannst du eine offizielle Country-CSV manuell importieren.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(4)
+        }
+    }
+
+    private var wwffStatusLine: some View {
+        HStack(spacing: 8) {
+            Image(systemName: wwffStatusIcon).foregroundStyle(wwffStatusColor)
+            Text(wwffStatusText)
+                .font(.callout)
+            Spacer()
+        }
+    }
+
+    private var wwffIsBusy: Bool {
+        switch wwff.status {
+        case .downloading, .parsing: return true
+        default: return false
+        }
+    }
+
+    private var wwffStatusIcon: String {
+        switch wwff.status {
+        case .unknown:     return "questionmark.circle"
+        case .downloading: return "arrow.down.circle"
+        case .parsing:     return "gear.circle"
+        case .ready:       return "checkmark.circle.fill"
+        case .errored:     return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var wwffStatusColor: Color {
+        switch wwff.status {
+        case .unknown:     return .gray
+        case .downloading, .parsing: return .blue
+        case .ready:       return .green
+        case .errored:     return .red
+        }
+    }
+
+    private var wwffStatusText: String {
+        switch wwff.status {
+        case .unknown:           return "Noch keine Daten geladen"
+        case .downloading:       return "Lade von wwff-cc.org …"
+        case .parsing:           return "Verarbeite CSV …"
+        case .ready(let date, let count, let activeCount):
+            let cnt = "\(count) Refs (\(activeCount) aktiv)"
+            if let d = date {
+                let df = DateFormatter()
+                df.dateStyle = .medium
+                df.timeStyle = .short
+                return "\(cnt) · Stand: \(df.string(from: d))"
+            }
+            return cnt
+        case .errored(let m):    return "Fehler: \(m)"
+        }
+    }
+
+    private func pickWWFFCSV() {
+        let panel = NSOpenPanel()
+        panel.title = "WWFF-CSV importieren"
+        panel.allowedContentTypes = [.commaSeparatedText, .plainText]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        if panel.runModal() == .OK, let url = panel.url {
+            Task { await wwff.importCSV(from: url) }
         }
     }
 

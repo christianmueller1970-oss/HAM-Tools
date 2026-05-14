@@ -55,8 +55,8 @@ struct QSOEntryPanel: View {
     // zeigen. POTA/SOTA (und künftig WWFF/BOTA) sind Sub-Modi unter Outdoor
     // — sichtbar als zweite Tab-Bar wenn entryMode == .outdoor.
     private var entryMode: EntryMode {
-        if isContestLogActive                  { return .contest }
-        if isPOTALogActive || isSOTALogActive  { return .outdoor }
+        if isContestLogActive                                     { return .contest }
+        if isPOTALogActive || isSOTALogActive || isWWFFLogActive  { return .outdoor }
         return .dx
     }
 
@@ -68,6 +68,7 @@ struct QSOEntryPanel: View {
     private var outdoorMode: OutdoorMode {
         if isPOTALogActive { return .pota }
         if isSOTALogActive { return .sota }
+        if isWWFFLogActive { return .wwff }
         return .pota
     }
     @State private var lastFilledFromSpot: Date? = nil
@@ -76,6 +77,7 @@ struct QSOEntryPanel: View {
     @State private var showNewPOTASheet: Bool = false
     @State private var showNewContestSheet: Bool = false
     @State private var showNewSOTASheet: Bool = false
+    @State private var showNewWWFFSheet: Bool = false
 
     // Aktive Log-Variante (Log-Objekt, nicht nur ID) für Render-Entscheidungen
     private var activeLog: Log? {
@@ -90,6 +92,9 @@ struct QSOEntryPanel: View {
     }
     private var isSOTALogActive: Bool {
         activeLog?.type == .sota
+    }
+    private var isWWFFLogActive: Bool {
+        activeLog?.type == .wwff
     }
 
     // Callbook-Lookup-Resultat: Bild-URL + QRZ-Link für die Header-Anzeige
@@ -151,10 +156,11 @@ struct QSOEntryPanel: View {
         case bota = "BOTA"
 
         var id: String { rawValue }
-        var isAvailable: Bool { self == .pota || self == .sota }
+        var isAvailable: Bool {
+            self == .pota || self == .sota || self == .wwff
+        }
         var comingSoonNote: String {
             switch self {
-            case .wwff: return "Worldwide Flora & Fauna — Phase 4e"
             case .bota: return "Bunkers On The Air — Phase 4f"
             default:    return ""
             }
@@ -218,6 +224,9 @@ struct QSOEntryPanel: View {
         }
         .sheet(isPresented: $showNewSOTASheet) {
             NewSOTALogSheet()
+        }
+        .sheet(isPresented: $showNewWWFFSheet) {
+            NewWWFFLogSheet()
         }
         .background(theme.bgCard)
         .overlay(
@@ -428,7 +437,15 @@ struct QSOEntryPanel: View {
                         showNewSOTASheet = true
                     }
                 }
-            case .wwff, .bota:
+            case .wwff:
+                if !isWWFFLogActive {
+                    if manager.logs.contains(where: { $0.type == .wwff }) {
+                        manager.switchToLastLog(of: .wwff)
+                    } else {
+                        showNewWWFFSheet = true
+                    }
+                }
+            case .bota:
                 // disabled — Tooltip übernimmt die Kommunikation
                 break
             }

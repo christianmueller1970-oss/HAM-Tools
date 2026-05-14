@@ -39,18 +39,28 @@ enum WsjtxQSOConverter {
             powerW: power
         )
 
-        // Typ-spezifische Erweiterungen aus dem aktiven Log.
+        // Typ-spezifische Erweiterungen aus dem aktiven Log. SOTA und WWFF
+        // füllen ihre My-Refs analog POTA — bei FT8/FT4 vom Berg/Park aus
+        // ist das genau der typische Use-Case.
         switch log.type {
         case .pota:
             qso.myPotaRef  = log.potaParkRef
             qso.myPotaRefs = log.potaParkRefs
+
+        case .sota:
+            qso.mySotaRef  = log.sotaSummitRef
+            qso.mySotaRefs = log.sotaSummitRefs
+
+        case .wwff:
+            qso.myWwffRef  = log.wwffRef
+            qso.myWwffRefs = log.wwffRefs
 
         case .contest:
             qso.contest = log.contestID
             qso.contestExchangeSent = msg.exchangeSent.nilIfEmpty
             qso.contestExchangeRecv = msg.exchangeReceived.nilIfEmpty
 
-        case .standard, .sota:
+        case .standard:
             break
         }
 
