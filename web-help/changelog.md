@@ -2,6 +2,56 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.0 — 2026-05-14
+
+**SOTA-Modul komplett (Phase 4d)**
+
+Strukturparallel zum POTA-Modul, sieben Sub-Phasen an einem Tag durchgezogen.
+
+### Summit-Datenbank
+- Lokale SQLite (`summits.sqlite`) mit ~181 000 Summits aus
+  [sotadata.org.uk/summitslist.csv](https://www.sotadata.org.uk/summitslist.csv)
+- Refresh-Hinweis nach 30 Tagen
+- Bulk-Replace mit Index-Drop für schnelle Imports (~3-5 Sek auf Mac)
+
+### Session-Wizard
+- Activator / Chaser-Modus, Multi-Summit-Hopping als Komma-Liste
+- Summit-Auto-Complete mit Höhe + Punkte pro Vorschlag
+- Auto-generierter Session-Name (`SOTA HB/BE-001 2026-05-14`)
+
+### SOTA-QSO-Form
+- 4-QSO-Aktivierungs-Counter (rot/grün mit „Aktivierung gültig"-Badge)
+- Winterbonus-Anzeige: Status-Bar zeigt `10+3p` während des Winter-
+  Fensters (NH: 1. Dez – 15. März, SH: 1. Juni – 15. Sep)
+- Their-Summit-Feld mit Auto-Complete und automatischem Punkte-Lookup
+- Dupe-Markierung (Call+Band+Mode im aktiven Log)
+
+### SOTA-Spots-Tab
+- 60-Sek-Polling aus `api2.sota.org.uk/api/spots/50/all`
+- Filter: Band, Mode, Assoc-Prefix, „Nur manuell" (RBNHole ausblenden)
+- Sort nach Zeit oder Frequenz
+- Copy-Button mit optionalem CAT-QSY
+
+### SOTA-Map-Tab
+- Summit-Pins (Mountain-Icon, SOTA-Orange) mit Elevation/Punkte-Tooltip
+- DX-Pins mit Mode-Farbe, S2S-Indikator pro QSO
+- Linien Summit → DX optional
+- Band-Filter persistent
+
+### Awards-Sub-Tab SOTA
+- Activator-Summits, Chaser-Summits, S2S, Chaser-Punkte aggregiert
+- Auto-Switch in den SOTA-Sub-Tab beim Log-Wechsel
+
+### ADIF-Export
+- `MY_SIG=SOTA`, `MY_SOTA_REF`, `SIG/SIG_INFO`, `SOTA_REF`
+- `MY_GRIDSQUARE` aus App-Settings
+- Proprietäres `APP_HAMTOOLS_THEIR_SOTA_POINTS` für Re-Import
+
+### Schema-Migration
+- Logbook-DB-Schema v4 → v5 mit zwei neuen Spalten (`log_meta.sotaSummitRefs`,
+  `qsos.mySotaRefs`) für Multi-Summit-Hopping
+- ALTER-TABLE-Migration läuft automatisch beim Öffnen alter `.htlog`-Dateien
+
 ## 1.7.1 — 2026-05-13
 
 **Contest-Polish + Notarisierung**
