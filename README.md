@@ -9,7 +9,7 @@ Entwickelt von **Christian Mueller HB9HJI**
 
 ---
 
-## Funktionen (V1.8.1)
+## Funktionen (V1.8.2)
 
 ### Logbuch
 
@@ -39,6 +39,8 @@ Programme (POTA, SOTA, WWFF, BOTA) mit gemeinsamem Outdoor-Sub-Picker.
 | Auto-Backup | Vor Log-Löschung und ADIF-Import wird ein ADIF-Backup in `Backups/` geschrieben |
 | Sortierbare/anpassbare Tabelle | Klick-Sort, Drag-Reorder, Hide/Show pro Spalte, 5 zusätzliche optionale Spalten |
 | Tab-Bar mit Context-Filter-Zeile | Log · Map · Bands · DXClusters · Awards · Memories · History · QSL · Schedules |
+| **Pro-Log-Callsign** (V1.8.2) | Jedes Log hält einen eigenen Station-Call (Portabel, Ausland, Club) — Live-Validation gegen die Lizenz mit Substring-Match an `/`-Grenzen |
+| **Multi-Op-Contest** (V1.8.2) | OP-Liste pro Contest-Log, OP-Switcher in der Form-Headerbar, Pro-Operator-Auswertung im Awards-Tab |
 | Awards-Live-Counter | DXCC/WAZ/WAS/Total über alle Logs, Worked + Confirmed (LoTW/eQSL), Detail-Tab |
 | History-Map | Eigene QSOs als Linien Home→DX, Mode-Farben, Filter Band/Mode/Zeitraum |
 | Memories | Schnellzugriffs-Karten für häufige Calls + Sked-Termine mit Countdown |

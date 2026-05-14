@@ -5,6 +5,55 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.8.2] — 2026-05-14
+
+### Multi-Call-Lizenz + Portabel-Validation (Phase A + B)
+Lizenz-Schema akzeptiert mehrere Calls (`calls: [String]`, im Generator
+als Komma-Liste eingebbar) — z.B. Privatcall + Club-Call.
+`CallValidator.isLicensed` macht **Substring-Match an `/`-Grenzen**:
+`HB9HJI` ✓, `DL/HB9HJI` ✓, `HB9HJI/P` ✓, `F/HB9HJI/MM` ✓,
+`HB0HJI` ✗ (kein Buchstaben-Drift). 14 Unit-Test-Cases grün.
+
+### Pro-Log-Callsign (Phase C, Schema v7 → v8)
+Jedes Log hält eine eigene `usedCallsign`-Spalte. Im NewLogSheet,
+NewContestLogSheet und den vier Award-Wizards (POTA/SOTA/WWFF/BOTA)
+erscheint das **MyCallField** mit Live-Lizenz-Validation
+(grünes Häkchen / orange Warnung). Beim Loggen wird das Pro-Log-Callsign
+in jedes QSO als `stationCall` + `operatorCall` geschrieben — leer
+lassen ⇒ Fallback auf den Settings-Default. Auch das Standard-Log
+(QSOEntryPanel) setzt jetzt diese Felder, vorher nur die Award-Forms.
+
+### Multi-Op-Contest (Phase D, Schema v8 → v9)
+NewContestLogSheet bekommt ein zusätzliches Feld **„Operatoren"**
+(Komma-Liste, optional). Daraus baut ContestEntryForm einen
+**OP-Switcher** rechts in der Header-Bar; Wechsel betrifft das nächste
+QSO. Awards-Tab bekommt im Contest-Modus einen neuen Sub-Tab
+**„OPs"** mit Pro-Operator-Aufschlüsselung (Tabelle Operator / QSOs /
+Anteil, sortiert nach QSO-Zahl). MyCallField bekommt zusätzlich einen
+**Quick-Picker** bei Multi-Call-Lizenz — Tap füllt das Eingabefeld vor.
+
+### Lizenz-Generator als App-Bundle (Phase E)
+`tools/HAMToolsLicenseGen/build.sh` produziert ein Developer-ID-signiertes
+`.app`-Bundle (916 KB, hardened runtime). Drag&Drop nach
+`/Applications`, fertig — `swift run` ist nicht mehr nötig.
+**Privater Key bleibt extern** unter
+`~/Library/Application Support/HAM-Tools License Generator/keypair.json`
+(Sicherheits-Pattern; im Bundle wäre er via `strings` extrahierbar).
+
+### Fix: Awards-Tab im Contest sichtbar
+LogbookTabBar hatte `.awards` im Contest-Modus komplett ausgeblendet,
+damit war der neue OPs-Sub-Tab unerreichbar. Fix: Awards bleibt im
+Contest sichtbar; programm-spezifische Maps + Memories bleiben weiter
+versteckt.
+
+### Help-Site
+Systemvoraussetzungen prominent dokumentiert nach Beta-Tester-Feedback
+(User mit macOS 12.7.6). Neue Section in `getting-started`, Warning-Block
+in der FAQ, Info-Hinweis auf der Startseite — macOS 14.0 Sonoma ist
+Voraussetzung, macOS 12/13 läuft nicht (SwiftUI-APIs).
+
+---
+
 ## [1.8.1] — 2026-05-14
 
 ### Phase 4e — WWFF (Worldwide Flora & Fauna)
