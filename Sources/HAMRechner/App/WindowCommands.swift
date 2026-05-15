@@ -40,5 +40,17 @@ struct WindowCommands: View {
             }
             .keyboardShortcut("g", modifiers: [.command, .shift])
         }
+
+        Section("Cluster") {
+            Button("DX-Cluster-Fenster") {
+                openWindow(id: "dxcluster")
+            }
+            .keyboardShortcut("d", modifiers: [.command, .shift])
+
+            Button("Contest-Cluster-Fenster") {
+                openWindow(id: "contestcluster")
+            }
+            .keyboardShortcut("c", modifiers: [.command, .shift])
+        }
     }
 }

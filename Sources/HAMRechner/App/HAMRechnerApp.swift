@@ -216,6 +216,34 @@ struct HAMRechnerApp: App {
         .windowStyle(.titleBar)
         .defaultSize(width: 900, height: 560)
 
+        // DX-Cluster-Pop-up: volle Spot-Liste in eigenem Fenster, ohne
+        // Contest-Filter. Praktisch wenn das Logbuch im Log-Tab steht
+        // und man parallel Spots beobachten will (Mehrmonitor-Setup).
+        WindowGroup("DX-Cluster", id: "dxcluster") {
+            DXClusterWindowView()
+                .environmentObject(themeManager)
+                .environmentObject(dxClusterVM)
+                .environmentObject(watchList)
+                .frame(minWidth: 600, minHeight: 400)
+        }
+        .windowStyle(.titleBar)
+        .defaultSize(width: 760, height: 560)
+
+        // Contest-Cluster-Pop-up: dieselbe Logik wie der Sub-Tab im
+        // Logbuch — Mode/Band-Filter aus Contest-Template, Dupe-rot/
+        // Mult-grün-Färbung wenn ein Contest-Log aktiv ist.
+        WindowGroup("Contest-Cluster", id: "contestcluster") {
+            ContestClusterWindowView()
+                .environmentObject(themeManager)
+                .environmentObject(dxClusterVM)
+                .environmentObject(watchList)
+                .environmentObject(logbookManager)
+                .environmentObject(contestService)
+                .frame(minWidth: 600, minHeight: 400)
+        }
+        .windowStyle(.titleBar)
+        .defaultSize(width: 760, height: 560)
+
         Settings {
             EinstellungenView()
                 .environmentObject(themeManager)
