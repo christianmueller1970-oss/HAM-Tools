@@ -78,7 +78,7 @@ struct NewContestLogSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 560, height: 560)
+        .frame(width: 560, height: 720)
         .background(theme.bgCard)
         .onAppear {
             mode = existingContestLogs.isEmpty ? .new : .open
@@ -187,87 +187,90 @@ struct NewContestLogSheet: View {
 
     private var categoryStep: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if let tpl = selected {
-                HStack(spacing: 6) {
-                    Image(systemName: "stopwatch")
-                        .foregroundStyle(theme.accentBlue)
-                    Text(tpl.name)
-                        .font(.subheadline.bold())
-                    Spacer()
-                    if let info = tpl.infoURL, let url = URL(string: info) {
-                        Link("Regelwerk ↗", destination: url)
-                            .font(.caption)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    if let tpl = selected {
+                        HStack(spacing: 6) {
+                            Image(systemName: "stopwatch")
+                                .foregroundStyle(theme.accentBlue)
+                            Text(tpl.name)
+                                .font(.subheadline.bold())
+                            Spacer()
+                            if let info = tpl.infoURL, let url = URL(string: info) {
+                                Link("Regelwerk ↗", destination: url)
+                                    .font(.caption)
+                            }
+                        }
+                        if let notes = tpl.notes {
+                            Text(notes)
+                                .font(.caption)
+                                .foregroundStyle(theme.textSecondary)
+                        }
+                        Divider()
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Log-Name")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(theme.textSecondary)
+                        TextField("Anzeigename", text: $logName)
+                            .textFieldStyle(.roundedBorder)
+                    }
+
+                    MyCallField(call: $usedCallsign)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Operatoren (Multi-Op, optional)")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(theme.textSecondary)
+                        TextField("z.B. HB9HJI, HB9XYZ, HB9ABC", text: $operatorList)
+                            .textFieldStyle(.roundedBorder)
+                            .textCase(.uppercase)
+                            .autocorrectionDisabled()
+                        Text("Komma-getrennte Liste. Im Contest-Form erscheint daraus ein OP-Switcher; die ausgewählte OP-Initialen landen pro QSO im OPERATOR-Feld (Cabrillo + ADIF). Leerlassen wenn Single-Op.")
+                            .font(.caption2)
+                            .foregroundStyle(theme.textDim)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Cabrillo-Kategorien")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(theme.textSecondary)
+
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())],
+                                  spacing: 8) {
+                            catPicker("Operator", $catOperator, [
+                                "SINGLE-OP", "SINGLE-OP-ASSISTED",
+                                "MULTI-SINGLE", "MULTI-TWO", "MULTI-UNLIMITED",
+                                "MULTI-DISTRIBUTED", "CHECKLOG"
+                            ])
+                            catPicker("Power", $catPower, ["HIGH", "LOW", "QRP"])
+                            catPicker("Band", $catBand, [
+                                "ALL", "160M", "80M", "40M", "20M", "15M", "10M", "6M", "2M", "70CM"
+                            ])
+                            catPicker("Mode", $catMode, ["MIXED", "CW", "PH", "RY", "DG", "FM"])
+                            catPicker("Station", $catStation, [
+                                "FIXED", "MOBILE", "PORTABLE", "ROVER", "EXPEDITION", "HQ"
+                            ])
+                            catPicker("Assisted", $catAssisted, ["NON-ASSISTED", "ASSISTED"])
+                            catPicker("Zeit", $catTime, ["24-HOURS", "12-HOURS", "8-HOURS", "6-HOURS", "48-HOURS"])
+                        }
+                    }
+
+                    // Serial-Scope-Hinweis
+                    if let tpl = selected {
+                        let scope = scopeForSelection(template: tpl)
+                        HStack(spacing: 6) {
+                            Image(systemName: "number")
+                                .foregroundStyle(theme.accentOrange)
+                            Text("Serial-Counter: \(scope == .log ? "pro Log durchgehend" : "pro Band einzeln")")
+                                .font(.caption)
+                                .foregroundStyle(theme.textSecondary)
+                        }
                     }
                 }
-                if let notes = tpl.notes {
-                    Text(notes)
-                        .font(.caption)
-                        .foregroundStyle(theme.textSecondary)
-                }
-                Divider()
             }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Log-Name")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(theme.textSecondary)
-                TextField("Anzeigename", text: $logName)
-                    .textFieldStyle(.roundedBorder)
-            }
-
-            MyCallField(call: $usedCallsign)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Operatoren (Multi-Op, optional)")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(theme.textSecondary)
-                TextField("z.B. HB9HJI, HB9XYZ, HB9ABC", text: $operatorList)
-                    .textFieldStyle(.roundedBorder)
-                    .textCase(.uppercase)
-                    .autocorrectionDisabled()
-                Text("Komma-getrennte Liste. Im Contest-Form erscheint daraus ein OP-Switcher; die ausgewählte OP-Initialen landen pro QSO im OPERATOR-Feld (Cabrillo + ADIF). Leerlassen wenn Single-Op.")
-                    .font(.caption2)
-                    .foregroundStyle(theme.textDim)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Cabrillo-Kategorien")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(theme.textSecondary)
-
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())],
-                          spacing: 8) {
-                    catPicker("Operator", $catOperator, [
-                        "SINGLE-OP", "SINGLE-OP-ASSISTED",
-                        "MULTI-SINGLE", "MULTI-TWO", "MULTI-UNLIMITED",
-                        "MULTI-DISTRIBUTED", "CHECKLOG"
-                    ])
-                    catPicker("Power", $catPower, ["HIGH", "LOW", "QRP"])
-                    catPicker("Band", $catBand, [
-                        "ALL", "160M", "80M", "40M", "20M", "15M", "10M", "6M", "2M", "70CM"
-                    ])
-                    catPicker("Mode", $catMode, ["MIXED", "CW", "PH", "RY", "DG", "FM"])
-                    catPicker("Station", $catStation, [
-                        "FIXED", "MOBILE", "PORTABLE", "ROVER", "EXPEDITION", "HQ"
-                    ])
-                    catPicker("Assisted", $catAssisted, ["NON-ASSISTED", "ASSISTED"])
-                    catPicker("Zeit", $catTime, ["24-HOURS", "12-HOURS", "8-HOURS", "6-HOURS", "48-HOURS"])
-                }
-            }
-
-            // Serial-Scope-Hinweis
-            if let tpl = selected {
-                let scope = scopeForSelection(template: tpl)
-                HStack(spacing: 6) {
-                    Image(systemName: "number")
-                        .foregroundStyle(theme.accentOrange)
-                    Text("Serial-Counter: \(scope == .log ? "pro Log durchgehend" : "pro Band einzeln")")
-                        .font(.caption)
-                        .foregroundStyle(theme.textSecondary)
-                }
-            }
-
-            Spacer(minLength: 0)
+            .frame(maxHeight: .infinity)
 
             HStack {
                 Button("Zurück") { step = .template }
