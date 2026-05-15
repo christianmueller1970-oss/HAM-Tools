@@ -1,8 +1,10 @@
 import SwiftUI
 
-// POTA-Spots-Tab. Live-Feed aus api.pota.app/spot/activator, Card-Grid.
-// Filter: Band, Mode, Ref-Prefix. Copy-Button füllt Their Call + Their
-// Park ins POTA-Form. Falls CAT aktiv: QSY zur Spot-Frequenz.
+// POTA-Spots-Tab. Live-Feed aus api.pota.app/spot/activator als spaltenbasierte
+// Tabelle (SwiftUI Table mit Reorder + Hide/Show per Header-Rechtsklick).
+// Filter: Band, Mode, Ref-Prefix. Copy via Context-Menü oder Doppelklick
+// füllt Their Call + Their Park ins POTA-Form. Falls CAT aktiv: QSY zur
+// Spot-Frequenz.
 struct PotaSpotsView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var spots:        PotaSpotsService
@@ -16,7 +18,13 @@ struct PotaSpotsView: View {
     @State private var filterMode: String = "Alle"
     @State private var filterRef: String = ""
     @State private var qsyOnCopy: Bool = true
-    @State private var sortByTime: Bool = true   // sonst Frequenz
+
+    @State private var sortOrder: [KeyPathComparator<POTASpot>] = [
+        KeyPathComparator(\POTASpot.spotTime, order: .reverse)
+    ]
+    @State private var selection: POTASpot.ID? = nil
+    @State private var columnCustomization = TableColumnCustomization<POTASpot>()
+    private let customizationStorageKey = "dxcluster.potaSpots.columnCustomization.v1"
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -31,31 +39,22 @@ struct PotaSpotsView: View {
             if spots.spots.isEmpty {
                 emptyState
             } else {
-                grid
+                spotTable
             }
         }
         .background(theme.bgPanel)
-        .onAppear { spots.start() }
+        .onAppear {
+            spots.start()
+            loadCustomization()
+        }
         .onDisappear { spots.stop() }
+        .onChange(of: columnCustomization) { _, _ in saveCustomization() }
     }
 
     // MARK: - Filter-Toolbar
 
     private var filterBar: some View {
         HStack(spacing: 8) {
-            // Sort
-            Button { sortByTime.toggle() } label: {
-                HStack(spacing: 3) {
-                    Image(systemName: sortByTime ? "clock" : "waveform")
-                    Text(sortByTime ? "Zeit" : "Freq")
-                }
-                .font(.caption)
-                .padding(.horizontal, 6).padding(.vertical, 3)
-                .background(theme.bgCard2)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-            }
-            .buttonStyle(.plain)
-
             Picker("Band", selection: $filterBand) {
                 ForEach(Self.bands, id: \.self) { Text($0).tag($0) }
             }
@@ -150,7 +149,7 @@ struct PotaSpotsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Card Grid
+    // MARK: - Table
 
     private var filtered: [POTASpot] {
         var arr = spots.spots
@@ -165,116 +164,152 @@ struct PotaSpotsView: View {
         if !ref.isEmpty {
             arr = arr.filter { $0.reference.uppercased().hasPrefix(ref) }
         }
-        if sortByTime {
-            arr.sort { $0.spotTime > $1.spotTime }
-        } else {
-            arr.sort { $0.frequencyMHz < $1.frequencyMHz }
-        }
-        return arr
+        return arr.sorted(using: sortOrder)
     }
 
-    private var grid: some View {
-        ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 8)],
-                      spacing: 8) {
-                ForEach(filtered) { spot in
-                    spotCard(spot)
+    private var spotTable: some View {
+        Table(filtered,
+              selection: $selection,
+              sortOrder: $sortOrder,
+              columnCustomization: $columnCustomization) {
+            Group {
+                TableColumn("Zeit", value: \POTASpot.spotTime) { s in
+                    Text(timeAgoText(s.spotTime))
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(theme.textDim)
                 }
-            }
-            .padding(10)
-        }
-    }
+                .width(min: 50, ideal: 60)
+                .customizationID("time")
 
-    private func spotCard(_ s: POTASpot) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(s.activator)
-                    .font(.callout.bold().monospaced())
-                    .foregroundStyle(theme.textPrimary)
-                Text("@").foregroundStyle(theme.textDim)
-                Text(s.reference)
-                    .font(.callout.monospaced())
-                    .foregroundStyle(theme.accentBlue)
-                Spacer()
-                Text(timeAgoText(s.spotTime))
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(theme.textDim)
-            }
-
-            HStack(spacing: 6) {
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .font(.caption2)
-                    .foregroundStyle(theme.accentBlue)
-                Text(String(format: "%.3f MHz", s.frequencyMHz))
-                    .font(.caption.monospaced())
-                Text("(\(s.mode))")
-                    .font(.caption.monospaced())
-                    .foregroundStyle(theme.textSecondary)
-                Spacer()
-                if let loc = s.locationDesc, !loc.isEmpty {
-                    HStack(spacing: 2) {
-                        Image(systemName: "globe").font(.caption2)
-                        Text(loc).font(.caption.monospaced())
-                    }
-                    .foregroundStyle(theme.textSecondary)
+                TableColumn("Freq (kHz)", value: \POTASpot.frequencyKhz) { s in
+                    Text(String(format: "%.1f", s.frequencyKhz))
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
+                .width(min: 70, ideal: 85)
+                .customizationID("freq")
+
+                TableColumn("Band", value: \POTASpot.band) { s in
+                    Text(s.band)
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .width(min: 45, ideal: 55)
+                .customizationID("band")
+
+                TableColumn("Mode", value: \POTASpot.mode) { s in
+                    Text(s.mode)
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .width(min: 45, ideal: 60)
+                .customizationID("mode")
+
+                TableColumn("Aktivator", value: \POTASpot.activator) { s in
+                    Text(s.activator)
+                        .font(.system(.caption, design: .monospaced).weight(.bold))
+                        .foregroundStyle(theme.textPrimary)
+                }
+                .width(min: 80, ideal: 100)
+                .customizationID("activator")
+
+                TableColumn("Ref", value: \POTASpot.reference) { s in
+                    Text(s.reference)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(theme.accentBlue)
+                }
+                .width(min: 70, ideal: 90)
+                .customizationID("ref")
+
+                TableColumn("Park") { (s: POTASpot) in
+                    Text(s.parkName ?? "")
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .width(min: 100, ideal: 180)
+                .customizationID("park")
+
+                TableColumn("Location") { (s: POTASpot) in
+                    Text(s.locationDesc ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(theme.textSecondary)
+                }
+                .width(min: 60, ideal: 80)
+                .customizationID("location")
+
+                TableColumn("Spotter") { (s: POTASpot) in
+                    Text(s.spotter ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(theme.textDim)
+                }
+                .width(min: 70, ideal: 90)
+                .customizationID("spotter")
+
+                TableColumn("Kommentar") { (s: POTASpot) in
+                    Text(s.comments ?? "")
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .foregroundStyle(theme.textDim)
+                }
+                .width(min: 120, ideal: 200)
+                .customizationID("comment")
             }
 
-            if let name = s.parkName, !name.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "mappin.circle").font(.caption2)
-                    Text(name).font(.caption).lineLimit(1)
-                }
-                .foregroundStyle(theme.textSecondary)
-            }
-
-            if let sp = s.spotter, !sp.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "person").font(.caption2)
-                    Text(sp).font(.caption.monospaced())
-                }
-                .foregroundStyle(theme.textDim)
-            }
-
-            if let comments = s.comments, !comments.isEmpty {
-                HStack(alignment: .top, spacing: 4) {
-                    Image(systemName: "bubble.left").font(.caption2)
-                    Text(comments).font(.caption).lineLimit(2)
-                }
-                .foregroundStyle(theme.textDim)
-            }
-
-            HStack {
-                Button { copyToForm(s) } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "square.and.arrow.up.fill")
-                        Text("Copy")
-                    }
-                    .font(.caption.bold())
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(theme.accentBlue.opacity(0.18))
-                    .foregroundStyle(theme.accentBlue)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                }
-                .buttonStyle(.plain)
-                Spacer()
+            TableColumn("Source") { (s: POTASpot) in
                 Text(s.source ?? "")
                     .font(.caption2)
                     .foregroundStyle(theme.textDim)
             }
+            .width(min: 70, ideal: 100)
+            .customizationID("source")
+            .defaultVisibility(.hidden)
+
+            TableColumn("") { s in
+                Button { copyToForm(s) } label: {
+                    Image(systemName: "square.and.arrow.up.fill")
+                        .foregroundStyle(theme.accentBlue)
+                }
+                .buttonStyle(.borderless)
+                .help("Copy ins POTA-Form")
+            }
+            .width(28)
+            .customizationID("action")
+            .disabledCustomizationBehavior([.visibility, .reorder])
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.bgCard)
-        .overlay(RoundedRectangle(cornerRadius: 6)
-            .stroke(theme.separator, lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .font(.system(size: 12))
+        .contextMenu(forSelectionType: POTASpot.ID.self) { ids in
+            if let id = ids.first, let spot = filtered.first(where: { $0.id == id }) {
+                Button {
+                    copyToForm(spot)
+                } label: {
+                    Label("Copy ins POTA-Form", systemImage: "square.and.arrow.up.fill")
+                }
+            }
+        } primaryAction: { ids in
+            if let id = ids.first, let spot = filtered.first(where: { $0.id == id }) {
+                copyToForm(spot)
+            }
+        }
+    }
+
+    private func loadCustomization() {
+        guard let data = UserDefaults.standard.data(forKey: customizationStorageKey),
+              let decoded = try? JSONDecoder().decode(TableColumnCustomization<POTASpot>.self, from: data) else {
+            return
+        }
+        columnCustomization = decoded
+    }
+
+    private func saveCustomization() {
+        guard let data = try? JSONEncoder().encode(columnCustomization) else { return }
+        UserDefaults.standard.set(data, forKey: customizationStorageKey)
     }
 
     private func copyToForm(_ s: POTASpot) {
         onCopy(s)
-        // Optional QSY ans Radio wenn CAT verbunden
         if qsyOnCopy, case .connected = cat.status {
             Task { await cat.setFrequencyMHz(s.frequencyMHz) }
         }
