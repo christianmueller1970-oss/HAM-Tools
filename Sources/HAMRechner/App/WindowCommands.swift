@@ -33,5 +33,12 @@ struct WindowCommands: View {
                 }
             }
         }
+
+        Section("Karten") {
+            Button("Grayline-Fenster") {
+                openWindow(id: "grayline")
+            }
+            .keyboardShortcut("g", modifiers: [.command, .shift])
+        }
     }
 }

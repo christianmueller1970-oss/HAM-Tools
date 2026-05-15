@@ -206,6 +206,16 @@ struct HAMRechnerApp: App {
         .windowStyle(.titleBar)
         .defaultSize(width: 320, height: 800)
 
+        // Grayline-Fenster: Single-Instance via fixer Window-ID. Zeigt
+        // Welt-Karte mit Tag/Nacht-Linie + QTH + Sonne.
+        WindowGroup("Grayline", id: "grayline") {
+            GraylineView()
+                .environmentObject(themeManager)
+                .frame(minWidth: 640, minHeight: 420)
+        }
+        .windowStyle(.titleBar)
+        .defaultSize(width: 900, height: 560)
+
         Settings {
             EinstellungenView()
                 .environmentObject(themeManager)
