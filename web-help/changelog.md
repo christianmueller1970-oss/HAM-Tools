@@ -2,6 +2,42 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.3 — 2026-05-15
+
+**UI-Polish im DX-Log · Spalten-Toolbar · Spot-Tabellen mit Reorder**
+
+### Neue Spalten-Verwaltung im DX-Log
+- Neuer „Spalten"-Button in der QSO-Toolbar — alle verfügbaren Spalten
+  per Toggle ein-/ausblendbar, plus „Standard-Spalten wiederherstellen"
+- 10 zusätzliche Spalten (alle default-aus): QTH, ITU-Zone, Distanz (km),
+  Peilung (°), Station-Call, QSL Via, My POTA, My SOTA, My WWFF, My BOTA
+- Reihenfolge per Drag im Spaltenkopf verschiebbar
+- Sichtbarkeit + Reihenfolge persistieren **pro Log-Typ**
+  (Standard / POTA / Contest haben jeweils eigene Konfiguration)
+
+### Spot-Tabellen mit Reorder + Hide/Show
+- **DX-Cluster, POTA-, SOTA-, BOTA- und WWFF-Spots** wurden von der
+  bisherigen Card-Darstellung auf eine spalten-basierte Tabelle
+  umgestellt — mit Drag-Reorder, Hide/Show pro Spalte und Klick-
+  Sortierung auf jedem Spaltenkopf
+- Copy ins Log bleibt via Doppelklick oder Context-Menü erreichbar
+- Sichtbarkeit + Reihenfolge persistieren pro Spots-Quelle
+
+### Fixes
+- DX-Standard-Log: Die POTA-Spalten „State" und „Their Park" werden
+  jetzt nur noch in echten POTA-Logs angezeigt (vorher fälschlich
+  auch im Standard-Log)
+- DX-Standard-Log: BOTA-Map Sub-Tab erscheint nur noch in
+  BOTA-Programm-Logs
+- Contest-Wizard: „Neuer Contest"-Sheet ist größer und scrollbar —
+  die Buttons „Abbrechen / Anlegen" im Kategorien-Schritt sind nicht
+  mehr abgeschnitten
+- Spalten-Menü: Toggle-Häkchen entsprechen jetzt der tatsächlich
+  angezeigten Sichtbarkeit (vorher zeigte das Menü Pseudo-Haken
+  für default-ausgeblendete Spalten)
+
+---
+
 ## 1.8.2 — 2026-05-14
 
 **Multi-Call-Lizenz · Pro-Log-Callsign · Multi-Op-Contest · Generator als App-Bundle**
