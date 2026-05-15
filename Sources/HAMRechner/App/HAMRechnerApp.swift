@@ -11,6 +11,7 @@ struct HAMRechnerApp: App {
     @StateObject private var logbookManager:   LogbookManager
     @StateObject private var callbookSettings: CallbookSettings
     @StateObject private var callbookManager:  CallbookManager
+    @StateObject private var uploadSettings:   UploadServicesSettings = UploadServicesSettings()
     @StateObject private var memoryStore:      MemoryStore
     @StateObject private var radioState:       RadioState
     @StateObject private var catSettings:      CATSettings
@@ -122,6 +123,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(logbookManager)
                 .environmentObject(callbookSettings)
                 .environmentObject(callbookManager)
+                .environmentObject(uploadSettings)
                 .environmentObject(memoryStore)
                 .environmentObject(radioState)
                 .environmentObject(catSettings)
@@ -267,6 +269,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(logbookManager)
                 .environmentObject(callbookSettings)
                 .environmentObject(callbookManager)
+                .environmentObject(uploadSettings)
                 .environmentObject(memoryStore)
                 .environmentObject(radioState)
                 .environmentObject(catSettings)

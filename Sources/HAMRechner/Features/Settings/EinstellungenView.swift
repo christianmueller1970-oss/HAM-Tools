@@ -12,8 +12,8 @@ struct EinstellungenView: View {
                 .tabItem { Label("Cluster", systemImage: "server.rack") }
             DatenTab()
                 .tabItem { Label("Daten", systemImage: "internaldrive") }
-            CallbookTab()
-                .tabItem { Label("Callbook", systemImage: "person.text.rectangle") }
+            LookupUploadSettingsView()
+                .tabItem { Label("Lookup & Upload", systemImage: "person.text.rectangle") }
             DarstellungTab()
                 .tabItem { Label("Darstellung", systemImage: "paintpalette") }
             AlertsTab()
