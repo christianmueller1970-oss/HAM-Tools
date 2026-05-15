@@ -8,6 +8,12 @@ Aktive Issues + Workarounds. Wird händisch gepflegt; gemeldete Bugs landen im P
 Aktuell sind keine kritischen Bugs offen.
 :::
 
+## Behoben in v1.8.5
+
+- Bandmap als Sub-Tab im Logbuch eingeschränkt — jetzt zusätzlich als Pop-up-Fenster pro Band öffenbar, mehrere parallel auf einem Zweitmonitor sichtbar.
+- DX-Propagation: keine globale Tag/Nacht-Sicht — neue Grayline-Karte als eigenes Fenster.
+- Einstellungs-Zahnrad in der Logbuch-Top-Bar wurde schnell übersehen — entfernt, Einstellungen jetzt über das App-Menü "HAM-Tools → Einstellungen…" (⌘,) bzw. das Transceiver-Menü.
+
 ## Behoben in v1.8.4
 
 - CAT-Verbindung trennte sich nach einem QSY oder Mode-Wechsel — Race-Condition zwischen Poll-Loop und Write-Operationen auf demselben rigctld-TCP-Socket. Neuer Client-Lock im CATController serialisiert alle Operationen.

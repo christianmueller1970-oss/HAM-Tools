@@ -21,45 +21,37 @@ import CryptoKit
 
 // MARK: - RELEASE-DATEN (für jeden Release anpassen)
 
-let RELEASE_VERSION   = "1.8.4"
+let RELEASE_VERSION   = "1.8.5"
 let RELEASE_BUILDDATE = "2026-05-15"          // ISO 8601, YYYY-MM-DD
 let RELEASE_MIN_MACOS = "14.0"                 // oder nil
-let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.4.dmg"
+let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.5.dmg"
 let RELEASE_CRITICAL  = false                  // true zwingt User zur Installation (kein Skip)
 let RELEASE_NOTES = """
-Neues Transceiver-Menü in der macOS-Menubar: schneller Wechsel zwischen \
-gespeicherten CAT-Configs ohne Settings-Klick. Punkte: Reset CAT \
-(Reconnect, ⌘⇧R), CAT ein/aus (⌘⇧T), TRX-Setup laden ▸ (Untermenü aller \
-Configs mit Häkchen), TRX-Setup speichern… (Dialog für Namen), \
-Einstellungen… (⌘,).
+Neues "Fenster"-Menü in der macOS-Menubar mit zwei großen Erweiterungen:
 
-Spot-Klick steuert den TRX: Klick auf einen DX/POTA/SOTA/BOTA/WWFF-Spot \
-sendet jetzt Frequenz UND Mode an den TRX. Aus "SSB" wird automatisch \
-USB (≥10 MHz) oder LSB (<10 MHz) abgeleitet, CW direkt, FT8/FT4/Digi \
-als PKTUSB/PKTLSB. Cluster-Tabellen zeigen entsprechend LSB/USB statt \
-generischem "SSB".
+Bandmaps als eigene Pop-up-Fenster (Mehrmonitor-Freundlich): Pro Klick \
+auf "Neue Bandmap → {Band}" öffnet sich ein 320×800-Fenster mit \
+spalten-basierter Bandmap im N1MM/Skookum-Stil. Vertikale Frequenz- \
+Skala links, Spots als farbige Striche rechts mit Mode-Codierung \
+(SSB gold, CW orange, FT8 grün, FT4 blau, RTTY pink, FM lila, \
+DIGI magenta). Pro Band genau ein Fenster (zweiter Klick = nach vorn \
+holen). Wählbare Auflösung (1-16 px/kHz mit Scrollbalken bei hohem \
+Zoom), Zeit-Filter (5min-Alle), Mode-Filter (Default SSB), Klick auf \
+einen Spot lädt ihn ins Logbuch.
 
-Auto-QRZ-Lookup nach Spot-Klick: Name, QTH, Locator, CQ/ITU-Zonen \
-werden direkt vom Callbook in die QSO-Form gezogen — respektiert das \
-"Auto-Lookup bei TAB"-Setting.
+Grayline-Fenster (⌘⇧G): Welt-Karte mit Tag/Nacht-Linie für DX- \
+Propagations-Planning. Echte Terminator-Linie als oranger Großkreis, \
+Dämmerungs-Zonen in vier Stufen (bürgerlich/nautisch/astronomisch/ \
+Nacht) als smoothe Schattierung. QTH-Marker auf deinem Locator, \
+Sonnen-Marker am Subsolar-Punkt. DatePicker mit "Jetzt"-Button und \
+Live-Mode (Tick jede Minute). Fenster-Position + Größe gemerkt.
 
-Kein Tab-Wechsel mehr beim Spot-Klick: Du bleibst im DXClusters-Sub-Tab \
-und beobachtest weiter Spots, während sich das QSO-Form im Hintergrund \
-füllt.
+Beide Pop-up-Fenster bleiben bei App-Neustart erhalten (NSWindow- \
+Restoration).
 
-DX-Spot-Senden mit Auto-Fill: Der "DX-Spot senden"-Block in der \
-Sidebar übernimmt jetzt automatisch den aktuellen QSO-Form-Call und \
-die Radio-Frequenz — Spotten geht in einem Schritt.
-
-13"-MacBook-Air-Polish: Window-Defaultgröße auf 1180×720pt reduziert, \
-rechte Sidebar 40pt schmaler, Propagation-Gauges und Solar-Daten \
-kompakter dargestellt (2-spaltig statt 6 Zeilen). Sidebar passt jetzt \
-ohne Scrollen auf einen 13"-Bildschirm.
-
-Bug-Fixes: CAT-Verbindung trennte sich beim QSY (Race zwischen Poll- \
-Loop und Write-Operationen) — gefixt mit Client-Lock. Einstellungen- \
-Eintrag im Transceiver-Menü reagiert jetzt zuverlässig via SwiftUI \
-openSettings-API.
+UI-Polish: Einstellungen-Zahnrad aus der Logbuch-Top-Bar entfernt — \
+Standard-macOS-Konvention nutzt das App-Menü "HAM-Tools → \
+Einstellungen…" (⌘,) und der direkte Eintrag im Transceiver-Menü.
 """
 
 // MARK: - Implementation (sollte stabil bleiben)

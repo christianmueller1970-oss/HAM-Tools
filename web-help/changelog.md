@@ -2,6 +2,52 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.5 — 2026-05-15
+
+**Bandmaps in eigenen Fenstern · Grayline-Fenster · UI-Polish**
+
+### Neues "Fenster"-Menü in der macOS-Menubar
+
+Mehrmonitor-Freundliche Pop-up-Fenster — beide Fenster persistieren
+Position + Größe und kommen nach App-Neustart automatisch zurück.
+
+### Bandmaps als eigene Fenster
+- Pro Klick auf **"Fenster → Neue Bandmap → {Band}"** öffnet sich ein
+  schmales 320×800-Fenster mit spalten-basierter Bandmap im
+  N1MM/Skookum-Stil
+- Vertikale Frequenz-Skala links (CH-Format "14'060"), Spots als
+  farbige Striche rechts mit Call-Text
+- Mode-Codierung: SSB gold, CW orange, FT8 grün, FT4 blau, RTTY pink,
+  FM lila, DIGI magenta
+- **Single-Instance pro Band** — zweiter Klick auf dasselbe Band
+  bringt das existierende Fenster nach vorn
+- Wählbare Auflösung: 1/2/4/8/16 px/kHz — bei hohem Zoom scrollt das
+  Fenster vertikal, jeder Spot bekommt seine eigene Zeile
+- Zeit-Filter 5min/15min/30min/60min/2h/6h/Alle
+- Mode-Filter (Default **SSB**): Alle/SSB/CW/FT8/FT4/RTTY/FM/AM/DIGI
+- Klick auf einen Spot lädt ihn ins Logbuch (analog DX-Cluster-Klick:
+  QSY + Mode an TRX, Auto-QRZ-Lookup, ohne Sub-Tab-Wechsel)
+
+### Grayline-Fenster (⌘⇧G)
+- Welt-Karte mit Tag/Nacht-Linie für DX-Propagations-Planning
+- Echte **Terminator-Linie** als oranger Großkreis (alle Punkte mit
+  Sonnen-Altitude = 0°)
+- Dämmerungs-Zonen in vier Stufen (bürgerlich/nautisch/astronomisch/
+  Nacht) als feines Grid-Sampling (5°×5°)
+- **QTH-Marker** (cyan) auf deinem Locator aus den Settings
+- **Sonnen-Marker** (☀️) am Subsolar-Punkt — dort steht die Sonne
+  gerade im Zenit
+- **DatePicker** + **"Jetzt"-Button** + **LIVE-Badge** im Live-Modus
+- Im Live-Modus tickt die Linie automatisch jede Minute weiter
+- Default-View beim ersten Öffnen: ganze Welt
+
+### UI-Polish
+- ⚙️-Zahnrad-Button aus der Logbuch-Top-Bar entfernt — Standard-
+  macOS-Konvention: Einstellungen sind im App-Menü "HAM-Tools →
+  Einstellungen…" (⌘,) sowie im Transceiver-Menü erreichbar
+
+---
+
 ## 1.8.4 — 2026-05-15
 
 **Transceiver-Quick-Switch · Spot-Klick steuert TRX · Auto-QRZ-Lookup · 13"-Polish**
