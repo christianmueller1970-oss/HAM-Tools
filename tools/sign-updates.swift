@@ -21,33 +21,45 @@ import CryptoKit
 
 // MARK: - RELEASE-DATEN (für jeden Release anpassen)
 
-let RELEASE_VERSION   = "1.8.3"
+let RELEASE_VERSION   = "1.8.4"
 let RELEASE_BUILDDATE = "2026-05-15"          // ISO 8601, YYYY-MM-DD
 let RELEASE_MIN_MACOS = "14.0"                 // oder nil
-let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.3.dmg"
+let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.4.dmg"
 let RELEASE_CRITICAL  = false                  // true zwingt User zur Installation (kein Skip)
 let RELEASE_NOTES = """
-Spalten-Verwaltung im DX-Log: Die QSO-Tabelle hat einen neuen \
-"Spalten"-Button in der Toolbar — damit lassen sich alle verfügbaren \
-Spalten ein-/ausblenden, inklusive der neuen Felder QTH, ITU-Zone, \
-Distanz (km), Peilung (°), Station-Call, QSL Via und My POTA/SOTA/WWFF/BOTA. \
-Reihenfolge per Drag im Spaltenkopf verschiebbar. Auswahl persistiert \
-pro Log-Typ (Standard/POTA/Contest).
+Neues Transceiver-Menü in der macOS-Menubar: schneller Wechsel zwischen \
+gespeicherten CAT-Configs ohne Settings-Klick. Punkte: Reset CAT \
+(Reconnect, ⌘⇧R), CAT ein/aus (⌘⇧T), TRX-Setup laden ▸ (Untermenü aller \
+Configs mit Häkchen), TRX-Setup speichern… (Dialog für Namen), \
+Einstellungen… (⌘,).
 
-Alle Spot-Tabellen jetzt spalten-basiert: DX-Cluster, POTA-, SOTA-, \
-BOTA- und WWFF-Spots wurden von der bisherigen Card-Darstellung auf \
-eine Tabelle umgestellt — mit Drag-Reorder, Hide/Show pro Spalte und \
-Klick-Sortierung auf jedem Spaltenkopf. Copy bleibt via Doppelklick \
-oder Context-Menü erreichbar.
+Spot-Klick steuert den TRX: Klick auf einen DX/POTA/SOTA/BOTA/WWFF-Spot \
+sendet jetzt Frequenz UND Mode an den TRX. Aus "SSB" wird automatisch \
+USB (≥10 MHz) oder LSB (<10 MHz) abgeleitet, CW direkt, FT8/FT4/Digi \
+als PKTUSB/PKTLSB. Cluster-Tabellen zeigen entsprechend LSB/USB statt \
+generischem "SSB".
 
-DX-Standard-Log aufgeräumt: Die POTA-Spalten "State" und "Their Park" \
-werden jetzt nur noch in echten POTA-Logs angezeigt (vorher auch \
-fälschlich im Standard-Log). Der BOTA-Map Sub-Tab erscheint nur noch \
-in BOTA-Programm-Logs.
+Auto-QRZ-Lookup nach Spot-Klick: Name, QTH, Locator, CQ/ITU-Zonen \
+werden direkt vom Callbook in die QSO-Form gezogen — respektiert das \
+"Auto-Lookup bei TAB"-Setting.
 
-Contest-Wizard: Das "Neuer Contest"-Sheet ist größer und scrollbar — \
-die Buttons "Abbrechen / Anlegen" im Kategorien-Schritt sind nicht \
-mehr abgeschnitten.
+Kein Tab-Wechsel mehr beim Spot-Klick: Du bleibst im DXClusters-Sub-Tab \
+und beobachtest weiter Spots, während sich das QSO-Form im Hintergrund \
+füllt.
+
+DX-Spot-Senden mit Auto-Fill: Der "DX-Spot senden"-Block in der \
+Sidebar übernimmt jetzt automatisch den aktuellen QSO-Form-Call und \
+die Radio-Frequenz — Spotten geht in einem Schritt.
+
+13"-MacBook-Air-Polish: Window-Defaultgröße auf 1180×720pt reduziert, \
+rechte Sidebar 40pt schmaler, Propagation-Gauges und Solar-Daten \
+kompakter dargestellt (2-spaltig statt 6 Zeilen). Sidebar passt jetzt \
+ohne Scrollen auf einen 13"-Bildschirm.
+
+Bug-Fixes: CAT-Verbindung trennte sich beim QSY (Race zwischen Poll- \
+Loop und Write-Operationen) — gefixt mit Client-Lock. Einstellungen- \
+Eintrag im Transceiver-Menü reagiert jetzt zuverlässig via SwiftUI \
+openSettings-API.
 """
 
 // MARK: - Implementation (sollte stabil bleiben)

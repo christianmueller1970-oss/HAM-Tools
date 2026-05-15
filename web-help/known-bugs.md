@@ -8,6 +8,14 @@ Aktive Issues + Workarounds. Wird händisch gepflegt; gemeldete Bugs landen im P
 Aktuell sind keine kritischen Bugs offen.
 :::
 
+## Behoben in v1.8.4
+
+- CAT-Verbindung trennte sich nach einem QSY oder Mode-Wechsel — Race-Condition zwischen Poll-Loop und Write-Operationen auf demselben rigctld-TCP-Socket. Neuer Client-Lock im CATController serialisiert alle Operationen.
+- Spot-Klick wechselte zwangsweise vom DXClusters- in den Log-Sub-Tab. Du bleibst jetzt, wo du bist — der Draft füllt sich im Hintergrund.
+- DX-Cluster-Tabelle zeigte „SSB" als Mode, obwohl LSB/USB band-abhängig korrekt ableitbar ist (jetzt automatisch).
+- "Einstellungen…"-Eintrag im Transceiver-Menü reagierte nicht (alter NSApp-Selector durch SwiftUI-API ersetzt).
+- 13"-MacBook-Air-Layout: rechte Sidebar (Propagation/Solar/Band Activity) passte nicht auf den Bildschirm, man musste scrollen.
+
 ## Behoben in v1.8.3
 
 - BOTA-Map Sub-Tab erschien fälschlich im Standard-DX-Log (nur im BOTA-Programm-Log sinnvoll)

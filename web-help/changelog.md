@@ -2,6 +2,61 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.4 — 2026-05-15
+
+**Transceiver-Quick-Switch · Spot-Klick steuert TRX · Auto-QRZ-Lookup · 13"-Polish**
+
+### Neues Transceiver-Menü (macOS-Menubar)
+- Schneller Wechsel zwischen gespeicherten CAT-Configs ohne Settings-Klick
+- **Reset CAT** (⌘⇧R) — Reconnect rigctld zur aktiven Config
+- **CAT ein/aus** (⌘⇧T) — globaler CAT-Toggle
+- **TRX-Setup laden ▸** — Untermenü aller Configs mit Häkchen vor der aktiven
+- **TRX-Setup speichern…** — Dialog für neuen Namen, dupliziert aktive Config
+- **Einstellungen…** (⌘,) — öffnet das Settings-Fenster
+
+### Spot-Klick steuert den TRX
+- Klick auf einen DX/POTA/SOTA/BOTA/WWFF-Spot sendet jetzt **Frequenz + Mode**
+  an den TRX (vorher nur Frequenz bei POTA/SOTA, gar nichts bei DX-Cluster)
+- "SSB" wird automatisch zu LSB (<10 MHz) bzw. USB (≥10 MHz) — über alle
+  Bänder von 160m bis 70cm
+- CW direkt, FT8/FT4/PSK/JS8/Digital-Modes als PKTUSB bzw. PKTLSB
+- Cluster-Tabellen zeigen entsprechend „LSB" oder „USB" statt generischem
+  „SSB"
+
+### Auto-QRZ-Lookup nach Spot-Klick
+- Name, QTH, Locator, Country, CQ-/ITU-Zonen, DXCC-Entity werden direkt
+  vom Callbook (QRZ/HamQTH) in die QSO-Form gezogen
+- Respektiert dein bestehendes „Auto-Lookup bei TAB"-Setting in den
+  Callbook-Einstellungen
+
+### Kein Tab-Wechsel mehr beim Spot-Klick
+- Du bleibst im **DXClusters-Sub-Tab** und beobachtest weiter Spots
+- Der Draft fließt im Hintergrund ins QSO-Form; beim manuellen Wechsel
+  in den Log-Tab sind alle Felder vorbefüllt
+
+### DX-Spot-Senden mit Auto-Fill
+- Der „DX-Spot senden"-Block in der rechten Sidebar übernimmt automatisch
+  den aktuellen Their-Call aus der QSO-Form und die Radio-Frequenz
+- Spotten geht in einem Schritt — kein doppeltes Tippen mehr
+
+### 13"-MacBook-Air-Polish
+- Window-Default 1280×760 → **1180×720pt**, Mindestgröße 900×580 → 860×560
+- Rechte Sidebar 40pt schmaler (idealWidth 300 → 260)
+- Propagation-Gauges kompakter (Canvas 110×72 → 95×56, Schrift 28pt → 22pt)
+- Solar-Daten zweispaltig (3×2 statt 6×1)
+- HeatCell-Höhe 16 → 14pt, kompaktere Section-Paddings
+- → rechte Sidebar passt auf einem 13"-MBA ohne Scrollen
+
+### Fixes
+- **CAT-Verbindung trennte sich beim QSY** — Race-Condition zwischen
+  Poll-Loop und Write-Operationen (setFrequencyMHz/setMode/setVFO/setSplit)
+  auf demselben TCP-Socket. Neuer Client-Lock serialisiert alle Operationen
+- **Einstellungen-Button im Transceiver-Menü reagierte nicht** — alter
+  `NSApp.sendAction(showSettingsWindow:)`-Selector durch offizielle SwiftUI-
+  API `@Environment(\.openSettings)` ersetzt
+
+---
+
 ## 1.8.3 — 2026-05-15
 
 **UI-Polish im DX-Log · Spalten-Toolbar · Spot-Tabellen mit Reorder**
