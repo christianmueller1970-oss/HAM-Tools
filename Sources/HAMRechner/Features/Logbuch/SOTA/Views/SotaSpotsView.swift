@@ -1,8 +1,10 @@
 import SwiftUI
 
-// SOTA-Spots-Tab. Live-Feed aus api2.sota.org.uk/api/spots/50/all, Card-Grid.
-// Filter: Band, Mode, Assoc/Region-Prefix. Copy-Button füllt Their Call +
-// Their Summit ins SOTA-Form. Falls CAT aktiv: QSY zur Spot-Frequenz.
+// SOTA-Spots-Tab. Live-Feed aus api2.sota.org.uk/api/spots/50/all als
+// spalten-basierte Table (SwiftUI Table mit Reorder + Hide/Show).
+// Filter: Band, Mode, Assoc/Region-Prefix, "nur manuell". Copy via
+// Context-Menü oder Doppelklick füllt Their Call + Their Summit ins
+// SOTA-Form. Falls CAT aktiv: QSY zur Spot-Frequenz.
 struct SotaSpotsView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var spots:        SotaSpotsService
@@ -15,8 +17,14 @@ struct SotaSpotsView: View {
     @State private var filterMode: String = "Alle"
     @State private var filterAssoc: String = ""
     @State private var qsyOnCopy: Bool = true
-    @State private var sortByTime: Bool = true
     @State private var hideAutomatic: Bool = false   // RBNHole / sotl.as ausblenden
+
+    @State private var sortOrder: [KeyPathComparator<SOTASpot>] = [
+        KeyPathComparator(\SOTASpot.timeStamp, order: .reverse)
+    ]
+    @State private var selection: SOTASpot.ID? = nil
+    @State private var columnCustomization = TableColumnCustomization<SOTASpot>()
+    private let customizationStorageKey = "dxcluster.sotaSpots.columnCustomization.v1"
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -31,30 +39,22 @@ struct SotaSpotsView: View {
             if spots.spots.isEmpty {
                 emptyState
             } else {
-                grid
+                spotTable
             }
         }
         .background(theme.bgPanel)
-        .onAppear { spots.start() }
+        .onAppear {
+            spots.start()
+            loadCustomization()
+        }
         .onDisappear { spots.stop() }
+        .onChange(of: columnCustomization) { _, _ in saveCustomization() }
     }
 
     // MARK: - Filter-Toolbar
 
     private var filterBar: some View {
         HStack(spacing: 8) {
-            Button { sortByTime.toggle() } label: {
-                HStack(spacing: 3) {
-                    Image(systemName: sortByTime ? "clock" : "waveform")
-                    Text(sortByTime ? "Zeit" : "Freq")
-                }
-                .font(.caption)
-                .padding(.horizontal, 6).padding(.vertical, 3)
-                .background(theme.bgCard2)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-            }
-            .buttonStyle(.plain)
-
             Picker("Band", selection: $filterBand) {
                 ForEach(Self.bands, id: \.self) { Text($0).tag($0) }
             }
@@ -156,7 +156,7 @@ struct SotaSpotsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Card Grid
+    // MARK: - Table
 
     private var filtered: [SOTASpot] {
         var arr = spots.spots
@@ -169,134 +169,190 @@ struct SotaSpotsView: View {
         }
         let prefix = filterAssoc.trimmingCharacters(in: .whitespaces)
         if !prefix.isEmpty {
-            // Filtere auf Assoc-Code ("HB") oder vollständige Region ("HB/BE")
             arr = arr.filter { $0.fullReference.uppercased().hasPrefix(prefix) }
         }
         if hideAutomatic {
             arr = arr.filter { !$0.isAutomaticSpot }
         }
-        if sortByTime {
-            arr.sort { $0.timeStamp > $1.timeStamp }
-        } else {
-            arr.sort { $0.frequencyMHz < $1.frequencyMHz }
-        }
-        return arr
+        return arr.sorted(using: sortOrder)
     }
 
-    private var grid: some View {
-        ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 8)],
-                      spacing: 8) {
-                ForEach(filtered) { spot in
-                    spotCard(spot)
+    private var spotTable: some View {
+        Table(filtered,
+              selection: $selection,
+              sortOrder: $sortOrder,
+              columnCustomization: $columnCustomization) {
+            Group {
+                TableColumn("Zeit", value: \SOTASpot.timeStamp) { s in
+                    Text(timeAgoText(s.timeStamp))
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(theme.textDim)
                 }
-            }
-            .padding(10)
-        }
-    }
+                .width(min: 50, ideal: 60)
+                .customizationID("time")
 
-    private func spotCard(_ s: SOTASpot) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(s.activatorCallsign)
-                    .font(.callout.bold().monospaced())
-                    .foregroundStyle(theme.textPrimary)
-                Text("@").foregroundStyle(theme.textDim)
-                Text(s.fullReference)
-                    .font(.callout.monospaced())
-                    .foregroundStyle(theme.accentBlue)
-                Spacer()
-                Text(timeAgoText(s.timeStamp))
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(theme.textDim)
-            }
-
-            HStack(spacing: 6) {
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .font(.caption2)
-                    .foregroundStyle(theme.accentBlue)
-                if s.frequencyMHz > 0 {
-                    Text(String(format: "%.3f MHz", s.frequencyMHz))
-                        .font(.caption.monospaced())
-                } else {
-                    Text("— MHz").font(.caption.monospaced()).foregroundStyle(.orange)
+                TableColumn("Freq (MHz)", value: \SOTASpot.frequencyMHz) { s in
+                    if s.frequencyMHz > 0 {
+                        Text(String(format: "%.3f", s.frequencyMHz))
+                            .font(.system(.caption, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    } else {
+                        Text("—")
+                            .font(.system(.caption, design: .monospaced))
+                            .foregroundStyle(.orange)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
                 }
-                if !s.mode.isEmpty {
-                    Text("(\(s.mode))")
-                        .font(.caption.monospaced())
+                .width(min: 70, ideal: 85)
+                .customizationID("freq")
+
+                TableColumn("Band", value: \SOTASpot.band) { s in
+                    Text(s.band)
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .width(min: 45, ideal: 55)
+                .customizationID("band")
+
+                TableColumn("Mode", value: \SOTASpot.mode) { s in
+                    Text(s.mode)
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .width(min: 45, ideal: 60)
+                .customizationID("mode")
+
+                TableColumn("Aktivator", value: \SOTASpot.activatorCallsign) { s in
+                    Text(s.activatorCallsign)
+                        .font(.system(.caption, design: .monospaced).weight(.bold))
+                        .foregroundStyle(theme.textPrimary)
+                }
+                .width(min: 80, ideal: 110)
+                .customizationID("activator")
+
+                TableColumn("Ref", value: \SOTASpot.fullReference) { s in
+                    Text(s.fullReference)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(theme.accentBlue)
+                }
+                .width(min: 70, ideal: 95)
+                .customizationID("ref")
+
+                TableColumn("Summit") { (s: SOTASpot) in
+                    Text(s.summitDetails ?? "")
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .width(min: 100, ideal: 180)
+                .customizationID("summit")
+
+                TableColumn("Assoc", value: \SOTASpot.associationCode) { s in
+                    Text(s.associationCode)
+                        .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(theme.textSecondary)
                 }
-                Spacer()
-                if !s.associationCode.isEmpty {
-                    HStack(spacing: 2) {
-                        Image(systemName: "globe").font(.caption2)
-                        Text(s.associationCode).font(.caption.monospaced())
+                .width(min: 50, ideal: 65)
+                .customizationID("assoc")
+                .defaultVisibility(.hidden)
+
+                TableColumn("Spotter", value: \SOTASpot.callsign) { s in
+                    Text(s.callsign)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(theme.textDim)
+                }
+                .width(min: 70, ideal: 90)
+                .customizationID("spotter")
+
+                TableColumn("Name") { (s: SOTASpot) in
+                    Text(s.activatorName ?? "")
+                        .font(.caption)
+                        .foregroundStyle(theme.textDim)
+                }
+                .width(min: 80, ideal: 110)
+                .customizationID("name")
+                .defaultVisibility(.hidden)
+            }
+
+            Group {
+                TableColumn("Kommentar") { (s: SOTASpot) in
+                    Text(s.comments ?? "")
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .foregroundStyle(theme.textDim)
+                }
+                .width(min: 120, ideal: 200)
+                .customizationID("comment")
+
+                TableColumn("AUTO") { (s: SOTASpot) in
+                    if s.isAutomaticSpot {
+                        Text("AUTO")
+                            .font(.caption2.bold())
+                            .padding(.horizontal, 4).padding(.vertical, 1)
+                            .background(Color.gray.opacity(0.2))
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
                     }
-                    .foregroundStyle(theme.textSecondary)
                 }
-            }
+                .width(min: 45, ideal: 55)
+                .customizationID("auto")
+                .defaultVisibility(.hidden)
 
-            if let details = s.summitDetails, !details.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "mountain.2").font(.caption2)
-                    Text(details).font(.caption).lineLimit(1)
+                TableColumn("•") { (s: SOTASpot) in
+                    if let hc = s.highlightColor, !hc.isEmpty {
+                        Circle()
+                            .fill(highlightColor(hc))
+                            .frame(width: 8, height: 8)
+                            .help("SOTAwatch-Markierung: \(hc)")
+                    }
                 }
-                .foregroundStyle(theme.textSecondary)
-            }
+                .width(18)
+                .customizationID("highlight")
 
-            HStack(spacing: 4) {
-                Image(systemName: "person").font(.caption2)
-                Text(s.callsign).font(.caption.monospaced())
-                if let name = s.activatorName, !name.isEmpty {
-                    Text("· \(name)").font(.caption)
-                }
-                if s.isAutomaticSpot {
-                    Text("AUTO").font(.caption2.bold())
-                        .padding(.horizontal, 4).padding(.vertical, 1)
-                        .background(Color.gray.opacity(0.2))
-                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                }
-            }
-            .foregroundStyle(theme.textDim)
-
-            if let comments = s.comments, !comments.isEmpty {
-                HStack(alignment: .top, spacing: 4) {
-                    Image(systemName: "bubble.left").font(.caption2)
-                    Text(comments).font(.caption).lineLimit(2)
-                }
-                .foregroundStyle(theme.textDim)
-            }
-
-            HStack {
-                Button { copyToForm(s) } label: {
-                    HStack(spacing: 4) {
+                TableColumn("") { s in
+                    Button { copyToForm(s) } label: {
                         Image(systemName: "square.and.arrow.up.fill")
-                        Text("Copy")
+                            .foregroundStyle(theme.accentBlue)
                     }
-                    .font(.caption.bold())
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(theme.accentBlue.opacity(0.18))
-                    .foregroundStyle(theme.accentBlue)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .buttonStyle(.borderless)
+                    .disabled(s.frequencyMHz <= 0)
+                    .help("Copy ins SOTA-Form")
                 }
-                .buttonStyle(.plain)
-                .disabled(s.frequencyMHz <= 0)
-                Spacer()
-                if let hc = s.highlightColor, !hc.isEmpty {
-                    Circle()
-                        .fill(highlightColor(hc))
-                        .frame(width: 8, height: 8)
-                        .help("SOTAwatch-Markierung: \(hc)")
-                }
+                .width(28)
+                .customizationID("action")
+                .disabledCustomizationBehavior([.visibility, .reorder])
             }
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.bgCard)
-        .overlay(RoundedRectangle(cornerRadius: 6)
-            .stroke(theme.separator, lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .font(.system(size: 12))
+        .contextMenu(forSelectionType: SOTASpot.ID.self) { ids in
+            if let id = ids.first, let spot = filtered.first(where: { $0.id == id }) {
+                Button {
+                    copyToForm(spot)
+                } label: {
+                    Label("Copy ins SOTA-Form", systemImage: "square.and.arrow.up.fill")
+                }
+                .disabled(spot.frequencyMHz <= 0)
+            }
+        } primaryAction: { ids in
+            if let id = ids.first, let spot = filtered.first(where: { $0.id == id }),
+               spot.frequencyMHz > 0 {
+                copyToForm(spot)
+            }
+        }
+    }
+
+    private func loadCustomization() {
+        guard let data = UserDefaults.standard.data(forKey: customizationStorageKey),
+              let decoded = try? JSONDecoder().decode(TableColumnCustomization<SOTASpot>.self, from: data) else {
+            return
+        }
+        columnCustomization = decoded
+    }
+
+    private func saveCustomization() {
+        guard let data = try? JSONEncoder().encode(columnCustomization) else { return }
+        UserDefaults.standard.set(data, forKey: customizationStorageKey)
     }
 
     private func highlightColor(_ raw: String) -> Color {

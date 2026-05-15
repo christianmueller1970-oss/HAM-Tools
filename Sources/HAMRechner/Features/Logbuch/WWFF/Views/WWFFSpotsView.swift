@@ -3,10 +3,8 @@ import SwiftUI
 // WWFF-Spots-Tab. Statt eigener API (gibt's nicht öffentlich) filtern wir
 // den regulären DX-Cluster-Stream nach Spots mit WWFF-Pattern im Comment.
 // Pattern-Erkennung läuft über LogEntryBridge.extractRefs, also dieselbe
-// Logik wie beim Cluster-Spot-Click ins QSO-Form.
-//
-// Strukturell parallel zu SotaSpotsView / PotaSpotsView, aber arbeitet
-// auf DXSpot + abgeleitetem WWFFSpot statt einer eigenen API-Quelle.
+// Logik wie beim Cluster-Spot-Click ins QSO-Form. Anzeige als
+// spalten-basierte Table (Reorder + Hide/Show via Header).
 struct WWFFSpotsView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var clusterVM:    DXClusterViewModel
@@ -19,7 +17,13 @@ struct WWFFSpotsView: View {
     @State private var filterMode: String = "Alle"
     @State private var filterPrefix: String = ""
     @State private var qsyOnCopy: Bool = true
-    @State private var sortByTime: Bool = true
+
+    @State private var sortOrder: [KeyPathComparator<WWFFSpot>] = [
+        KeyPathComparator(\WWFFSpot.timeStamp, order: .reverse)
+    ]
+    @State private var selection: WWFFSpot.ID? = nil
+    @State private var columnCustomization = TableColumnCustomization<WWFFSpot>()
+    private let customizationStorageKey = "dxcluster.wwffSpots.columnCustomization.v1"
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -34,10 +38,12 @@ struct WWFFSpotsView: View {
             if derived.isEmpty {
                 emptyState
             } else {
-                grid
+                spotTable
             }
         }
         .background(theme.bgPanel)
+        .onAppear { loadCustomization() }
+        .onChange(of: columnCustomization) { _, _ in saveCustomization() }
     }
 
     // MARK: - Derivation
@@ -71,30 +77,13 @@ struct WWFFSpotsView: View {
         if !prefix.isEmpty {
             arr = arr.filter { $0.reference.uppercased().hasPrefix(prefix) }
         }
-        if sortByTime {
-            arr.sort { $0.timeStamp > $1.timeStamp }
-        } else {
-            arr.sort { $0.frequencyMHz < $1.frequencyMHz }
-        }
-        return arr
+        return arr.sorted(using: sortOrder)
     }
 
     // MARK: - Filter-Toolbar
 
     private var filterBar: some View {
         HStack(spacing: 8) {
-            Button { sortByTime.toggle() } label: {
-                HStack(spacing: 3) {
-                    Image(systemName: sortByTime ? "clock" : "waveform")
-                    Text(sortByTime ? "Zeit" : "Freq")
-                }
-                .font(.caption)
-                .padding(.horizontal, 6).padding(.vertical, 3)
-                .background(theme.bgCard2)
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-            }
-            .buttonStyle(.plain)
-
             Picker("Band", selection: $filterBand) {
                 ForEach(Self.bands, id: \.self) { Text($0).tag($0) }
             }
@@ -166,100 +155,137 @@ struct WWFFSpotsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - Card Grid
+    // MARK: - Table
 
-    private var grid: some View {
-        ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), spacing: 8)],
-                      spacing: 8) {
-                ForEach(filtered) { spot in
-                    spotCard(spot)
+    private var spotTable: some View {
+        Table(filtered,
+              selection: $selection,
+              sortOrder: $sortOrder,
+              columnCustomization: $columnCustomization) {
+            Group {
+                TableColumn("Zeit", value: \WWFFSpot.timeStamp) { s in
+                    Text(timeAgoText(s.timeStamp))
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(theme.textDim)
                 }
-            }
-            .padding(10)
-        }
-    }
+                .width(min: 50, ideal: 60)
+                .customizationID("time")
 
-    private func spotCard(_ s: WWFFSpot) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(s.dxCall)
-                    .font(.callout.bold().monospaced())
-                    .foregroundStyle(theme.textPrimary)
-                Text("@").foregroundStyle(theme.textDim)
-                Text(s.reference)
-                    .font(.callout.monospaced())
-                    .foregroundStyle(theme.colorWWFF)
-                Spacer()
-                Text(timeAgoText(s.timeStamp))
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(theme.textDim)
-            }
-
-            HStack(spacing: 6) {
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .font(.caption2)
-                    .foregroundStyle(theme.accentBlue)
-                Text(String(format: "%.3f MHz", s.frequencyMHz))
-                    .font(.caption.monospaced())
-                if !s.mode.isEmpty {
-                    Text("(\(s.mode))")
-                        .font(.caption.monospaced())
-                        .foregroundStyle(theme.textSecondary)
+                TableColumn("Freq (MHz)", value: \WWFFSpot.frequencyMHz) { s in
+                    Text(String(format: "%.3f", s.frequencyMHz))
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
-                Spacer()
-                if !s.band.isEmpty {
+                .width(min: 70, ideal: 85)
+                .customizationID("freq")
+
+                TableColumn("Band", value: \WWFFSpot.band) { s in
                     Text(s.band)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(theme.textSecondary)
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
-            }
+                .width(min: 45, ideal: 55)
+                .customizationID("band")
 
-            if !s.spotter.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "person").font(.caption2)
-                    Text(s.spotter).font(.caption.monospaced())
+                TableColumn("Mode", value: \WWFFSpot.mode) { s in
+                    Text(s.mode)
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .width(min: 45, ideal: 60)
+                .customizationID("mode")
+
+                TableColumn("DX-Rufz.", value: \WWFFSpot.dxCall) { s in
+                    Text(s.dxCall)
+                        .font(.system(.caption, design: .monospaced).weight(.bold))
+                        .foregroundStyle(theme.textPrimary)
+                }
+                .width(min: 80, ideal: 100)
+                .customizationID("call")
+
+                TableColumn("Ref", value: \WWFFSpot.reference) { s in
+                    Text(s.reference)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(theme.colorWWFF)
+                }
+                .width(min: 70, ideal: 95)
+                .customizationID("ref")
+
+                TableColumn("Spotter", value: \WWFFSpot.spotter) { s in
+                    Text(s.spotter)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(theme.textDim)
+                }
+                .width(min: 70, ideal: 90)
+                .customizationID("spotter")
+
+                TableColumn("Kommentar") { (s: WWFFSpot) in
+                    Text(s.comments)
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .foregroundStyle(theme.textDim)
+                }
+                .width(min: 120, ideal: 200)
+                .customizationID("comment")
+
+                TableColumn("AUTO") { (s: WWFFSpot) in
                     if s.isAutomaticSpot {
-                        Text("AUTO").font(.caption2.bold())
+                        Text("AUTO")
+                            .font(.caption2.bold())
                             .padding(.horizontal, 4).padding(.vertical, 1)
                             .background(Color.gray.opacity(0.2))
                             .clipShape(RoundedRectangle(cornerRadius: 3))
                     }
                 }
-                .foregroundStyle(theme.textDim)
+                .width(min: 45, ideal: 55)
+                .customizationID("auto")
+                .defaultVisibility(.hidden)
             }
 
-            if !s.comments.isEmpty {
-                HStack(alignment: .top, spacing: 4) {
-                    Image(systemName: "bubble.left").font(.caption2)
-                    Text(s.comments).font(.caption).lineLimit(2)
-                }
-                .foregroundStyle(theme.textDim)
-            }
-
-            HStack {
+            TableColumn("") { s in
                 Button { copyToForm(s) } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "square.and.arrow.up.fill")
-                        Text("Copy")
-                    }
-                    .font(.caption.bold())
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(theme.accentBlue.opacity(0.18))
-                    .foregroundStyle(theme.accentBlue)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    Image(systemName: "square.and.arrow.up.fill")
+                        .foregroundStyle(theme.accentBlue)
                 }
-                .buttonStyle(.plain)
-                Spacer()
+                .buttonStyle(.borderless)
+                .disabled(s.frequencyMHz <= 0)
+                .help("Copy ins WWFF-Form")
+            }
+            .width(28)
+            .customizationID("action")
+            .disabledCustomizationBehavior([.visibility, .reorder])
+        }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .font(.system(size: 12))
+        .contextMenu(forSelectionType: WWFFSpot.ID.self) { ids in
+            if let id = ids.first, let spot = filtered.first(where: { $0.id == id }) {
+                Button {
+                    copyToForm(spot)
+                } label: {
+                    Label("Copy ins WWFF-Form", systemImage: "square.and.arrow.up.fill")
+                }
+                .disabled(spot.frequencyMHz <= 0)
+            }
+        } primaryAction: { ids in
+            if let id = ids.first, let spot = filtered.first(where: { $0.id == id }),
+               spot.frequencyMHz > 0 {
+                copyToForm(spot)
             }
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.bgCard)
-        .overlay(RoundedRectangle(cornerRadius: 6)
-            .stroke(theme.separator, lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    private func loadCustomization() {
+        guard let data = UserDefaults.standard.data(forKey: customizationStorageKey),
+              let decoded = try? JSONDecoder().decode(TableColumnCustomization<WWFFSpot>.self, from: data) else {
+            return
+        }
+        columnCustomization = decoded
+    }
+
+    private func saveCustomization() {
+        guard let data = try? JSONEncoder().encode(columnCustomization) else { return }
+        UserDefaults.standard.set(data, forKey: customizationStorageKey)
     }
 
     private func copyToForm(_ s: WWFFSpot) {
