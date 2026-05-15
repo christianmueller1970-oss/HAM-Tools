@@ -21,30 +21,33 @@ import CryptoKit
 
 // MARK: - RELEASE-DATEN (für jeden Release anpassen)
 
-let RELEASE_VERSION   = "1.8.2"
-let RELEASE_BUILDDATE = "2026-05-14"          // ISO 8601, YYYY-MM-DD
+let RELEASE_VERSION   = "1.8.3"
+let RELEASE_BUILDDATE = "2026-05-15"          // ISO 8601, YYYY-MM-DD
 let RELEASE_MIN_MACOS = "14.0"                 // oder nil
-let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.2.dmg"
+let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.3.dmg"
 let RELEASE_CRITICAL  = false                  // true zwingt User zur Installation (kein Skip)
 let RELEASE_NOTES = """
-Multi-Call-Lizenz + Portabel-/Ausland-Calls: das Lizenz-Schema akzeptiert \
-jetzt mehrere Calls (z.B. Privat + Club). Eingaben wie HB9HJI/P, DL/HB9HJI \
-oder F/HB9HJI/MM werden via Substring-Match an "/"-Grenzen gegen die \
-Lizenz geprüft.
+Spalten-Verwaltung im DX-Log: Die QSO-Tabelle hat einen neuen \
+"Spalten"-Button in der Toolbar — damit lassen sich alle verfügbaren \
+Spalten ein-/ausblenden, inklusive der neuen Felder QTH, ITU-Zone, \
+Distanz (km), Peilung (°), Station-Call, QSL Via und My POTA/SOTA/WWFF/BOTA. \
+Reihenfolge per Drag im Spaltenkopf verschiebbar. Auswahl persistiert \
+pro Log-Typ (Standard/POTA/Contest).
 
-Pro-Log-Callsign: jedes Log hält einen eigenen Station-Call (Wizard \
-zeigt "Mein Call (für dieses Log)" mit Live-Lizenz-Validation). Wird \
-in jedes QSO als stationCall + operatorCall geschrieben.
+Alle Spot-Tabellen jetzt spalten-basiert: DX-Cluster, POTA-, SOTA-, \
+BOTA- und WWFF-Spots wurden von der bisherigen Card-Darstellung auf \
+eine Tabelle umgestellt — mit Drag-Reorder, Hide/Show pro Spalte und \
+Klick-Sortierung auf jedem Spaltenkopf. Copy bleibt via Doppelklick \
+oder Context-Menü erreichbar.
 
-Multi-Op-Contest: NewContestLogSheet bekommt ein Operatoren-Feld \
-(Komma-Liste), in der ContestEntryForm erscheint ein OP-Switcher \
-rechts in der Header-Bar. Awards-Tab hat einen neuen Sub-Tab "OPs" \
-mit Pro-Operator-Aufschlüsselung (QSOs + Anteil pro OP).
+DX-Standard-Log aufgeräumt: Die POTA-Spalten "State" und "Their Park" \
+werden jetzt nur noch in echten POTA-Logs angezeigt (vorher auch \
+fälschlich im Standard-Log). Der BOTA-Map Sub-Tab erscheint nur noch \
+in BOTA-Programm-Logs.
 
-Außerdem: Lizenz-Generator gibt's jetzt als signiertes App-Bundle \
-(kein swift run mehr nötig). Awards-Tab ist im Contest sichtbar \
-(vorher ausgeblendet). Help-Site dokumentiert die macOS-14-Voraussetzung \
-prominent.
+Contest-Wizard: Das "Neuer Contest"-Sheet ist größer und scrollbar — \
+die Buttons "Abbrechen / Anlegen" im Kategorien-Schritt sind nicht \
+mehr abgeschnitten.
 """
 
 // MARK: - Implementation (sollte stabil bleiben)
