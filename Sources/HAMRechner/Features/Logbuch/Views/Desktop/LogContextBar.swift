@@ -18,6 +18,8 @@ struct LogContextBar: View {
 
     let totalCount: Int
     let filteredCount: Int
+    @ObservedObject var columnStore: QSOColumnVisibilityStore
+    let currentLogType: LogType?
 
     @State private var pendingImport: PendingImport?
     @State private var lastExportURL: URL?
@@ -111,6 +113,7 @@ struct LogContextBar: View {
                     }
                 }
 
+                columnsMenu
                 actionButton("Import…", icon: "square.and.arrow.down", action: openADIFImport)
                 actionButton("Export ADIF", icon: "square.and.arrow.up", action: exportADIF)
                 actionButton("Cabrillo…", icon: "stopwatch",
@@ -138,6 +141,45 @@ struct LogContextBar: View {
                 .environmentObject(themeManager)
                 .environmentObject(manager)
         }
+    }
+
+    // Dropdown-Menü zum Ein-/Ausblenden aller Spalten der QSO-Tabelle.
+    // Alternative zum nativen Header-Rechtsklick — sichtbarer in der
+    // Toolbar und mit "Defaults wiederherstellen"-Option.
+    private var columnsMenu: some View {
+        Menu {
+            ForEach(QSOColumnVisibilityStore.columns) { col in
+                if col.canHide {
+                    Toggle(col.label, isOn: columnStore.visibilityBinding(for: col.id))
+                }
+            }
+            Divider()
+            Button("Standard-Spalten wiederherstellen") {
+                columnStore.resetToDefaults(for: currentLogType)
+            }
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: "tablecells")
+                    .font(.caption2)
+                Text("Spalten")
+                    .font(.caption)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8))
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(theme.bgCard2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(theme.separator, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(manager.currentLogID == nil)
+        .opacity(manager.currentLogID == nil ? 0.55 : 1.0)
     }
 
     private func actionButton(_ label: String,

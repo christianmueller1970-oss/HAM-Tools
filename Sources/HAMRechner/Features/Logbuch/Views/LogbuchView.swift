@@ -59,6 +59,15 @@ struct LogbuchView: View {
         return log.type == .bota
     }
 
+    // Typ des aktiven Logs (oder nil wenn kein Log offen ist).
+    // Wird vom QSO-Spalten-Store genutzt, um pro Log-Typ eine eigene
+    // Spalten-Konfiguration zu laden.
+    private var currentLogType: LogType? {
+        guard let id = manager.currentLogID,
+              let log = manager.logs.first(where: { $0.id == id }) else { return nil }
+        return log.type
+    }
+
     let onBackToHome: () -> Void
 
     @State private var showNewLogSheet: Bool = false
@@ -93,6 +102,10 @@ struct LogbuchView: View {
     // der Session bestehen, persistiert aber nicht (Selektionen sind
     // typischerweise transient).
     @State private var selectedQSOs: Set<UUID> = []
+
+    // Zentraler Store für die QSO-Tabellen-Spalten — wird von QSOTableView
+    // (Tabelle selbst) und LogContextBar (Spalten-Menü) gemeinsam genutzt.
+    @StateObject private var qsoColumnStore = QSOColumnVisibilityStore()
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -158,6 +171,15 @@ struct LogbuchView: View {
             if manager.currentLogID == nil, let first = manager.logs.first {
                 manager.openLog(first)
             }
+            qsoColumnStore.loadCustomization(for: currentLogType)
+        }
+        .onChange(of: manager.currentLogID) { _, _ in
+            // Beim Log-Wechsel die für den Log-Typ passende Spalten-
+            // Konfiguration laden (Standard/POTA/Contest haben eigene Keys).
+            qsoColumnStore.loadCustomization(for: currentLogType)
+        }
+        .onChange(of: qsoColumnStore.customization) { _, _ in
+            qsoColumnStore.saveCustomization()
         }
         .onChange(of: logBridge.navigationRequest) {
             // Spot wurde im DXClusters-Tab geklickt während wir schon im
@@ -267,7 +289,9 @@ struct LogbuchView: View {
                 filterCountry: $filterCountry,
                 selectedQSOs: $selectedQSOs,
                 totalCount: manager.currentQSOs.count,
-                filteredCount: filteredLogCount
+                filteredCount: filteredLogCount,
+                columnStore: qsoColumnStore,
+                currentLogType: currentLogType
             )
         case .dxClusters:
             if currentLogIsPOTA {
@@ -682,7 +706,8 @@ struct LogbuchView: View {
     private var bottomContent: some View {
         switch bottomTab {
         case .log:
-            QSOTableView(filterCall: $filterCall,
+            QSOTableView(columnStore: qsoColumnStore,
+                         filterCall: $filterCall,
                          filterBand: $filterBand,
                          filterMode: $filterMode,
                          filterCountry: $filterCountry,

@@ -8,6 +8,7 @@ struct QSOTableView: View {
     @EnvironmentObject var manager: LogbookManager
     @EnvironmentObject var potaService: PotaParkService
     @EnvironmentObject var callbookManager: CallbookManager
+    @ObservedObject var columnStore: QSOColumnVisibilityStore
 
     @Binding var filterCall: String
     @Binding var filterBand: String
@@ -32,21 +33,6 @@ struct QSOTableView: View {
     @State private var sortOrder: [KeyPathComparator<QSO>] = [
         KeyPathComparator(\QSO.datetime, order: .reverse)
     ]
-
-    // Spalten-Anpassung (Reihenfolge + Sichtbarkeit + Breite). TableColumn-
-    // Customization ist Codable — wird in UserDefaults als JSON persistiert.
-    // Pro Log-Typ ein eigener Key: Contest braucht Serial+Exch, POTA braucht
-    // Their-Park, Standard ist die generische DX-Sicht.
-    @State private var columnCustomization = TableColumnCustomization<QSO>()
-    private var customizationStorageKey: String {
-        let suffix: String
-        switch currentLog?.type {
-        case .contest: suffix = ".contest"
-        case .pota:    suffix = ".pota"
-        default:       suffix = ""
-        }
-        return "logbook.qsoTable.columnCustomization\(suffix).v2"
-    }
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -103,16 +89,11 @@ struct QSOTableView: View {
                 .environmentObject(manager)
         }
         .onAppear {
-            loadCustomization()
             recomputeDupes()
         }
-        .onChange(of: columnCustomization) { _, _ in saveCustomization() }
         .onChange(of: manager.currentQSOs) { _, _ in recomputeDupes() }
         .onChange(of: manager.currentLogID) { _, _ in
             recomputeDupes()
-            // Beim Log-Wechsel die für den Log-Typ passende Spalten-Konfiguration
-            // laden (Standard, POTA, Contest haben je einen eigenen Storage-Key).
-            loadCustomization()
         }
     }
 
@@ -164,7 +145,7 @@ struct QSOTableView: View {
         Table(sortedQSOs,
               selection: $selectedQSOs,
               sortOrder: $sortOrder,
-              columnCustomization: $columnCustomization) {
+              columnCustomization: $columnStore.customization) {
             // Default-sichtbare Spalten in einer Group — sonst überschreitet
             // die Tabelle das TableColumnBuilder-10er-Limit (insgesamt haben
             // wir 15 Spalten inkl. Aktionen).
@@ -375,6 +356,100 @@ struct QSOTableView: View {
                 .defaultVisibility(.hidden)
             }
 
+            // Zusätzliche QSO-Felder — alle default-hidden, per
+            // Spalten-Menü zuschaltbar.
+            Group {
+                TableColumn("QTH") { (qso: QSO) in
+                    Text(qso.qth ?? "")
+                        .font(.caption)
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 80, ideal: 120)
+                .customizationID("qth")
+                .defaultVisibility(.hidden)
+
+                TableColumn("ITU-Zone") { (qso: QSO) in
+                    Text(qso.ituZone.map(String.init) ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 50, ideal: 60)
+                .customizationID("ituZone")
+                .defaultVisibility(.hidden)
+
+                TableColumn("Distanz (km)") { (qso: QSO) in
+                    Text(qso.distanceKm.map { String(format: "%.0f", $0) } ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 70, ideal: 90)
+                .customizationID("distance")
+                .defaultVisibility(.hidden)
+
+                TableColumn("Peil (°)") { (qso: QSO) in
+                    Text(qso.bearingDeg.map { String(format: "%.0f°", $0) } ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 60, ideal: 75)
+                .customizationID("bearing")
+                .defaultVisibility(.hidden)
+
+                TableColumn("Station-Call") { (qso: QSO) in
+                    Text(qso.stationCall ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 70, ideal: 90)
+                .customizationID("stationCall")
+                .defaultVisibility(.hidden)
+
+                TableColumn("QSL Via") { (qso: QSO) in
+                    Text(qso.qslSentVia ?? qso.qslReceivedVia ?? "")
+                        .font(.caption)
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 60, ideal: 80)
+                .customizationID("qslVia")
+                .defaultVisibility(.hidden)
+
+                TableColumn("My POTA") { (qso: QSO) in
+                    Text(qso.myPotaRefs ?? qso.myPotaRef ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 80, ideal: 100)
+                .customizationID("myPota")
+                .defaultVisibility(.hidden)
+
+                TableColumn("My SOTA") { (qso: QSO) in
+                    Text(qso.mySotaRefs ?? qso.mySotaRef ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 80, ideal: 100)
+                .customizationID("mySota")
+                .defaultVisibility(.hidden)
+
+                TableColumn("My WWFF") { (qso: QSO) in
+                    Text(qso.myWwffRefs ?? qso.myWwffRef ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 80, ideal: 100)
+                .customizationID("myWwff")
+                .defaultVisibility(.hidden)
+
+                TableColumn("My BOTA") { (qso: QSO) in
+                    Text(qso.myBotaRefs ?? qso.myBotaRef ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(uploadColor(for: qso))
+                }
+                .width(min: 80, ideal: 100)
+                .customizationID("myBota")
+                .defaultVisibility(.hidden)
+            }
+
             // QRZ-Status — grüner Haken wenn Call via Callbook irgendwas
             // geliefert hat (Name oder Locator oder Country). Bei US-Calls
             // ohne Namens-Eintrag bringt QRZ trotzdem Locator/Country —
@@ -523,52 +598,6 @@ struct QSOTableView: View {
                 }
             }
         }
-    }
-
-    // MARK: - Persistenz der Spalten-Anpassung
-
-    private func loadCustomization() {
-        if let data = UserDefaults.standard.data(forKey: customizationStorageKey),
-           let decoded = try? JSONDecoder().decode(TableColumnCustomization<QSO>.self, from: data) {
-            columnCustomization = decoded
-            return
-        }
-        // Kein Save unter diesem Key vorhanden → Sinnvolle Defaults für den
-        // aktuellen Log-Typ. Spätere User-Anpassungen werden wieder unter
-        // demselben Key persistiert.
-        columnCustomization = defaultsForCurrentLogType()
-    }
-
-    private func saveCustomization() {
-        guard let data = try? JSONEncoder().encode(columnCustomization) else { return }
-        UserDefaults.standard.set(data, forKey: customizationStorageKey)
-    }
-
-    /// Erzeugt eine Spalten-Konfiguration für den gerade aktiven Log-Typ.
-    /// Wird beim ersten Öffnen eines neuen Log-Typs verwendet (Key noch leer).
-    private func defaultsForCurrentLogType() -> TableColumnCustomization<QSO> {
-        var c = TableColumnCustomization<QSO>()
-        switch currentLog?.type {
-        case .contest:
-            // POTA-/QRZ-Spalten unsichtbar, Contest-Felder sichtbar.
-            // rowNumber ist global default-sichtbar — kein expliziter Override nötig.
-            c[visibility: "theirPark"]       = .hidden
-            c[visibility: "state"]           = .hidden
-            c[visibility: "qrzStatus"]       = .hidden
-            c[visibility: "contestSerial"]   = .visible
-            c[visibility: "contestExchSent"] = .visible
-            c[visibility: "contestExchRecv"] = .visible
-        case .pota:
-            c[visibility: "theirPark"]      = .visible
-            c[visibility: "state"]          = .visible
-        default:
-            // Standard/SOTA/WWFF/BOTA: POTA-spezifische Spalten sind hier
-            // irrelevant — User kann sie über das Spalten-Menü wieder
-            // einblenden, aber default ausgeblendet.
-            c[visibility: "theirPark"]      = .hidden
-            c[visibility: "state"]          = .hidden
-        }
-        return c
     }
 
     // MARK: - Color coding
