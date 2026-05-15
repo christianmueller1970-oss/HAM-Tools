@@ -244,6 +244,19 @@ struct HAMRechnerApp: App {
         .windowStyle(.titleBar)
         .defaultSize(width: 760, height: 560)
 
+        // Cluster-Terminal-Pop-up: roher Output-Stream + Befehlszeile
+        // + Schnellbefehl-Buttons + persistente History (↑/↓). Hängt am
+        // selben DXClusterViewModel, Antworten landen automatisch im
+        // globalen Spot-Stream.
+        WindowGroup("Cluster-Terminal", id: "terminal") {
+            ClusterTerminalView()
+                .environmentObject(themeManager)
+                .environmentObject(dxClusterVM)
+                .frame(minWidth: 520, minHeight: 360)
+        }
+        .windowStyle(.titleBar)
+        .defaultSize(width: 720, height: 520)
+
         Settings {
             EinstellungenView()
                 .environmentObject(themeManager)

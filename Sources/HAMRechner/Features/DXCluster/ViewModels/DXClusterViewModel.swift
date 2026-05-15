@@ -223,6 +223,17 @@ final class DXClusterViewModel: ObservableObject {
         client?.sendCommand(cmd)
     }
 
+    /// Generisches Senden eines beliebigen Cluster-Befehls. Wird vom
+    /// Cluster-Terminal-Fenster genutzt. Antworten landen über onMessage
+    /// im logMessages-Buffer; falls Spots zurückkommen (z.B. nach "sh/dx"),
+    /// parst der ClusterClient sie wie Live-Feed-Spots und fügt sie der
+    /// globalen Spot-Liste hinzu — automatisch.
+    func sendCommand(_ cmd: String) {
+        let trimmed = cmd.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        client?.sendCommand(trimmed)
+    }
+
     // MARK: - Private
 
     private func addSpot(_ spot: DXSpot) {
@@ -250,7 +261,9 @@ final class DXClusterViewModel: ObservableObject {
 
     private func appendLog(_ msg: String) {
         logMessages.append(msg)
-        if logMessages.count > 200 { logMessages.removeFirst(10) }
+        // 2000 Lines Ring-Buffer — reichlich für Cluster-Terminal-History.
+        // Bei average 80 Bytes/Line ~160kB; kompletter Trim alle ~200 Adds.
+        if logMessages.count > 2000 { logMessages.removeFirst(200) }
     }
 
     private func savePending() {

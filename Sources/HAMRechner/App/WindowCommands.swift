@@ -51,6 +51,11 @@ struct WindowCommands: View {
                 openWindow(id: "contestcluster")
             }
             .keyboardShortcut("c", modifiers: [.command, .shift])
+
+            Button("Cluster-Terminal…") {
+                openWindow(id: "terminal")
+            }
+            .keyboardShortcut("t", modifiers: [.command, .option])
         }
     }
 }
