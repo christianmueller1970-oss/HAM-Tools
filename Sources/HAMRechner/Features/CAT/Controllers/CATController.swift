@@ -27,6 +27,13 @@ final class CATController: ObservableObject {
 
     private let tcpPort = 4532
 
+    // Lock-Flag um den RigctldClient. Der Client hat keine interne
+    // Parallelität — Poll-Loop und Write-API (setFrequency, setMode …)
+    // dürfen nie gleichzeitig auf den TCP-Socket schreiben, sonst
+    // entsteht Buffer-Salat → Parse-Error → unbeabsichtigtes Disconnect.
+    // Wir sind im @MainActor, also ist das Bool-Flip thread-safe.
+    private var clientBusy = false
+
     init(radioState: RadioState, settings: CATSettings) {
         self.radioState = radioState
         self.settings = settings
@@ -165,31 +172,41 @@ final class CATController: ObservableObject {
             // werden über einen Counter ausgedünnt (signal/vfo/split).
             var tick = 0
             while !Task.isCancelled {
+                // Lock um die GANZE Poll-Iteration: getFrequency, getMode,
+                // getSignal, getVFO, getSplit — alle auf demselben TCP-Socket,
+                // dürfen nicht von einer Write-Operation unterbrochen werden.
+                await self.acquireClientLock()
+                let pollResult: Result<(Int64, (mode: String, passbandHz: Int), Int, String?, (Bool, String)?), Error>
                 do {
                     let hz = try await self.client.getFrequencyHz()
                     let mode = try await self.client.getMode()
-
-                    // Signal jede Runde (für flüssiges S-Meter).
                     let signal = (try? await self.client.getSignalStrengthRelDB()) ?? self.radioState.signalStrengthRelDB
-
-                    // VFO + Split alle paar Ticks (weniger zeitkritisch).
                     var newVfo: String? = nil
                     var newSplit: (Bool, String)? = nil
                     if tick % 4 == 0 {
                         newVfo = try? await self.client.getVFO()
                         newSplit = try? await self.client.getSplit()
                     }
+                    pollResult = .success((hz, mode, signal, newVfo, newSplit))
+                } catch {
+                    pollResult = .failure(error)
+                }
+                self.releaseClientLock()
 
+                switch pollResult {
+                case .success(let (hz, mode, signal, newVfo, newSplit)):
                     self.applyPoll(hz: hz,
                                    hamlibMode: mode.mode,
                                    passbandHz: mode.passbandHz,
                                    signalRelDB: signal,
                                    vfo: newVfo,
                                    split: newSplit)
-                } catch {
+                case .failure(let error):
                     self.setError(error)
                     self.stopInternal()
-                    break
+                    // break funktioniert hier nicht weil wir in switch sind;
+                    // wir setzen ein Flag und brechen außerhalb ab.
+                    return
                 }
                 tick += 1
                 try? await Task.sleep(nanoseconds: UInt64(intervalMs) * 1_000_000)
@@ -232,29 +249,53 @@ final class CATController: ObservableObject {
         }
     }
 
+    // MARK: - Client-Lock (verhindert Race zwischen Poll-Loop und Write-API)
+
+    /// Wartet bis der Client frei ist (5ms-Polling), markiert ihn dann als
+    /// belegt. Aufrufer MUSS am Ende `releaseClientLock()` rufen — entweder
+    /// direkt oder via `defer`.
+    private func acquireClientLock() async {
+        while clientBusy {
+            try? await Task.sleep(nanoseconds: 5_000_000)
+        }
+        clientBusy = true
+    }
+
+    private func releaseClientLock() {
+        clientBusy = false
+    }
+
     // MARK: - Write-API (Phase 5b)
 
     func setFrequencyMHz(_ mhz: Double) async {
         guard case .connected = status else { return }
         let hz = Int64((mhz * 1_000_000).rounded())
+        await acquireClientLock()
+        defer { releaseClientLock() }
         do { try await client.setFrequencyHz(hz) }
         catch { setError(error) }
     }
 
     func setHamlibMode(_ mode: String, passbandHz: Int = 0) async {
         guard case .connected = status else { return }
+        await acquireClientLock()
+        defer { releaseClientLock() }
         do { try await client.setMode(mode, passbandHz: passbandHz) }
         catch { setError(error) }
     }
 
     func setVFO(_ vfo: String) async {
         guard case .connected = status else { return }
+        await acquireClientLock()
+        defer { releaseClientLock() }
         do { try await client.setVFO(vfo) }
         catch { setError(error) }
     }
 
     func setSplit(on: Bool, txVfo: String = "VFOB") async {
         guard case .connected = status else { return }
+        await acquireClientLock()
+        defer { releaseClientLock() }
         do { try await client.setSplit(on: on, txVfo: txVfo) }
         catch { setError(error) }
     }

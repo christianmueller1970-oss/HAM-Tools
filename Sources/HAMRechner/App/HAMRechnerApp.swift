@@ -134,12 +134,33 @@ struct HAMRechnerApp: App {
                 .environmentObject(updateChecker)
                 .environmentObject(wsjtxSettings)
                 .environmentObject(wsjtxBridge)
-                .frame(minWidth: 900, minHeight: 580)
+                .frame(minWidth: 860, minHeight: 560)
                 .preferredColorScheme(themeManager.theme.colorScheme)
+                .task {
+                    // QSY-Bridge: beim Klick auf einen DX-Spot springt der
+                    // TRX auf die Spot-Frequenz UND in den passenden Mode
+                    // (USB/LSB aus SSB + Frequenz, CW direkt, FT8/FT4/PSK
+                    // als PKTUSB/PKTLSB). Die Closure wird hier einmal
+                    // gesetzt, weil SpotListView selbst kein CAT-Environment
+                    // haben darf (sie wird auch außerhalb des Logbuch-Trees
+                    // gerendert).
+                    let cat = catController
+                    LogEntryBridge.shared.onRequestQSY = { mhz, hamlibMode in
+                        Task { @MainActor in
+                            guard case .connected = cat.status else { return }
+                            await cat.setFrequencyMHz(mhz)
+                            if let mode = hamlibMode {
+                                await cat.setHamlibMode(mode)
+                            }
+                        }
+                    }
+                }
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
-        .defaultSize(width: 1280, height: 760)
+        // Default zugeschnitten auf 13" MacBook Air (1280×800 Default-Skala)
+        // — Window-Chrome lässt ~755pt Höhe, Dock zieht weitere ~30pt ab.
+        .defaultSize(width: 1180, height: 720)
         .commands {
             CommandGroup(replacing: .newItem) {}
             CommandGroup(after: .appInfo) {
@@ -147,6 +168,10 @@ struct HAMRechnerApp: App {
                     updateChecker.checkNow()
                 }
                 .keyboardShortcut("u", modifiers: [.command, .option])
+            }
+            CommandMenu("Transceiver") {
+                TransceiverCommands(settings: catSettings,
+                                    controller: catController)
             }
             CommandGroup(replacing: .help) {
                 Button("Bug melden…") {

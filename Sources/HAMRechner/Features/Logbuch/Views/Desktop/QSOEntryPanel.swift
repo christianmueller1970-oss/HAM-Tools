@@ -316,6 +316,11 @@ struct QSOEntryPanel: View {
         if let cmt = draft.spotComment, !cmt.isEmpty { notes = cmt }
         timeOn = Date()
         lastFilledFromSpot = Date()
+
+        // Nach Spot-Klick automatisch QRZ-Lookup auslösen (Name, Locator,
+        // QTH …). Respektiert callbookSettings.autoLookupOnTab und macht
+        // keine doppelten Requests dank lastLookedUpCall-Guard.
+        triggerCallbookLookup()
     }
 
     // MARK: - Header mit DX | Contest | Outdoor Tabs (+ Sub-Bar)
@@ -642,6 +647,10 @@ struct QSOEntryPanel: View {
                     if newValue != newValue.uppercased() {
                         call = newValue.uppercased()
                     }
+                    // Sidebar "DX-Spot senden" liest diesen Wert und übernimmt
+                    // ihn automatisch ins DX-Call-Feld — Spot-Workflow ohne
+                    // doppeltes Tippen.
+                    logBridge.draftCallLive = call
                 }
                 .onChange(of: callFieldFocused) { _, focused in
                     // Fokus raus = User hat TAB gedrückt (oder anders weg)

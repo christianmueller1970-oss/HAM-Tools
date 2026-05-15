@@ -13,6 +13,19 @@ final class LogEntryBridge: ObservableObject {
     @Published var pendingDraft: QSODraft? = nil
     @Published var navigationRequest: UUID? = nil
 
+    // Live-Spiegel des aktuellen QSO-Form-Calls. Wird vom QSOEntryPanel bei
+    // jeder Änderung gesetzt und vom PropagationPanelView (Sidebar) gelesen,
+    // damit der "DX-Spot senden"-Block die Eingabe automatisch übernimmt.
+    @Published var draftCallLive: String = ""
+
+    // QSY-Hook: wird beim Spot-Klick gerufen (Frequenz in MHz + optionaler
+    // Hamlib-Mode-String wie "USB"/"LSB"/"CW"/"PKTUSB"). Der Owner
+    // (HAMRechnerApp) setzt hier eine Closure ein, die CATController.
+    // setFrequencyMHz + setHamlibMode aufruft. So muss SpotListView keinen
+    // CAT-Environment-Zugriff haben und bleibt in jedem View-Tree (auch
+    // Pop-up-Fenster) renderbar.
+    var onRequestQSY: ((Double, String?) -> Void)?
+
     // POTA-spezifisch: eigener Slot, weil das POTA-Form anders aufgebaut
     // ist (eigene @State-Felder) als das DX-Form.
     @Published var pendingPotaSpot: POTASpot? = nil
@@ -63,7 +76,16 @@ final class LogEntryBridge: ObservableObject {
         draft.spotComment = spot.comment
 
         pendingDraft = draft
-        navigationRequest = UUID()
+        navigationRequest = UUID()  // triggert consumeBridge() im QSOEntryPanel —
+                                    // einen automatischen Tab-Wechsel löst das
+                                    // bewusst NICHT mehr aus (LogbuchView).
+
+        // QSY ans Radio — wenn CAT verbunden ist, springt der TRX auf die
+        // Spot-Frequenz und in den passenden Mode. Hook-Logik in HAMRechnerApp.
+        let mhz = spot.frequency / 1000.0
+        let hamlibMode = SSBResolver.hamlibMode(rawMode: spot.mode,
+                                                frequencyKHz: spot.frequency)
+        onRequestQSY?(mhz, hamlibMode)
     }
 
     func consume() -> QSODraft? {

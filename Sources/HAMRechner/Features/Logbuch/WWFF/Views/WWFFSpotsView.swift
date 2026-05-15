@@ -188,7 +188,7 @@ struct WWFFSpotsView: View {
                 .customizationID("band")
 
                 TableColumn("Mode", value: \WWFFSpot.mode) { s in
-                    Text(s.mode)
+                    Text(SSBResolver.displayMode(rawMode: s.mode, frequencyMHz: s.frequencyMHz))
                         .font(.system(.caption, design: .monospaced))
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
@@ -291,7 +291,12 @@ struct WWFFSpotsView: View {
     private func copyToForm(_ s: WWFFSpot) {
         onCopy(s)
         if qsyOnCopy, case .connected = cat.status, s.frequencyMHz > 0 {
-            Task { await cat.setFrequencyMHz(s.frequencyMHz) }
+            let mhz = s.frequencyMHz
+            let mode = SSBResolver.hamlibMode(rawMode: s.mode, frequencyMHz: mhz)
+            Task {
+                await cat.setFrequencyMHz(mhz)
+                if let m = mode { await cat.setHamlibMode(m) }
+            }
         }
     }
 

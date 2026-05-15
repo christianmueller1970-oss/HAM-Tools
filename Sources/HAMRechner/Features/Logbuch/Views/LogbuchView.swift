@@ -18,6 +18,7 @@ struct LogbuchView: View {
     @EnvironmentObject var settings: LogbookSettings
     @EnvironmentObject var logBridge: LogEntryBridge
     @EnvironmentObject var clusterVM: DXClusterViewModel
+    @EnvironmentObject var radioState: RadioState
 
     // Hilfs-Property: true wenn das aktuelle Log eine POTA-Session ist.
     // Steuert das Routing des DX-Cluster-Tabs auf den POTA-Spots-Feed.
@@ -147,7 +148,7 @@ struct LogbuchView: View {
                 // sonst das gewohnte Propagation/Solar/Band-Activity-Panel.
                 if currentLogIsContest {
                     ContestStatsPanel()
-                        .frame(minWidth: 260, idealWidth: 300, maxWidth: 360, maxHeight: .infinity)
+                        .frame(minWidth: 230, idealWidth: 260, maxWidth: 340, maxHeight: .infinity)
                 } else {
                     PropagationPanelView(
                         propagation: clusterVM.propagation,
@@ -158,9 +159,11 @@ struct LogbuchView: View {
                         spots:       clusterVM.spots,
                         onSend:      { freq, call, comment in
                             clusterVM.sendSpot(freq: freq, call: call, comment: comment)
-                        }
+                        },
+                        prefillCall:    logBridge.draftCallLive,
+                        prefillFreqMHz: radioState.frequencyMHz
                     )
-                    .frame(minWidth: 240, idealWidth: 300, maxWidth: 360, maxHeight: .infinity)
+                    .frame(minWidth: 220, idealWidth: 260, maxWidth: 340, maxHeight: .infinity)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -181,14 +184,12 @@ struct LogbuchView: View {
         .onChange(of: qsoColumnStore.customization) { _, _ in
             qsoColumnStore.saveCustomization()
         }
-        .onChange(of: logBridge.navigationRequest) {
-            // Spot wurde im DXClusters-Tab geklickt während wir schon im
-            // Logbuch sind → zurück zum Log-Tab damit der Draft sichtbar
-            // ist und »Log QSO« einen Klick weg ist.
-            if logBridge.navigationRequest != nil {
-                bottomTab = .log
-            }
-        }
+        // Hinweis: Tab-Wechsel beim Spot-Klick wurde absichtlich entfernt —
+        // der User möchte im DXClusters-Sub-Tab bleiben und weiter Spots
+        // beobachten, während der Draft sich im Hintergrund ins QSO-Form
+        // füllt. Wechsel zum Log-Tab macht der User manuell, wenn er bereit
+        // ist zu loggen. Der Draft selbst wird über navigationRequest →
+        // QSOEntryPanel.consumeBridge() weiterhin sauber übertragen.
         .onChange(of: currentLogIsPOTA) { _, isPOTA in
             // Awards-Sub-Tab folgt automatisch dem Log-Typ beim Wechsel.
             // User-manuelle Auswahl bleibt erhalten solange im selben Log;

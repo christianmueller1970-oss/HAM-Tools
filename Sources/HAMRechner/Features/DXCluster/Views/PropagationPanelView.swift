@@ -11,6 +11,13 @@ struct PropagationPanelView: View {
     var spots:       [DXSpot] = []
     var onSend:      (Double, String, String) -> Void = { _, _, _ in }
 
+    // Live-Mirror aus dem QSO-Eingabe-Form. Wird vom Parent gereicht,
+    // damit das DX-Spot-Feld automatisch mit dem aktuellen Their-Call und
+    // der Radio-Frequenz vorgefüllt wird (User kann jeden Wert lokal
+    // überschreiben, bevor er auf "Senden" klickt).
+    var prefillCall:    String = ""
+    var prefillFreqMHz: Double = 0
+
     @State private var heatmapMinutes = 60
     @State private var dxCall    = ""
     @State private var frequency = ""
@@ -44,6 +51,32 @@ struct PropagationPanelView: View {
             }
         }
         .background(theme.bgPanel)
+        .onAppear {
+            applyPrefillIfNeeded()
+        }
+        .onChange(of: prefillCall) { _, _ in
+            applyPrefillIfNeeded()
+        }
+        .onChange(of: prefillFreqMHz) { _, _ in
+            applyPrefillIfNeeded()
+        }
+    }
+
+    // Übernimmt aktuellen QSO-Form-Call und Radio-Frequenz ins DX-Spot-Feld,
+    // damit der User direkt "Senden" drücken kann ohne doppelte Eingabe.
+    // Manuell editierte Spot-Werte werden überschrieben — wer wirklich einen
+    // anderen Call spotten will, ändert das Feld nach der Auto-Vorbelegung.
+    private func applyPrefillIfNeeded() {
+        let trimmed = prefillCall.trimmingCharacters(in: .whitespaces)
+        if !trimmed.isEmpty {
+            dxCall = trimmed
+        }
+        if prefillFreqMHz > 0 {
+            // SendSpot-Feld erwartet kHz mit einer Nachkommastelle (siehe
+            // Placeholder "z.B. 14074.0"). Komma-Format umgangen — sendSpot()
+            // parst beides.
+            frequency = String(format: "%.1f", prefillFreqMHz * 1000)
+        }
     }
 
     // MARK: Propagation gauges
@@ -75,7 +108,7 @@ struct PropagationPanelView: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .padding(12)
+        .padding(10)
     }
 
     // MARK: Solar-Details (Sonnenflecken, X-Ray, Wind, Aurora)
@@ -96,31 +129,37 @@ struct PropagationPanelView: View {
                 }
             }
 
-            VStack(spacing: 4) {
-                detailRow("Sonnenflecken (SSN)", value: propagation.ssn.map(String.init) ?? "—",
+            // Zwei-spaltig — auf 13"-MBA-Sidebars (220-260pt Breite) spart
+            // das ~half der Höhe gegenüber der bisherigen 6-zeiligen Liste.
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10),
+                                GridItem(.flexible(), spacing: 10)],
+                      spacing: 4) {
+                detailRow("SSN",         value: propagation.ssn.map(String.init) ?? "—",
                           color: ssnColor(propagation.ssn))
-                detailRow("X-Ray Flux",          value: propagation.xray ?? "—",
+                detailRow("X-Ray",       value: propagation.xray ?? "—",
                           color: xrayColor(propagation.xray))
-                detailRow("Solar Wind",          value: propagation.solarWind.map { "\($0) km/s" } ?? "—",
+                detailRow("Solar Wind",  value: propagation.solarWind.map { "\($0) km/s" } ?? "—",
                           color: solarWindColor(propagation.solarWind))
-                detailRow("Helium 304 Å",        value: propagation.helium.map { String(format: "%.1f", $0) } ?? "—")
-                detailRow("Aurora ab",            value: propagation.auroraLat.map { "\($0)° N" } ?? "—")
-                detailRow("Geomag. Feld",         value: propagation.geomagField?.capitalized ?? "—",
+                detailRow("Helium 304",  value: propagation.helium.map { String(format: "%.1f", $0) } ?? "—")
+                detailRow("Aurora",      value: propagation.auroraLat.map { "\($0)° N" } ?? "—")
+                detailRow("Geomag.",     value: propagation.geomagField?.capitalized ?? "—",
                           color: geomagColor(propagation.geomagField))
             }
         }
-        .padding(12)
+        .padding(10)
     }
 
     private func detailRow(_ label: String, value: String, color: Color? = nil) -> some View {
-        HStack {
+        HStack(spacing: 4) {
             Text(label)
-                .font(.system(size: 11))
+                .font(.system(size: 10))
                 .foregroundStyle(theme.textSecondary)
-            Spacer()
+                .lineLimit(1)
+            Spacer(minLength: 2)
             Text(value)
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .font(.system(size: 10, weight: .semibold, design: .monospaced))
                 .foregroundStyle(color ?? theme.textPrimary)
+                .lineLimit(1)
         }
     }
 
@@ -204,13 +243,13 @@ struct PropagationPanelView: View {
                 }
             }
         }
-        .padding(12)
+        .padding(10)
     }
 
     // MARK: DX-Spot senden
 
     private var sendSpotSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: "dot.radiowaves.right")
                     .foregroundStyle(gold)
@@ -289,7 +328,7 @@ struct PropagationPanelView: View {
                     .disabled(!isValid || !connected)
             }
         }
-        .padding(12)
+        .padding(10)
     }
 
     private func sendSpot() {
@@ -304,7 +343,7 @@ struct PropagationPanelView: View {
     // MARK: Band Activity heatmap
 
     private var bandActivitySection: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Image(systemName: "dot.radiowaves.left.and.right")
                     .foregroundStyle(gold)
@@ -346,7 +385,7 @@ struct PropagationPanelView: View {
                 }
             }
         }
-        .padding(12)
+        .padding(10)
     }
 }
 
@@ -411,13 +450,13 @@ struct SemiCircleGauge: View {
                 ctx.fill(dot,   with: .color(Color(red: 1.0, green: 0.82, blue: 0.2)))
                 ctx.stroke(dot, with: .color(.black.opacity(0.35)), lineWidth: 1)
             }
-            .frame(width: 110, height: 72)
+            .frame(width: 95, height: 56)
 
             Text(value > 0 ? String(format: "%.0f", value) : "–")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundStyle(gold)
             Text(label)
-                .font(.system(size: 10))
+                .font(.system(size: 9))
                 .foregroundStyle(.secondary)
             Text(sublabel)
                 .font(.system(size: 9, design: .monospaced))
@@ -469,7 +508,7 @@ struct HeatCell: View {
         Text(count > 0 ? "\(count)" : "")
             .font(.system(size: 9, weight: .semibold, design: .monospaced))
             .foregroundStyle(fg)
-            .frame(maxWidth: .infinity, minHeight: 16)
+            .frame(maxWidth: .infinity, minHeight: 14)
             .background(bg)
             .cornerRadius(2)
     }

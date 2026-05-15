@@ -86,7 +86,7 @@ struct SpotListView: View {
             .customizationID("band")
 
             TableColumn("Mode", value: \.mode) { s in
-                cell(s.mode, s).frame(maxWidth: .infinity, alignment: .center)
+                cell(s.displayMode, s).frame(maxWidth: .infinity, alignment: .center)
             }
             .width(min: 45, ideal: 55)
             .customizationID("mode")
@@ -143,7 +143,7 @@ struct SpotListView: View {
         .contextMenu(forSelectionType: DXSpot.ID.self) { ids in
             if let id = ids.first, let spot = sortedSpots.first(where: { $0.id == id }) {
                 Button {
-                    LogEntryBridge.shared.openInLog(from: spot)
+                    activate(spot)
                 } label: {
                     Label("Ins Logbuch eintragen", systemImage: "book.closed.fill")
                 }
@@ -151,9 +151,17 @@ struct SpotListView: View {
         } primaryAction: { ids in
             // Doppelklick → auch ins Log
             if let id = ids.first, let spot = sortedSpots.first(where: { $0.id == id }) {
-                LogEntryBridge.shared.openInLog(from: spot)
+                activate(spot)
             }
         }
+    }
+
+    /// Reaktion auf Spot-Klick: Draft ins Logbuch laden — LogEntryBridge
+    /// löst zusätzlich ein QSY am TRX aus, falls in HAMRechnerApp ein
+    /// onRequestQSY-Callback gesetzt wurde (zentrale Stelle, damit weder
+    /// SpotListView noch die Pop-up-Bandmaps direkten CAT-Zugriff brauchen).
+    private func activate(_ spot: DXSpot) {
+        LogEntryBridge.shared.openInLog(from: spot)
     }
 
     private func sourceColor(_ type: String) -> Color {

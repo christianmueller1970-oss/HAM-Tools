@@ -198,7 +198,7 @@ struct PotaSpotsView: View {
                 .customizationID("band")
 
                 TableColumn("Mode", value: \POTASpot.mode) { s in
-                    Text(s.mode)
+                    Text(SSBResolver.displayMode(rawMode: s.mode, frequencyMHz: s.frequencyMHz))
                         .font(.system(.caption, design: .monospaced))
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
@@ -311,7 +311,12 @@ struct PotaSpotsView: View {
     private func copyToForm(_ s: POTASpot) {
         onCopy(s)
         if qsyOnCopy, case .connected = cat.status {
-            Task { await cat.setFrequencyMHz(s.frequencyMHz) }
+            let mhz = s.frequencyMHz
+            let mode = SSBResolver.hamlibMode(rawMode: s.mode, frequencyMHz: mhz)
+            Task {
+                await cat.setFrequencyMHz(mhz)
+                if let m = mode { await cat.setHamlibMode(m) }
+            }
         }
     }
 
