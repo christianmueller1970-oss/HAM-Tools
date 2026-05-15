@@ -115,7 +115,10 @@ struct ContentView: View {
     @EnvironmentObject var updateChecker:  UpdateChecker
     @EnvironmentObject var wsjtxSettings:  WsjtxBridgeSettings
     @EnvironmentObject var wsjtxBridge:    WsjtxBridgeService
-    @StateObject private var dxClusterVM = DXClusterViewModel()
+    // dxClusterVM lebt auf App-Level (HAMRechnerApp) — wird hier nur per
+    // Environment konsumiert, damit auch Pop-up-Bandmap-Fenster dieselbe
+    // Spot-Quelle sehen.
+    @EnvironmentObject var dxClusterVM:    DXClusterViewModel
     @StateObject private var simBridge   = AntennaSimBridge.shared
     @StateObject private var logBridge   = LogEntryBridge.shared
     @State private var selectedCalculator: Calculator? = .logbuch

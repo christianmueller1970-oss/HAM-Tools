@@ -23,6 +23,10 @@ private func modeColor(_ mode: String) -> Color { MODE_COLORS[mode] ?? MODE_COLO
 struct BandmapView: View {
     let spots:  [DXSpot]
     let theme:  AppTheme
+    /// Wenn gesetzt: Band ist fest, Band-Switcher in der Toolbar wird
+    /// ausgeblendet. Wird von BandmapWindowView (Pop-up-Fenster) genutzt,
+    /// damit ein "20m"-Fenster auch 20m bleibt.
+    var fixedBand: String? = nil
 
     @State private var selectedBand   = "20m"
     @State private var timeMinutes    = 30
@@ -64,6 +68,11 @@ struct BandmapView: View {
             infoBar
         }
         .background(theme.bgApp)
+        .onAppear {
+            if let fb = fixedBand, !fb.isEmpty {
+                selectedBand = fb
+            }
+        }
     }
 
     // MARK: - Toolbar
@@ -71,20 +80,34 @@ struct BandmapView: View {
     private var toolbar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 4) {
-                Text("Band:")
-                    .font(.caption)
-                    .foregroundStyle(theme.textSecondary)
-                    .padding(.leading, 8)
-
-                ForEach(quickBands, id: \.self) { band in
-                    Button(band) { selectedBand = band }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, 8)
+                // Band-Switcher: nur im Hauptfenster sichtbar. In den
+                // Pop-up-Bandmaps ist das Band fest (fixedBand != nil) —
+                // dort zeigen wir stattdessen das aktive Band als Label.
+                if let fb = fixedBand {
+                    Text(fb)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(theme.accentBlue)
+                        .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .background(selectedBand == band ? theme.accentBlue : theme.bgCard)
-                        .foregroundStyle(selectedBand == band ? .white : theme.textPrimary)
-                        .font(.system(size: 11, weight: .bold))
+                        .background(theme.bgCard)
                         .cornerRadius(4)
+                        .padding(.leading, 8)
+                } else {
+                    Text("Band:")
+                        .font(.caption)
+                        .foregroundStyle(theme.textSecondary)
+                        .padding(.leading, 8)
+
+                    ForEach(quickBands, id: \.self) { band in
+                        Button(band) { selectedBand = band }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(selectedBand == band ? theme.accentBlue : theme.bgCard)
+                            .foregroundStyle(selectedBand == band ? .white : theme.textPrimary)
+                            .font(.system(size: 11, weight: .bold))
+                            .cornerRadius(4)
+                    }
                 }
 
                 Divider().frame(height: 20).padding(.horizontal, 4)

@@ -27,6 +27,10 @@ struct HAMRechnerApp: App {
     @StateObject private var updateChecker:    UpdateChecker  = UpdateChecker()
     @StateObject private var wsjtxSettings:    WsjtxBridgeSettings = WsjtxBridgeSettings()
     @StateObject private var wsjtxBridge:      WsjtxBridgeService = WsjtxBridgeService()
+    // DXClusterViewModel hier auf App-Level, damit auch Pop-up-Fenster
+    // (Bandmap-Windows) denselben Spot-Stream sehen — nicht mehr nur das
+    // Hauptfenster (ContentView).
+    @StateObject private var dxClusterVM:      DXClusterViewModel = DXClusterViewModel()
 
     init() {
         // Swift-Package-Builds laufen ohne .app-Bundle; macOS würde sie ohne
@@ -134,6 +138,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(updateChecker)
                 .environmentObject(wsjtxSettings)
                 .environmentObject(wsjtxBridge)
+                .environmentObject(dxClusterVM)
                 .frame(minWidth: 860, minHeight: 560)
                 .preferredColorScheme(themeManager.theme.colorScheme)
                 .task {
@@ -173,6 +178,9 @@ struct HAMRechnerApp: App {
                 TransceiverCommands(settings: catSettings,
                                     controller: catController)
             }
+            CommandMenu("Fenster") {
+                WindowCommands()
+            }
             CommandGroup(replacing: .help) {
                 Button("Bug melden…") {
                     NotificationCenter.default.post(name: .showBugReport, object: nil)
@@ -180,6 +188,23 @@ struct HAMRechnerApp: App {
                 .keyboardShortcut("b", modifiers: [.command, .shift])
             }
         }
+
+        // Pop-up-Bandmap-Fenster (Multi-Window für Mehrmonitor-Setup).
+        // Über das "Fenster"-Menü → "Neue Bandmap ▸ {Band}" geöffnet.
+        // WindowGroup(for: String.self) routet pro Band-Namen genau ein
+        // Fenster — ein zweiter openWindow-Aufruf mit gleichem Band bringt
+        // das existierende Fenster nach vorn. Position+Größe werden vom
+        // NSWindow-Restoration-System gemerkt.
+        WindowGroup("Bandmap", id: "bandmap", for: String.self) { $band in
+            if let band {
+                BandmapWindowView(band: band)
+                    .environmentObject(themeManager)
+                    .environmentObject(dxClusterVM)
+                    .frame(minWidth: 280, minHeight: 480)
+            }
+        }
+        .windowStyle(.titleBar)
+        .defaultSize(width: 320, height: 800)
 
         Settings {
             EinstellungenView()
