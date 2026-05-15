@@ -111,6 +111,7 @@ struct LogbookTabBar: View {
                     && tab != .potaMap
                     && tab != .sotaMap
                     && tab != .wwffMap
+                    && tab != .botaMap
             }
         }
     }
