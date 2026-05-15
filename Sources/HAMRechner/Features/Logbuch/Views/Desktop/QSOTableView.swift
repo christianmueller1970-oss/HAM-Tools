@@ -45,7 +45,7 @@ struct QSOTableView: View {
         case .pota:    suffix = ".pota"
         default:       suffix = ""
         }
-        return "logbook.qsoTable.columnCustomization\(suffix)"
+        return "logbook.qsoTable.columnCustomization\(suffix).v2"
     }
 
     private var theme: AppTheme { themeManager.theme }
@@ -562,7 +562,11 @@ struct QSOTableView: View {
             c[visibility: "theirPark"]      = .visible
             c[visibility: "state"]          = .visible
         default:
-            break
+            // Standard/SOTA/WWFF/BOTA: POTA-spezifische Spalten sind hier
+            // irrelevant — User kann sie über das Spalten-Menü wieder
+            // einblenden, aber default ausgeblendet.
+            c[visibility: "theirPark"]      = .hidden
+            c[visibility: "state"]          = .hidden
         }
         return c
     }
