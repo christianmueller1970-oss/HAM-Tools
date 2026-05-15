@@ -8,6 +8,14 @@ Aktive Issues + Workarounds. Wird händisch gepflegt; gemeldete Bugs landen im P
 Aktuell sind keine kritischen Bugs offen.
 :::
 
+## Behoben in v1.8.3
+
+- BOTA-Map Sub-Tab erschien fälschlich im Standard-DX-Log (nur im BOTA-Programm-Log sinnvoll)
+- "Neuer Contest"-Sheet war zu klein → Buttons "Abbrechen / Anlegen" im Kategorien-Schritt abgeschnitten
+- POTA-Spalten "State" und "Their Park" wurden im Standard-Log angezeigt, obwohl sie nur in POTA-Logs Sinn ergeben
+- Spalten-Auswahl der QSO-Tabelle war nur via Header-Rechtsklick erreichbar → neuer "Spalten"-Button in der Toolbar mit allen 32 Spalten + Reset
+- Spot-Tabellen (DX/POTA/SOTA/BOTA/WWFF) hatten keine Reorder-/Hide-Show-Funktion → komplett auf SwiftUI Table umgestellt
+
 ## Behoben in v1.7.1
 
 - Cluster-Click füllte das Contest/POTA-Form nicht — Race-Condition zwischen QSOEntryPanel und dem spezialisierten Form
