@@ -11,6 +11,11 @@ struct SpotListView: View {
     @State private var selection: DXSpot.ID? = nil
     @State private var sortedSpots: [DXSpot] = []
 
+    // Spalten-Reihenfolge + Sichtbarkeit (per Header-Rechtsklick / Drag),
+    // persistiert in UserDefaults.
+    @State private var columnCustomization = TableColumnCustomization<DXSpot>()
+    private let customizationStorageKey = "dxcluster.spotList.columnCustomization.v1"
+
     var body: some View {
         Group {
             if spots.isEmpty {
@@ -19,15 +24,35 @@ struct SpotListView: View {
                 spotTable
             }
         }
-        .onAppear { sortedSpots = spots.sorted(using: sortOrder) }
+        .onAppear {
+            sortedSpots = spots.sorted(using: sortOrder)
+            loadCustomization()
+        }
         .onChange(of: spots) { sortedSpots = spots.sorted(using: sortOrder) }
         .onChange(of: sortOrder) { sortedSpots = spots.sorted(using: sortOrder) }
+        .onChange(of: columnCustomization) { _, _ in saveCustomization() }
+    }
+
+    private func loadCustomization() {
+        guard let data = UserDefaults.standard.data(forKey: customizationStorageKey),
+              let decoded = try? JSONDecoder().decode(TableColumnCustomization<DXSpot>.self, from: data) else {
+            return
+        }
+        columnCustomization = decoded
+    }
+
+    private func saveCustomization() {
+        guard let data = try? JSONEncoder().encode(columnCustomization) else { return }
+        UserDefaults.standard.set(data, forKey: customizationStorageKey)
     }
 
     // MARK: - Table
 
     private var spotTable: some View {
-        Table(sortedSpots, selection: $selection, sortOrder: $sortOrder) {
+        Table(sortedSpots,
+              selection: $selection,
+              sortOrder: $sortOrder,
+              columnCustomization: $columnCustomization) {
             TableColumn("") { s in
                 if watchList?.matches(s.dxCall) == true {
                     Text("★")
@@ -36,16 +61,20 @@ struct SpotListView: View {
                 }
             }
             .width(18)
+            .customizationID("watch")
+            .disabledCustomizationBehavior(.reorder)
 
             TableColumn("Zeit", value: \.spotTime) { s in
                 cell(s.displayTime, s)
             }
             .width(min: 50, ideal: 60)
+            .customizationID("time")
 
             TableColumn("Freq (kHz)", value: \.frequency) { s in
                 cell(s.displayFreq, s).frame(maxWidth: .infinity, alignment: .trailing)
             }
             .width(min: 70, ideal: 85)
+            .customizationID("freq")
 
             TableColumn("Band", value: \.band) { s in
                 Text(s.band)
@@ -54,11 +83,13 @@ struct SpotListView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
             }
             .width(min: 45, ideal: 55)
+            .customizationID("band")
 
             TableColumn("Mode", value: \.mode) { s in
                 cell(s.mode, s).frame(maxWidth: .infinity, alignment: .center)
             }
             .width(min: 45, ideal: 55)
+            .customizationID("mode")
 
             TableColumn("DX-Rufz.", value: \.dxCall) { s in
                 let watched = watchList?.matches(s.dxCall) == true
@@ -70,21 +101,25 @@ struct SpotListView: View {
                     .foregroundStyle(color)
             }
             .width(min: 80, ideal: 100)
+            .customizationID("call")
 
             TableColumn("Land", value: \.country) { s in
                 cell(s.country, s)
             }
             .width(min: 90, ideal: 120)
+            .customizationID("country")
 
             TableColumn("Kont.", value: \.continent) { s in
                 cell(s.continent, s).frame(maxWidth: .infinity, alignment: .center)
             }
             .width(min: 40, ideal: 50)
+            .customizationID("continent")
 
             TableColumn("Kommentar", value: \.comment) { s in
                 cell(String(s.comment.prefix(40)), s)
             }
             .width(min: 100, ideal: 160)
+            .customizationID("comment")
 
             TableColumn("Spotter / Quelle", value: \.spotter) { s in
                 HStack(spacing: 6) {
@@ -101,6 +136,7 @@ struct SpotListView: View {
                 }
             }
             .width(min: 130, ideal: 200)
+            .customizationID("spotter")
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .font(.system(size: 12))
