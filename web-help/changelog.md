@@ -2,6 +2,82 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.6 — 2026-05-16
+
+**QRZ-Logbook-Anbindung · QSL-Tab · Stats-Dashboard · Distance/Bearing · viele Polishs**
+
+### QRZ Logbook (Phase 6 Schritt 1+2)
+
+#### Live-Upload jedes QSO an QRZ.com
+- Im *Einstellungen → Lookup & Upload → QRZ.com → Logbook* den 32-stelligen
+  API-Key eintragen (kommt von qrz.com → »My Account → Settings → Logbook API«).
+- Toggle **"Jedes geloggte QSO automatisch hochladen"** schickt jedes neu
+  geloggte DX-QSO im Hintergrund an QRZ. Greift nur in Standard-Logs —
+  Outdoor-Programme (POTA/SOTA/WWFF/BOTA) bleiben ausgenommen, weil die
+  eigene Upload-Pfade haben.
+- **Bulk-Upload** für historische QSOs: mehrere Zeilen markieren →
+  Rechtsklick → "N QSOs an QRZ Logbook hochladen". Läuft parallel (6 Requests
+  gleichzeitig), duplicate-tolerant (war-schon-drin = OK).
+- Status pro QSO in der neuen Spalte **"QRZ-LB"** (default ausgeblendet,
+  via Spalten-Menü einblenden): grüner Haken = neu hochgeladen, grauer
+  Haken = war bereits in QRZ, rotes ⚠ = fehlgeschlagen (klick = retry),
+  grauer Pfeil = noch nicht versucht (klick = jetzt hochladen).
+
+#### Bestätigungen abrufen
+- Im QSL-Tab oben: Button **"↓ QRZ-Bestätigungen abrufen"**.
+- Holt paginiert das komplette QRZ-Logbook und merged fehlende
+  LoTW-/eQSL-/Direkt-Bestätigungen *additiv* in die lokalen QSOs —
+  manuell gesetzte lokale Bestätigungen bleiben unberührt.
+
+### Neue Tabs im Logbuch
+
+#### QSL-Tab (Briefumschlag-Icon)
+Übersicht offener Konfirmationen, sortierbar nach Alter, mit:
+- Filter Offen / Bestätigt / Alle
+- Service-Filter (Alle / LoTW / eQSL / Club Log / Direkt-QSL)
+- Status-Badges pro Channel (✓ grün bestätigt, → gelb wartend, — leer)
+- Stift-Icon öffnet das QSO-Edit-Sheet zum manuellen Flag-Setzen
+
+#### Stats-Dashboard (Balken-Icon)
+Live-Auswertungen über das aktive Log:
+- 4 Kennzahl-Karten: QSOs · Best DX (km) · DXCC · aktive Jahre
+- 2×2 Charts: QSOs pro Jahr · Band · Mode · Kontinent
+- 2 Listen: Top-10 DXCC-Länder · Top-5 längste DX-Strecken
+
+### Distance & Bearing pro QSO (Phase-3-Rest)
+
+- Automatische Berechnung beim Anlegen oder Bearbeiten — Großkreis-Distanz
+  und Initial-Bearing aus eigenem QTH-Locator (aus Settings) und dem
+  QSO-Locator.
+- Neue Spalten *Distanz (km)* und *Peil (°)* in der QSO-Tabelle
+  (default-hidden).
+- ADIF-Export schreibt DISTANCE + ANT_AZ.
+- **Bulk-Backfill für ältere QSOs:** Spalten-Menü → "Wartung → Distanz/
+  Peilung für alle QSOs nachrechnen…".
+
+### Workflow-Verbesserungen
+
+- **Bulk-Vervollständigen via Rechtsklick:** mehrere QSOs markieren →
+  "N QSOs aus QRZ/HamQTH vervollständigen". Lookups laufen parallel,
+  greifen auf den 30-Tage-Cache zu, befüllen nur leere Felder
+  (vorhandene Daten werden nie überschrieben).
+- **QRZ-Profilbild-Cache:** Profilbilder aus QRZ-Lookup landen jetzt
+  persistent im Disk-Cache (30 Tage). Beim zweiten Öffnen erscheint
+  das Bild sofort statt mit Lade-Spinner.
+- **ADIF-Import läuft async:** Bei großen Dateien (z. B. der vollständige
+  QRZ-Logbook-Export, 7 MB / 7000 QSOs) blockiert die UI nicht mehr —
+  Button zeigt "Importiere…"-Spinner, klarer Alert bei 0 erkannten QSOs.
+
+### Web/Download
+
+- Der FAQ-Hinweis "Updates rückgängig machen?" verwies auf
+  `/app/dmg/`, das lieferte aber 403. Jetzt steht dort das
+  Verzeichnis-Listing aller DMG-Versionen.
+- Top-Nav-Download zeigt jetzt auf eine versionslose `latest.dmg` —
+  bei jedem Release wird der Symlink automatisch mitgezogen.
+
+---
+
 ## 1.8.5 — 2026-05-15
 
 **Bandmaps in eigenen Fenstern · Grayline-Fenster · UI-Polish**

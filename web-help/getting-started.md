@@ -29,7 +29,7 @@ geplant.
 
 ## 1. App installieren
 
-1. Lade das aktuelle DMG: [HAM-Tools-1.7.1.dmg](https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.7.1.dmg)
+1. Lade das aktuelle DMG: [HAM-Tools (latest.dmg)](https://toolbox.funkwelt.net/app/dmg/latest.dmg) — der Link zeigt immer auf die aktuelle Version. Ältere Versionen findest du im [Versions-Archiv](https://toolbox.funkwelt.net/app/dmg/).
 2. Doppelklick auf das DMG → das Fenster zeigt die `HAM-Tools.app` und einen `Applications`-Shortcut
 3. **App in den Applications-Ordner ziehen** (per Drag&Drop)
 4. DMG schließen + auswerfen
