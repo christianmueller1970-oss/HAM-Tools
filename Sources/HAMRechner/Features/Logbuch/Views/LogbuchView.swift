@@ -745,6 +745,8 @@ struct LogbuchView: View {
         case .memories:
             MemoriesTab(searchText: $memoriesSearch,
                         showOnlyUpcomingSkeds: $memoriesUpcomingOnly)
+        case .qsl:
+            QSLTab()
         case .potaMap:
             POTAMapTab()
         case .sotaMap:

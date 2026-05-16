@@ -47,7 +47,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
     var isAvailable: Bool {
         switch self {
         case .log, .dxClusters, .awards, .map, .bands,
-             .history, .memories, .potaMap, .sotaMap, .wwffMap, .botaMap,
+             .history, .memories, .qsl, .potaMap, .sotaMap, .wwffMap, .botaMap,
              .contestMap, .bandplan: return true
         default:                                                            return false
         }
@@ -86,22 +86,22 @@ struct LogbookTabBar: View {
                 }
             case .pota:
                 switch tab {
-                case .log, .dxClusters, .potaMap, .awards, .memories: return true
+                case .log, .dxClusters, .potaMap, .awards, .memories, .qsl: return true
                 default: return false
                 }
             case .sota:
                 switch tab {
-                case .log, .dxClusters, .sotaMap, .awards, .memories: return true
+                case .log, .dxClusters, .sotaMap, .awards, .memories, .qsl: return true
                 default: return false
                 }
             case .wwff:
                 switch tab {
-                case .log, .dxClusters, .wwffMap, .awards, .memories: return true
+                case .log, .dxClusters, .wwffMap, .awards, .memories, .qsl: return true
                 default: return false
                 }
             case .bota:
                 switch tab {
-                case .log, .dxClusters, .botaMap, .awards, .memories: return true
+                case .log, .dxClusters, .botaMap, .awards, .memories, .qsl: return true
                 default: return false
                 }
             case .standard, .none:
