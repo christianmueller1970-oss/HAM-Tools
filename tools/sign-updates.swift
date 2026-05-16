@@ -21,46 +21,31 @@ import CryptoKit
 
 // MARK: - RELEASE-DATEN (für jeden Release anpassen)
 
-let RELEASE_VERSION   = "1.8.6"
+let RELEASE_VERSION   = "1.8.7"
 let RELEASE_BUILDDATE = "2026-05-16"          // ISO 8601, YYYY-MM-DD
 let RELEASE_MIN_MACOS = "14.0"                 // oder nil
-let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.6.dmg"
+let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.7.dmg"
 let RELEASE_CRITICAL  = false                  // true zwingt User zur Installation (kein Skip)
 let RELEASE_NOTES = """
-QRZ-Logbook-Anbindung, neue Tabs und viel Polish.
+Club-Log-Upload, SOTA-Punkte komplett, Update-System gehärtet.
 
-QRZ Logbook (Phase 6 Schritt 1+2):
-- Live-Upload jedes QSO an QRZ.com — API-Key in Einstellungen → \
-Lookup & Upload → QRZ.com → Logbook, Toggle für Auto-Upload bei \
-DX-Logs (Outdoor-Programme bleiben außen vor).
+Club Log (Phase 6 Schritt 3):
+- Live-Upload jedes QSO an clublog.org — Email + Application Password \
+in Einstellungen → Lookup & Upload → Club Log, Toggle für Auto-Upload \
+bei DX-Logs.
 - Bulk-Upload für historische QSOs via Rechtsklick im Log: \
-"N QSOs an QRZ Logbook hochladen".
-- Bestätigungen abrufen: neuer Button im QSL-Tab, holt paginiert \
-das komplette QRZ-Logbook und ergänzt fehlende LoTW-/eQSL-/Direkt- \
-Bestätigungen lokal — additiv, manuelle lokale Flags bleiben.
+"N QSOs an Club Log hochladen" (ein zusammengefasster ADIF-Batch).
+- Bei Auth-Fehlern wird der Auto-Upload automatisch pausiert — Club \
+Log sperrt die IP nach wiederholten 4xx-Fehlern, das verhindert die App.
 
-Neue Tabs:
-- QSL-Tab (Briefumschlag): Übersicht offener und bestätigter QSOs, \
-Filter pro Service, Doppelklick öffnet das Edit-Sheet.
-- Stats-Dashboard (Balken): 4 Kennzahlen + Charts pro Jahr/Band/ \
-Mode/Kontinent + Top-DXCC und Top-DX-Strecken.
+SOTA (Phase 4d komplett):
+- Activator-Punkte-Card im Awards-Tab: Summe gültiger Aktivierungen \
+(≥4 QSOs / Summit-Tag) inklusive Winterbonus nach Halbkugel-Regeln.
+- Multi-Summit-Hopping zählt jeden Summit separat.
 
-Distance & Bearing pro QSO:
-- Automatische Berechnung beim Loggen/Editieren aus dem eigenen \
-QTH-Locator. Neue Spalten Distanz/Peilung (default ausgeblendet).
-- Bulk-Backfill für ältere QSOs via Spalten-Menü → Wartung.
-
-Workflow:
-- Bulk-Vervollständigen via Rechtsklick — mehrere QSOs markieren \
-und parallel aus QRZ/HamQTH ergänzen.
-- QRZ-Profilbild-Cache (30 Tage) — Bilder erscheinen beim zweiten \
-Öffnen sofort statt mit Lade-Spinner.
-- ADIF-Import läuft async — große Dateien (z. B. 7 MB QRZ-Export) \
-blockieren die UI nicht mehr.
-
-Web/Download-Bereich:
-- Verzeichnis-Listing aller DMG-Versionen funktioniert wieder.
-- Top-Nav-Download zeigt auf eine versionslose latest.dmg.
+Update-System gehärtet:
+- macOS-Mindestversion wird numerisch geprüft (nicht mehr als String).
+- Bei macOS-Mismatch ist der Download-Button im Update-Sheet deaktiviert.
 """
 
 // MARK: - Implementation (sollte stabil bleiben)
