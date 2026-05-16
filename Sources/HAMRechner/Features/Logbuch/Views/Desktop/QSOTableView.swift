@@ -45,6 +45,17 @@ struct QSOTableView: View {
             .trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    // Club-Log-Bulk-Upload-State.
+    @State private var clubLogUploadInFlight: Bool = false
+    @State private var clubLogBulkAlert: QRZBulkAlert?
+
+    private var clubLogConfigured: Bool {
+        !uploadSettings.clublogEmail
+            .trimmingCharacters(in: .whitespaces).isEmpty
+        && !uploadSettings.clublogPassword
+            .trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     // Sortierung — initialer Default: Datum absteigend (neueste zuerst).
     @State private var sortOrder: [KeyPathComparator<QSO>] = [
         KeyPathComparator(\QSO.datetime, order: .reverse)
@@ -113,6 +124,11 @@ struct QSOTableView: View {
                 .environmentObject(manager)
         }
         .alert(item: $qrzBulkAlert) { entry in
+            Alert(title: Text(entry.title),
+                  message: Text(entry.message),
+                  dismissButton: .default(Text("OK")))
+        }
+        .alert(item: $clubLogBulkAlert) { entry in
             Alert(title: Text(entry.title),
                   message: Text(entry.message),
                   dismissButton: .default(Text("OK")))
@@ -588,6 +604,16 @@ struct QSOTableView: View {
                       systemImage: "arrow.up.doc")
             }
             .disabled(!qrzLogbookConfigured || qrzUploadInFlight)
+            Button {
+                bulkUploadToClubLog(for: ids)
+            } label: {
+                let n = ids.count
+                Label(n == 1
+                      ? "An Club Log hochladen"
+                      : "\(n) QSOs an Club Log hochladen",
+                      systemImage: "arrow.up.doc.on.clipboard")
+            }
+            .disabled(!clubLogConfigured || clubLogUploadInFlight)
             if ids.count == 1, let id = ids.first,
                let qso = manager.currentQSOs.first(where: { $0.id == id }) {
                 Divider()
@@ -702,6 +728,38 @@ struct QSOTableView: View {
                         ? "\(r.uploaded) QSOs an QRZ hochgeladen"
                         : "Nichts neu hochgeladen",
                     message: "Neu: \(r.uploaded) · bereits in QRZ: \(r.duplicate) · Fehler: \(r.failed)")
+            }
+        }
+    }
+
+    // MARK: - Bulk-Upload an Club Log
+
+    private func bulkUploadToClubLog(for ids: Set<UUID>) {
+        guard !ids.isEmpty, clubLogConfigured, !clubLogUploadInFlight else { return }
+        clubLogUploadInFlight = true
+        Task {
+            let result = await manager.bulkUploadToClubLog(ids: ids)
+            await MainActor.run {
+                clubLogUploadInFlight = false
+                guard let r = result else {
+                    clubLogBulkAlert = QRZBulkAlert(
+                        title: "Club-Log-Upload nicht konfiguriert",
+                        message: "Trag in den Einstellungen → Lookup & Upload → Club Log Email und Application-Password ein.")
+                    return
+                }
+                if r.stoppedDueToAuth {
+                    clubLogBulkAlert = QRZBulkAlert(
+                        title: "Club-Log-Login fehlgeschlagen",
+                        message: "Auto-Upload wurde pausiert, damit Club Log die IP nicht firewallt. Prüfe Email/Application-Password in den Einstellungen.\n\n\(r.firstError ?? "")")
+                } else if r.uploaded > 0 {
+                    clubLogBulkAlert = QRZBulkAlert(
+                        title: "\(r.uploaded) QSOs an Club Log hochgeladen",
+                        message: "Club Log hat den Batch akzeptiert.")
+                } else {
+                    clubLogBulkAlert = QRZBulkAlert(
+                        title: "Upload fehlgeschlagen",
+                        message: r.firstError ?? "Unbekannter Fehler — siehe Konsole.")
+                }
             }
         }
     }

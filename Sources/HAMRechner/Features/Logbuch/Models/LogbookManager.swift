@@ -191,6 +191,7 @@ final class LogbookManager: ObservableObject {
             recomputeAwards()
             onQSOLogged?()
             scheduleQRZAutoUpload(for: local)
+            scheduleClubLogAutoUpload(for: local)
         } catch { print("addQSO failed: \(error.localizedDescription)") }
     }
 
@@ -596,6 +597,133 @@ final class LogbookManager: ObservableObject {
             }
         }
         return QRZBulkResult(uploaded: uploaded, duplicate: duplicate, failed: failed)
+    }
+
+    // MARK: - Club Log Upload
+
+    struct ClubLogBulkResult: Equatable {
+        var uploaded: Int     // erfolgreiche Uploads
+        var failed:   Int     // Fehler (auch Auth — wir stoppen dann)
+        var stoppedDueToAuth: Bool
+        var firstError: String?
+        var total: Int { uploaded + failed }
+    }
+
+    /// Fire-and-forget Auto-Upload für Club Log nach `addQSO`. Greift nur:
+    ///   • Auto-Toggle an + Email + Password gesetzt
+    ///   • Log-Typ Standard (DX) — Programm-Logs nutzen ihre eigenen Pfade
+    /// Bei Auth-Fail wird der Auto-Toggle automatisch deaktiviert, damit
+    /// Club Log uns nicht wegen wiederholter Fehler die IP firewallt.
+    private func scheduleClubLogAutoUpload(for qso: QSO) {
+        guard let settings = uploadServices,
+              settings.clublogAutoUpload,
+              !settings.clublogEmail.trimmingCharacters(in: .whitespaces).isEmpty,
+              !settings.clublogPassword.trimmingCharacters(in: .whitespaces).isEmpty,
+              let log = logs.first(where: { $0.id == qso.logID }),
+              log.type == .standard
+        else { return }
+
+        let email = settings.clublogEmail
+        let password = settings.clublogPassword
+        let opCall = qso.operatorCall?.trimmingCharacters(in: CharacterSet.whitespaces) ?? ""
+        let ownCall = UserDefaults.standard.string(forKey: "callsign") ?? ""
+        let callsign = opCall.isEmpty ? ownCall : opCall
+        guard !callsign.trimmingCharacters(in: CharacterSet.whitespaces).isEmpty else { return }
+        let markQsl = settings.clublogMarkQslSent
+
+        Task { [weak self] in
+            let service = ClubLogService()
+            let outcome = await service.uploadSingle(qso: qso,
+                                                     email: email,
+                                                     password: password,
+                                                     callsign: callsign)
+            await MainActor.run {
+                self?.applyClubLogUploadOutcome(outcome, to: qso.id, markQsl: markQsl)
+                if case .authFailed = outcome {
+                    self?.uploadServices?.clublogAutoUpload = false
+                }
+            }
+        }
+    }
+
+    /// Schreibt das Club-Log-Status-Flag am QSO zurück. Bei Erfolg wird
+    /// `clublogSent = true` gesetzt. `markQsl` ist die User-Einstellung
+    /// (»QSL via Club Log gesendet« markieren) — wird nur bei .accepted
+    /// angewandt.
+    private func applyClubLogUploadOutcome(_ outcome: ClubLogService.UploadOutcome,
+                                            to qsoID: UUID,
+                                            markQsl: Bool) {
+        guard let db = openDB,
+              var q = currentQSOs.first(where: { $0.id == qsoID })
+        else { return }
+        switch outcome {
+        case .accepted:
+            guard !q.clublogSent else { return }
+            q.clublogSent = true
+            if markQsl { /* bereits via clublogSent abgedeckt — QSL-Sent-Flag ist clublogSent */ }
+            do {
+                try db.updateQSO(q)
+                currentQSOs = db.qsos
+            } catch {
+                print("Club Log status persist failed: \(error.localizedDescription)")
+            }
+        case .authFailed, .rejected, .network:
+            // Keine Persistenz nötig — der Aufrufer entscheidet was passiert
+            // (Auto-Upload deaktivieren, Bulk-Counter hochzählen, …).
+            break
+        }
+    }
+
+    /// Bulk-Upload für eine Auswahl QSOs an Club Log via putlogs.php.
+    /// **Sequenziell, nicht parallel** — Club Log toleriert nur einen
+    /// putlogs-Request am Stück und firewallt bei wiederholten Fehlern.
+    /// Bei Auth-Fail brechen wir sofort ab.
+    func bulkUploadToClubLog(ids: Set<UUID>) async -> ClubLogBulkResult? {
+        guard let settings = uploadServices,
+              !settings.clublogEmail.trimmingCharacters(in: .whitespaces).isEmpty,
+              !settings.clublogPassword.trimmingCharacters(in: .whitespaces).isEmpty
+        else { return nil }
+        let qsos = currentQSOs.filter { ids.contains($0.id) }
+        guard !qsos.isEmpty else {
+            return ClubLogBulkResult(uploaded: 0, failed: 0,
+                                      stoppedDueToAuth: false, firstError: nil)
+        }
+        let email = settings.clublogEmail
+        let password = settings.clublogPassword
+        let ownCall = UserDefaults.standard.string(forKey: "callsign") ?? ""
+        let opCall = qsos.first?.operatorCall?.trimmingCharacters(in: CharacterSet.whitespaces) ?? ""
+        let callsign = opCall.isEmpty ? ownCall : opCall
+        guard !callsign.trimmingCharacters(in: CharacterSet.whitespaces).isEmpty else {
+            return ClubLogBulkResult(uploaded: 0, failed: qsos.count,
+                                      stoppedDueToAuth: false,
+                                      firstError: "Eigenes Rufzeichen fehlt in den Einstellungen.")
+        }
+
+        let logName = "HAM-Tools-Bulk-\(ISO8601DateFormatter().string(from: Date()))"
+        let service = ClubLogService()
+        let outcome = await service.uploadBatch(qsos: qsos,
+                                                 logName: logName,
+                                                 email: email,
+                                                 password: password,
+                                                 callsign: callsign)
+
+        switch outcome {
+        case .accepted:
+            // Alle QSOs als clublogSent markieren.
+            for q in qsos {
+                applyClubLogUploadOutcome(.accepted, to: q.id,
+                                           markQsl: settings.clublogMarkQslSent)
+            }
+            return ClubLogBulkResult(uploaded: qsos.count, failed: 0,
+                                      stoppedDueToAuth: false, firstError: nil)
+        case .authFailed(let msg):
+            uploadServices?.clublogAutoUpload = false
+            return ClubLogBulkResult(uploaded: 0, failed: qsos.count,
+                                      stoppedDueToAuth: true, firstError: msg)
+        case .rejected(let msg), .network(let msg):
+            return ClubLogBulkResult(uploaded: 0, failed: qsos.count,
+                                      stoppedDueToAuth: false, firstError: msg)
+        }
     }
 
     func deleteQSO(_ qso: QSO) {

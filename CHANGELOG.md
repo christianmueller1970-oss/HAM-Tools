@@ -5,6 +5,25 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Logbuch — Phase 6 Schritt 3 (Club Log)
+**Live-Upload** an clublog.org: pro QSO automatisch beim Log-QSO (`realtime.php`)
+oder per Bulk via Rechtsklick-Menü „N QSOs an Club Log hochladen" (`putlogs.php`).
+Credentials kommen aus *Einstellungen → Lookup & Upload → Club Log*: Email +
+Application-Password (kein Login-Passwort — Club Log Settings → Application
+Passwords). Auto-Upload greift nur in Standard-Logs (DX); Outdoor-Programme
+nutzen weiterhin ihre eigenen Pfade. Erfolgreich hochgeladene QSOs werden lokal
+mit `clublogSent = true` markiert (taucht im QSL-Tab und in der Tabellen-Spalte
+auf).
+
+**Firewall-Schutz**: Club Log sperrt die Client-IP nach wiederholten
+4xx-Fehlern. Bei Auth-Fail wird der Auto-Upload-Toggle deshalb automatisch
+deaktiviert, der User bekommt einen klaren Hinweis (»Login fehlgeschlagen,
+Auto-Upload pausiert«) statt eines stillen Retry-Loops.
+
+---
+
 ## [1.8.6] — 2026-05-16
 
 ### Logbuch — Phase 6 Schritt 1 + 2 (QRZ Logbook)

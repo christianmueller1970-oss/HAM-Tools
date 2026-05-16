@@ -117,7 +117,7 @@ struct LookupUploadSettingsView: View {
         case .hamCall:   placeholder(name: "HamCall",   web: "https://hamcall.net")
         case .lotw:      placeholder(name: "LoTW (ARRL)",  web: "https://lotw.arrl.org",   showRT: true)
         case .eqsl:      placeholder(name: "eQSL.cc",      web: "https://www.eqsl.cc",     showRT: true)
-        case .clublog:   placeholder(name: "Club Log",     web: "https://clublog.org",     showRT: true)
+        case .clublog:   clubLogPanel
         case .hrdlog:    placeholder(name: "HRDLOG.net",   web: "https://www.hrdlog.net",  showRT: true)
         case .pota:      potaPanel
         case .sota:      programmePlaceholder(name: "SOTA (sotadata.org.uk)",
@@ -195,6 +195,39 @@ struct LookupUploadSettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 comingSoonBadge
+            }
+        }
+    }
+
+    // Club Log: Email + Application-Password + Callsign. realtime.php
+    // für jedes neu geloggte DX-QSO, putlogs.php für Bulk-Backfills.
+    // **Wichtig:** Club Log firewallt die Client-IP nach wiederholten
+    // 4xx-Fehlern. Fehler also klar anzeigen und Auto-Upload stoppen.
+    private var clubLogPanel: some View {
+        servicePanel(name: "Club Log", web: "https://clublog.org") {
+            VStack(alignment: .leading, spacing: 8) {
+                credentialField(label: "Email", text: $upload.clublogEmail)
+                credentialField(label: "Password", text: $upload.clublogPassword, secure: true)
+                Text("Verwende ein **Application Password** aus deinem Club-Log-Account (Settings → Application Passwords) — nicht das Login-Passwort.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Toggle("Jedes geloggte QSO automatisch hochladen",
+                       isOn: $upload.clublogAutoUpload)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                Toggle("Nach erfolgreichem Upload »QSL via Club Log gesendet« markieren",
+                       isOn: $upload.clublogMarkQslSent)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                Text("Wirkt nur in **Standard-Logs (DX)**. Programm-Logs (POTA/SOTA/WWFF/BOTA) nutzen ihre eigenen Upload-Pfade.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("⚠️ Club Log sperrt die IP-Adresse nach mehreren fehlerhaften Uploads. Bei Auth-Fehlern wird der Auto-Upload automatisch pausiert.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                statusLine(configured:
+                    !upload.clublogEmail.trimmingCharacters(in: .whitespaces).isEmpty &&
+                    !upload.clublogPassword.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
     }

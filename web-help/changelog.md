@@ -2,6 +2,24 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## In Arbeit (1.8.7)
+
+### Club Log Upload (Phase 6 Schritt 3)
+
+- **Einstellungen → Lookup & Upload → Club Log**: Email + Application-Password
+  (nicht das Login-Passwort — kommt aus Club Log → *Settings → Application
+  Passwords*).
+- **Auto-Upload-Toggle** schickt jedes neu geloggte DX-QSO im Hintergrund an
+  Club Log. Greift nur in Standard-Logs — Outdoor-Programme (POTA/SOTA/WWFF/
+  BOTA) bleiben außen vor.
+- **Bulk-Upload** für historische QSOs: mehrere Zeilen markieren → Rechtsklick
+  → „N QSOs an Club Log hochladen" (ein zusammengefasster ADIF-Batch).
+- ⚠️ Club Log sperrt die IP nach mehreren fehlgeschlagenen Uploads. Bei
+  Auth-Fehlern wird der Auto-Upload automatisch pausiert, damit du eine
+  Chance hast, die Credentials zu fixen, bevor Club Log den Zugriff blockt.
+- Erfolgreich hochgeladene QSOs werden mit „QSL via Club Log gesendet"
+  markiert und tauchen im QSL-Tab sowie in der Tabellen-Übersicht auf.
+
 ## 1.8.6 — 2026-05-16
 
 **QRZ-Logbook-Anbindung · QSL-Tab · Stats-Dashboard · Distance/Bearing · viele Polishs**
