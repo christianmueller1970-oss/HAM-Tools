@@ -199,31 +199,21 @@ struct LookupUploadSettingsView: View {
         }
     }
 
-    // Club Log: Email + Application-Password + API-Key + Callsign.
-    // realtime.php für jedes neu geloggte DX-QSO, putlogs.php für
-    // Bulk-Backfills.
-    // **Wichtig:** seit dem 2026-API-Update verlangt Club Log auf BEIDEN
-    // Endpunkten den `api`-Parameter — der wird **nicht** im Self-Service
-    // erzeugt, sondern muss via clublog.org → Helpdesk angefragt werden.
-    // Ohne API-Key blockt die nginx-WAF mit einem nackten 403, noch bevor
-    // PHP die Credentials prüft. Außerdem firewallt Club Log die
-    // Client-IP nach wiederholten 4xx-Fehlern — Auto-Upload deaktiviert
-    // sich daher bei Auth-Fail automatisch.
+    // Club Log: Email + Application-Password. realtime.php für jedes neu
+    // geloggte DX-QSO, putlogs.php für Bulk-Backfills. Der für die API
+    // zusätzlich nötige `api`-Parameter gehört zur App »HAM-Tools« und
+    // ist in BuildInfo.clubLogApiKey hinterlegt — User müssen ihn nicht
+    // selbst anfragen (Club-Log-Doku: »API keys are only needed by
+    // software developers«).
+    //
+    // Club Log firewallt die Client-IP nach wiederholten 4xx-Fehlern.
+    // Auto-Upload deaktiviert sich daher bei Auth-Fail automatisch.
     private var clubLogPanel: some View {
         servicePanel(name: "Club Log", web: "https://clublog.org") {
             VStack(alignment: .leading, spacing: 8) {
                 credentialField(label: "Email", text: $upload.clublogEmail)
                 credentialField(label: "Password", text: $upload.clublogPassword, secure: true)
                 Text("Verwende ein **Application Password** aus deinem Club-Log-Account (Settings → Application Passwords) — nicht das Login-Passwort.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                credentialField(label: "API-Key", text: $upload.clublogApiKey, secure: true)
-                if let url = URL(string: "https://clublog.org/need_api.php") {
-                    Link("API-Key anfragen (clublog.org/need_api.php)…",
-                         destination: url)
-                        .font(.caption)
-                }
-                Text("Club Log verlangt seit 2026 auf allen Upload-Endpunkten einen API-Key zusätzlich zu Email/Password. Den bekommst du **nicht** im Self-Service — kurz Helpdesk anschreiben (App-Name + Callsign nennen).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Jedes geloggte QSO automatisch hochladen",
@@ -242,8 +232,7 @@ struct LookupUploadSettingsView: View {
                     .foregroundStyle(.orange)
                 statusLine(configured:
                     !upload.clublogEmail.trimmingCharacters(in: .whitespaces).isEmpty &&
-                    !upload.clublogPassword.trimmingCharacters(in: .whitespaces).isEmpty &&
-                    !upload.clublogApiKey.trimmingCharacters(in: .whitespaces).isEmpty)
+                    !upload.clublogPassword.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
     }

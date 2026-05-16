@@ -52,7 +52,7 @@ struct QSOTableView: View {
     private var clubLogConfigured: Bool {
         !uploadSettings.clublogEmail
             .trimmingCharacters(in: .whitespaces).isEmpty
-        && !uploadSettings.clublogApiKey
+        && !uploadSettings.clublogPassword
             .trimmingCharacters(in: .whitespaces).isEmpty
     }
 

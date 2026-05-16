@@ -34,14 +34,14 @@ final class UploadServicesSettings: ObservableObject {
     @Published var eqslAutoUpload:     Bool
     @Published var eqslMarkQslSent:    Bool
 
-    // Club Log — seit dem API-Update (2026) ist neben Email/Password ein
-    // separater `api`-Parameter Pflicht. Den kriegt man **nicht** im
-    // Account-Self-Service, sondern via clublog.org → Helpdesk → API-Key
-    // anfragen. Ohne den blockt die nginx-WAF jeden Request mit blankem
-    // 403 (noch bevor das PHP überhaupt läuft).
+    // Club Log — User braucht nur Email + Application Password. Der
+    // `api`-Parameter (seit 2026 Pflicht) gehört zur Anwendung HAM-Tools
+    // selbst und ist obfuskiert in BuildInfo.clubLogApiKey abgelegt;
+    // siehe Doku https://clublog.freshdesk.com/.../54910-api-keys
+    // ("API keys are only needed by software developers — normal users
+    // do not need a key").
     @Published var clublogEmail:       String
     @Published var clublogPassword:    String
-    @Published var clublogApiKey:      String
     @Published var clublogAutoUpload:  Bool
     @Published var clublogMarkQslSent: Bool
     @Published var clublogShowInComments: Bool
@@ -129,8 +129,10 @@ final class UploadServicesSettings: ObservableObject {
         // Club Log
         self.clublogEmail            = s.string(forKey: p + "clublog.email")    ?? ""
         self.clublogPassword         = s.string(forKey: p + "clublog.password") ?? ""
-        self.clublogApiKey           = s.string(forKey: p + "clublog.apiKey")   ?? ""
         self.clublogAutoUpload       = (s.object(forKey: p + "clublog.auto") as? Bool) ?? false
+        // Migration 2026-05-16: API-Key wird nicht mehr pro User
+        // gespeichert — er gehört zur App. Alte Einträge wegputzen.
+        s.removeObject(forKey: p + "clublog.apiKey")
         self.clublogMarkQslSent      = (s.object(forKey: p + "clublog.markQsl") as? Bool) ?? false
         self.clublogShowInComments   = (s.object(forKey: p + "clublog.showInComments") as? Bool) ?? false
 
@@ -198,7 +200,6 @@ final class UploadServicesSettings: ObservableObject {
 
         bind($clublogEmail,          to: p + "clublog.email",          in: s)
         bind($clublogPassword,       to: p + "clublog.password",       in: s)
-        bind($clublogApiKey,         to: p + "clublog.apiKey",         in: s)
         bind($clublogAutoUpload,     to: p + "clublog.auto",           in: s)
         bind($clublogMarkQslSent,    to: p + "clublog.markQsl",        in: s)
         bind($clublogShowInComments, to: p + "clublog.showInComments", in: s)

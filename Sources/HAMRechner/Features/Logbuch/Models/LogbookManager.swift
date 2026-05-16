@@ -626,14 +626,12 @@ final class LogbookManager: ObservableObject {
               settings.clublogAutoUpload,
               !settings.clublogEmail.trimmingCharacters(in: .whitespaces).isEmpty,
               !settings.clublogPassword.trimmingCharacters(in: .whitespaces).isEmpty,
-              !settings.clublogApiKey.trimmingCharacters(in: .whitespaces).isEmpty,
               let log = logs.first(where: { $0.id == qso.logID }),
               log.type == .standard
         else { return }
 
         let email = settings.clublogEmail
         let password = settings.clublogPassword
-        let apiKey = settings.clublogApiKey
         let opCall = qso.operatorCall?.trimmingCharacters(in: CharacterSet.whitespaces) ?? ""
         let ownCall = UserDefaults.standard.string(forKey: "callsign") ?? ""
         let callsign = opCall.isEmpty ? ownCall : opCall
@@ -645,7 +643,6 @@ final class LogbookManager: ObservableObject {
             let outcome = await service.uploadSingle(qso: qso,
                                                      email: email,
                                                      password: password,
-                                                     apiKey: apiKey,
                                                      callsign: callsign)
             await MainActor.run {
                 self?.applyClubLogUploadOutcome(outcome, to: qso.id, markQsl: markQsl)
@@ -691,7 +688,7 @@ final class LogbookManager: ObservableObject {
     func bulkUploadToClubLog(ids: Set<UUID>) async -> ClubLogBulkResult? {
         guard let settings = uploadServices,
               !settings.clublogEmail.trimmingCharacters(in: .whitespaces).isEmpty,
-              !settings.clublogApiKey.trimmingCharacters(in: .whitespaces).isEmpty
+              !settings.clublogPassword.trimmingCharacters(in: .whitespaces).isEmpty
         else { return nil }
         let qsos = currentQSOs.filter { ids.contains($0.id) }
         guard !qsos.isEmpty else {
@@ -699,7 +696,6 @@ final class LogbookManager: ObservableObject {
                                       stoppedDueToAuth: false, firstError: nil)
         }
         let email = settings.clublogEmail
-        let apiKey = settings.clublogApiKey
         let ownCall = UserDefaults.standard.string(forKey: "callsign") ?? ""
         let opCall = qsos.first?.operatorCall?.trimmingCharacters(in: CharacterSet.whitespaces) ?? ""
         let callsign = opCall.isEmpty ? ownCall : opCall
@@ -714,7 +710,6 @@ final class LogbookManager: ObservableObject {
         let outcome = await service.uploadBatch(qsos: qsos,
                                                  logName: logName,
                                                  email: email,
-                                                 apiKey: apiKey,
                                                  callsign: callsign)
 
         switch outcome {

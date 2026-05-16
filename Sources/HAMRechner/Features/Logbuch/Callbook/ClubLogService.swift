@@ -43,21 +43,23 @@ final class ClubLogService: Sendable {
     /// QSO persistieren und ggf. weiteres Senden unterbinden kann.
     ///
     /// **Wichtig:** seit dem API-Update (2026) muss der `api`-Parameter
-    /// gesetzt sein — sonst blockt die nginx-WAF mit blankem 403.
-    /// Der API-Key wird via clublog.org → Helpdesk angefragt.
+    /// gesetzt sein — sonst blockt die nginx-WAF mit blankem 403. Der
+    /// API-Key gehört zur Anwendung HAM-Tools und ist obfuskiert in
+    /// `BuildInfo.clubLogApiKey` hinterlegt; ist er leer (z.B. noch nicht
+    /// vom Helpdesk geliefert), wird der Request gar nicht erst gefeuert.
     func uploadSingle(qso: QSO,
                       email: String,
                       password: String,
-                      apiKey: String,
                       callsign: String) async -> UploadOutcome {
         let trimmedEmail    = email.trimmingCharacters(in: .whitespaces)
         let trimmedPassword = password.trimmingCharacters(in: .whitespaces)
-        let trimmedApiKey   = apiKey.trimmingCharacters(in: .whitespaces)
+        let trimmedApiKey   = BuildInfo.clubLogApiKey
+            .trimmingCharacters(in: .whitespaces)
         let trimmedCall     = callsign.trimmingCharacters(in: .whitespaces)
         guard !trimmedEmail.isEmpty, !trimmedPassword.isEmpty, !trimmedCall.isEmpty
         else { return .authFailed("Email / Password / Callsign fehlen in Settings") }
         guard !trimmedApiKey.isEmpty
-        else { return .authFailed("API-Key fehlt — bei clublog.org → Helpdesk anfragen und in den Einstellungen eintragen.") }
+        else { return .authFailed("App-API-Key noch nicht hinterlegt — wird mit dem nächsten Update ausgeliefert.") }
 
         // Ein einzelner ADIF-Record, abgeschlossen mit <EOR>. ADIFCodec
         // schreibt den <EOR> ans Ende mit dazu.
@@ -84,19 +86,20 @@ final class ClubLogService: Sendable {
     /// Bulk-Upload (putlogs.php) — eine zusammengefasste ADIF-Datei mit
     /// allen QSOs in einem Request. Für vom User getriggerte Backfills.
     /// Verlangt seit dem 2026-API-Update zusätzlich `api`-Parameter
-    /// (statt password — putlogs.php ist API-Key-only).
+    /// (statt password — putlogs.php ist API-Key-only). Der App-API-Key
+    /// kommt aus BuildInfo.clubLogApiKey.
     func uploadBatch(qsos: [QSO],
                      logName: String,
                      email: String,
-                     apiKey: String,
                      callsign: String) async -> UploadOutcome {
         let trimmedEmail    = email.trimmingCharacters(in: .whitespaces)
-        let trimmedApiKey   = apiKey.trimmingCharacters(in: .whitespaces)
+        let trimmedApiKey   = BuildInfo.clubLogApiKey
+            .trimmingCharacters(in: .whitespaces)
         let trimmedCall     = callsign.trimmingCharacters(in: .whitespaces)
         guard !trimmedEmail.isEmpty, !trimmedCall.isEmpty
         else { return .authFailed("Email / Callsign fehlen in Settings") }
         guard !trimmedApiKey.isEmpty
-        else { return .authFailed("API-Key fehlt — bei clublog.org → Helpdesk anfragen und in den Einstellungen eintragen.") }
+        else { return .authFailed("App-API-Key noch nicht hinterlegt — wird mit dem nächsten Update ausgeliefert.") }
         guard !qsos.isEmpty else { return .rejected("Keine QSOs zum Hochladen") }
 
         let adifText = ADIFCodec.encode(qsos: qsos, logName: logName)
