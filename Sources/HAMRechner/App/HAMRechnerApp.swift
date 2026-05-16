@@ -11,7 +11,7 @@ struct HAMRechnerApp: App {
     @StateObject private var logbookManager:   LogbookManager
     @StateObject private var callbookSettings: CallbookSettings
     @StateObject private var callbookManager:  CallbookManager
-    @StateObject private var uploadSettings:   UploadServicesSettings = UploadServicesSettings()
+    @StateObject private var uploadSettings:   UploadServicesSettings
     @StateObject private var memoryStore:      MemoryStore
     @StateObject private var radioState:       RadioState
     @StateObject private var catSettings:      CATSettings
@@ -53,10 +53,16 @@ struct HAMRechnerApp: App {
         // später mal einen anderen Pfad bekommt.
         QRZImageCache.shared.configure(dataRoot: root)
 
+        // UploadServicesSettings vor LogbookManager — der Manager hält
+        // sich eine Referenz für den QRZ-Auto-Upload-Hook.
+        let upload = UploadServicesSettings()
+        _uploadSettings = StateObject(wrappedValue: upload)
+
         let settings = LogbookSettings(dataRoot: root)
         _logbookSettings = StateObject(wrappedValue: settings)
-        _logbookManager  = StateObject(wrappedValue:
-            LogbookManager(settings: settings, dataRoot: root))
+        let mgr = LogbookManager(settings: settings, dataRoot: root)
+        mgr.uploadServices = upload
+        _logbookManager = StateObject(wrappedValue: mgr)
 
         let cbSettings = CallbookSettings()
         _callbookSettings = StateObject(wrappedValue: cbSettings)

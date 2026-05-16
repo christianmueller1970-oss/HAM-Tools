@@ -172,6 +172,12 @@ final class LogbookManager: ObservableObject {
     var onLicenseBlocked:      (() -> Void)?
     var onQSOLogged:           (() -> Void)?
 
+    // Vom App-Root nach Init gesetzt (siehe HAMRechnerApp). Wird für den
+    // QRZ-Auto-Upload-Hook in addQSO und die bulkUploadToQRZ-Methode
+    // gebraucht. Weak nicht nötig — UploadServicesSettings lebt die ganze
+    // App-Lifetime.
+    var uploadServices: UploadServicesSettings?
+
     func addQSO(_ qso: QSO) {
         guard let db = openDB else { return }
         if let gate = licenseAllowsMoreQSOs, !gate() {
@@ -184,6 +190,7 @@ final class LogbookManager: ObservableObject {
             try db.addQSO(local); currentQSOs = db.qsos
             recomputeAwards()
             onQSOLogged?()
+            scheduleQRZAutoUpload(for: local)
         } catch { print("addQSO failed: \(error.localizedDescription)") }
     }
 
@@ -266,6 +273,107 @@ final class LogbookManager: ObservableObject {
         return GeometryBackfillResult(updated: updated,
                                        unchanged: unchanged,
                                        skipped: skipped)
+    }
+
+    // MARK: - QRZ Logbook Upload
+
+    /// Fire-and-forget Auto-Upload nach `addQSO`. Greift nur:
+    ///   • wenn UploadServicesSettings injiziert ist und Auto-Toggle an
+    ///   • API-Key gesetzt
+    ///   • Log-Typ Standard (DX) — Outdoor-Programme nutzen eigene
+    ///     Upload-Pfade, dort schiesst Auto nichts hoch
+    private func scheduleQRZAutoUpload(for qso: QSO) {
+        guard let settings = uploadServices,
+              settings.qrzAutoUploadOnLog,
+              !settings.qrzLogbookApiKey.trimmingCharacters(in: .whitespaces).isEmpty,
+              let log = logs.first(where: { $0.id == qso.logID }),
+              log.type == .standard
+        else { return }
+
+        let key = settings.qrzLogbookApiKey
+        Task { [weak self] in
+            let service = QRZLogbookService()
+            let outcome = await service.upload(qso: qso, apiKey: key)
+            await MainActor.run {
+                self?.applyQRZUploadOutcome(outcome, to: qso.id)
+            }
+        }
+    }
+
+    /// Schreibt das QRZ-Status-Flag an einem QSO zurück. Wird vom Auto-
+    /// Upload-Hook und vom Bulk-Upload-Pfad gleichermaßen genutzt.
+    private func applyQRZUploadOutcome(_ outcome: QRZLogbookService.UploadOutcome,
+                                        to qsoID: UUID) {
+        guard let db = openDB,
+              var q = currentQSOs.first(where: { $0.id == qsoID })
+        else { return }
+        let newStatus = outcome.statusCode
+        guard q.qrzLogbookStatus != newStatus else { return }
+        q.qrzLogbookStatus = newStatus
+        do {
+            try db.updateQSO(q)
+            currentQSOs = db.qsos
+        } catch {
+            print("QRZ status persist failed: \(error.localizedDescription)")
+        }
+    }
+
+    struct QRZBulkResult: Equatable {
+        var uploaded:  Int      // RESULT=OK (neu in QRZ)
+        var duplicate: Int      // RESULT=FAIL/duplicate (war schon drin)
+        var failed:    Int      // Auth-, Network-, sonstige Fehler
+        var total: Int { uploaded + duplicate + failed }
+    }
+
+    /// Bulk-Upload für eine Auswahl QSOs. Parallel via TaskGroup, max 6
+    /// gleichzeitige Requests (QRZ hat keine offizielle Rate-Limit, aber
+    /// freundlich bleiben). Status-Flags werden pro QSO direkt in der DB
+    /// nachgeführt.
+    func bulkUploadToQRZ(ids: Set<UUID>) async -> QRZBulkResult? {
+        guard let settings = uploadServices,
+              !settings.qrzLogbookApiKey.trimmingCharacters(in: .whitespaces).isEmpty
+        else { return nil }
+        let key = settings.qrzLogbookApiKey
+        let qsos = currentQSOs.filter { ids.contains($0.id) }
+        guard !qsos.isEmpty else { return QRZBulkResult(uploaded: 0, duplicate: 0, failed: 0) }
+
+        let service = QRZLogbookService()
+        var uploaded = 0
+        var duplicate = 0
+        var failed = 0
+
+        await withTaskGroup(of: (UUID, QRZLogbookService.UploadOutcome).self) { group in
+            // Concurrency-Limit: 6 parallel. Beim Lebens-Log mit 300+ QSOs
+            // wären 300 gleichzeitige Verbindungen unhöflich gegenüber QRZ.
+            var queued = 0
+            for q in qsos {
+                if queued >= 6 {
+                    if let (id, outcome) = await group.next() {
+                        self.applyQRZUploadOutcome(outcome, to: id)
+                        switch outcome {
+                        case .accepted:  uploaded += 1
+                        case .duplicate: duplicate += 1
+                        default:         failed += 1
+                        }
+                        queued -= 1
+                    }
+                }
+                group.addTask {
+                    let outcome = await service.upload(qso: q, apiKey: key)
+                    return (q.id, outcome)
+                }
+                queued += 1
+            }
+            for await (id, outcome) in group {
+                self.applyQRZUploadOutcome(outcome, to: id)
+                switch outcome {
+                case .accepted:  uploaded += 1
+                case .duplicate: duplicate += 1
+                default:         failed += 1
+                }
+            }
+        }
+        return QRZBulkResult(uploaded: uploaded, duplicate: duplicate, failed: failed)
     }
 
     func deleteQSO(_ qso: QSO) {

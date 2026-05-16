@@ -61,6 +61,13 @@ struct QSO: Identifiable, Codable, Hashable {
     var eqslConfirmed: Bool = false
     var clublogSent: Bool = false
 
+    // QRZ Logbook Upload-Status (Phase 6, Schema v10):
+    //   0 = nicht versucht
+    //   1 = OK (akzeptiert)
+    //   2 = duplicate (war bereits in QRZ — User-seitig wie 1 zu behandeln)
+    //   3 = fail (auth, network, sonstige Fehler — Retry möglich)
+    var qrzLogbookStatus: Int = 0
+
     // Solar (Phase 7)
     var sfi: Int?
     var kIndex: Double?

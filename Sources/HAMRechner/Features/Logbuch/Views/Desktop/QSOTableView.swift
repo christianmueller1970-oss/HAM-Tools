@@ -8,6 +8,7 @@ struct QSOTableView: View {
     @EnvironmentObject var manager: LogbookManager
     @EnvironmentObject var potaService: PotaParkService
     @EnvironmentObject var callbookManager: CallbookManager
+    @EnvironmentObject var uploadSettings: UploadServicesSettings
     @ObservedObject var columnStore: QSOColumnVisibilityStore
 
     @Binding var filterCall: String
@@ -28,6 +29,21 @@ struct QSOTableView: View {
     // gerade ein Lookup läuft, damit die Zeile einen Spinner statt des
     // ?-Buttons zeigt.
     @State private var lookupInFlight: Set<UUID> = []
+
+    // QRZ-Logbook-Bulk-Upload-State.
+    @State private var qrzUploadInFlight: Bool = false
+    @State private var qrzBulkAlert: QRZBulkAlert?
+
+    struct QRZBulkAlert: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+    }
+
+    private var qrzLogbookConfigured: Bool {
+        !uploadSettings.qrzLogbookApiKey
+            .trimmingCharacters(in: .whitespaces).isEmpty
+    }
 
     // Sortierung — initialer Default: Datum absteigend (neueste zuerst).
     @State private var sortOrder: [KeyPathComparator<QSO>] = [
@@ -87,6 +103,11 @@ struct QSOTableView: View {
             QSOFormSheet(qso: qso, log: currentLog ?? manager.logs[0])
                 .environmentObject(themeManager)
                 .environmentObject(manager)
+        }
+        .alert(item: $qrzBulkAlert) { entry in
+            Alert(title: Text(entry.title),
+                  message: Text(entry.message),
+                  dismissButton: .default(Text("OK")))
         }
         .onAppear {
             recomputeDupes()
@@ -477,6 +498,19 @@ struct QSOTableView: View {
             .width(min: 32, ideal: 40)
             .customizationID("qrzStatus")
 
+            // QRZ Logbook Upload-Status — default-hidden, einblendbar via
+            // Spalten-Menü. Zeigt den persistierten qrzLogbookStatus:
+            //   0 = nicht versucht: leerer Pfeil-up (Tooltip „nicht hochgeladen")
+            //   1 = OK: grüner Haken
+            //   2 = duplicate: grauer Haken (war schon drin)
+            //   3 = fail: rotes ⚠ — Klick → Bulk-Upload für genau diese Zeile
+            TableColumn("QRZ-LB") { (qso: QSO) in
+                qrzLogbookStatusCell(qso: qso)
+            }
+            .width(min: 40, ideal: 50)
+            .customizationID("qrzLogbookStatus")
+            .defaultVisibility(.hidden)
+
             // Aktionen-Spalte — nicht customizable (immer ganz rechts)
             TableColumn("") { qso in
                 HStack(spacing: 4) {
@@ -526,6 +560,16 @@ struct QSOTableView: View {
                       : "\(n) QSOs aus QRZ/HamQTH vervollständigen",
                       systemImage: "wand.and.stars")
             }
+            Button {
+                bulkUploadToQRZLogbook(for: ids)
+            } label: {
+                let n = ids.count
+                Label(n == 1
+                      ? "An QRZ Logbook hochladen"
+                      : "\(n) QSOs an QRZ Logbook hochladen",
+                      systemImage: "arrow.up.doc")
+            }
+            .disabled(!qrzLogbookConfigured || qrzUploadInFlight)
             if ids.count == 1, let id = ids.first,
                let qso = manager.currentQSOs.first(where: { $0.id == id }) {
                 Divider()
@@ -579,6 +623,67 @@ struct QSOTableView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - QRZ-Logbook-Status-Zelle
+
+    @ViewBuilder
+    private func qrzLogbookStatusCell(qso: QSO) -> some View {
+        switch qso.qrzLogbookStatus {
+        case 1:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .help("QRZ Logbook: hochgeladen")
+        case 2:
+            Image(systemName: "checkmark.circle")
+                .foregroundStyle(theme.textSecondary)
+                .help("QRZ Logbook: war bereits hochgeladen")
+        case 3:
+            Button {
+                bulkUploadToQRZLogbook(for: [qso.id])
+            } label: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.borderless)
+            .help("QRZ-Upload fehlgeschlagen — Klick: nochmal versuchen")
+            .disabled(qrzUploadInFlight)
+        default:
+            // 0 = nicht versucht — Klick lädt manuell hoch
+            Button {
+                bulkUploadToQRZLogbook(for: [qso.id])
+            } label: {
+                Image(systemName: "arrow.up.circle")
+                    .foregroundStyle(theme.textDim)
+            }
+            .buttonStyle(.borderless)
+            .help("Noch nicht hochgeladen — Klick: jetzt hochladen")
+            .disabled(!qrzLogbookConfigured || qrzUploadInFlight)
+        }
+    }
+
+    // MARK: - Bulk-Upload an QRZ Logbook
+
+    private func bulkUploadToQRZLogbook(for ids: Set<UUID>) {
+        guard !ids.isEmpty, qrzLogbookConfigured, !qrzUploadInFlight else { return }
+        qrzUploadInFlight = true
+        Task {
+            let result = await manager.bulkUploadToQRZ(ids: ids)
+            await MainActor.run {
+                qrzUploadInFlight = false
+                guard let r = result else {
+                    qrzBulkAlert = QRZBulkAlert(
+                        title: "QRZ-Upload nicht konfiguriert",
+                        message: "Trag in den Einstellungen → Lookup & Upload → QRZ.com den Logbook-API-Key ein.")
+                    return
+                }
+                qrzBulkAlert = QRZBulkAlert(
+                    title: r.uploaded > 0
+                        ? "\(r.uploaded) QSOs an QRZ hochgeladen"
+                        : "Nichts neu hochgeladen",
+                    message: "Neu: \(r.uploaded) · bereits in QRZ: \(r.duplicate) · Fehler: \(r.failed)")
             }
         }
     }

@@ -132,12 +132,38 @@ struct LookupUploadSettingsView: View {
     // MARK: - QRZ XML (funktional)
 
     private var qrzXmlPanel: some View {
-        servicePanel(name: "QRZ XML", web: "https://www.qrz.com") {
-            VStack(alignment: .leading, spacing: 8) {
-                credentialField(label: "Username", text: $callbook.qrzUsername)
-                credentialField(label: "Password", text: $callbook.qrzPassword,
-                                secure: true)
-                statusLine(configured: callbook.qrzIsConfigured)
+        servicePanel(name: "QRZ.com", web: "https://www.qrz.com") {
+            VStack(alignment: .leading, spacing: 14) {
+                // 1) Callbook-Lookup (XML-API) — funktional seit Phase 3.
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Callbook (XML-Lookup)")
+                        .font(.subheadline.weight(.semibold))
+                    credentialField(label: "Username", text: $callbook.qrzUsername)
+                    credentialField(label: "Password", text: $callbook.qrzPassword,
+                                    secure: true)
+                    statusLine(configured: callbook.qrzIsConfigured)
+                }
+                Divider()
+                // 2) Logbook (Live-Upload + spätere Confirmation-Sync, Phase 6).
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Logbook (Live-Upload)")
+                        .font(.subheadline.weight(.semibold))
+                    credentialField(label: "API-Key",
+                                    text: $upload.qrzLogbookApiKey,
+                                    secure: true)
+                    Text("Generiere den 32-stelligen Key auf qrz.com unter »My Account → Settings → Logbook API«. Bleibt lokal, wird nur an logbook.qrz.com gesendet.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Toggle("Jedes geloggte QSO automatisch hochladen",
+                           isOn: $upload.qrzAutoUploadOnLog)
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                    Text("Greift nur in Standard-Logs (DX). In POTA-/SOTA-/WWFF-/BOTA-Logs läuft der Upload über die jeweiligen Programm-Workflows.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    statusLine(configured: !upload.qrzLogbookApiKey
+                        .trimmingCharacters(in: .whitespaces).isEmpty)
+                }
             }
         }
     }

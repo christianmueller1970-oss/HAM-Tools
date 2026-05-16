@@ -12,7 +12,7 @@ final class LogbookDatabase {
     let fileURL: URL
     private let conn: SQLiteConnection
 
-    static let schemaVersion = 9
+    static let schemaVersion = 10
     static let fileExtension = "htlog"          // intern SQLite
 
     private(set) var log: Log
@@ -182,6 +182,7 @@ final class LogbookDatabase {
             aIndex REAL,
             distanceKm REAL,
             bearingDeg REAL,
+            qrzLogbookStatus INTEGER NOT NULL DEFAULT 0,
             createdAt REAL NOT NULL,
             modifiedAt REAL NOT NULL
         );
@@ -291,6 +292,18 @@ final class LogbookDatabase {
         if current < 9 {
             if !columnExists(conn: conn, table: "log_meta", column: "contestOperators") {
                 if !conn.exec("ALTER TABLE log_meta ADD COLUMN contestOperators TEXT;") {
+                    throw LogbookError.writeFailed(conn.lastErrorMessage)
+                }
+            }
+        }
+
+        // v9 → v10: QRZ-Logbook-Upload-Status pro QSO. 0=nicht versucht,
+        // 1=OK, 2=duplicate, 3=fail. NOT NULL DEFAULT 0 — bestehende QSOs
+        // bekommen automatisch 0 und können per Bulk-Upload nachgereicht
+        // werden.
+        if current < 10 {
+            if !columnExists(conn: conn, table: "qsos", column: "qrzLogbookStatus") {
+                if !conn.exec("ALTER TABLE qsos ADD COLUMN qrzLogbookStatus INTEGER NOT NULL DEFAULT 0;") {
                     throw LogbookError.writeFailed(conn.lastErrorMessage)
                 }
             }
@@ -482,7 +495,8 @@ final class LogbookDatabase {
                    createdAt, modifiedAt,
                    mySotaRefs,
                    myWwffRef, myWwffRefs, theirWwffRef,
-                   myBotaRef, myBotaRefs, theirBotaRef
+                   myBotaRef, myBotaRefs, theirBotaRef,
+                   qrzLogbookStatus
             FROM qsos ORDER BY datetime DESC;
         """)
         var out: [QSO] = []
@@ -558,6 +572,7 @@ final class LogbookDatabase {
             qso.myBotaRef          = stmt.columnText(52)
             qso.myBotaRefs         = stmt.columnText(53)
             qso.theirBotaRef       = stmt.columnText(54)
+            qso.qrzLogbookStatus   = stmt.columnInt(55) ?? 0
             out.append(qso)
         }
         return out
@@ -581,12 +596,13 @@ final class LogbookDatabase {
                 createdAt, modifiedAt,
                 mySotaRefs,
                 myWwffRef, myWwffRefs, theirWwffRef,
-                myBotaRef, myBotaRefs, theirBotaRef)
+                myBotaRef, myBotaRefs, theirBotaRef,
+                qrzLogbookStatus)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16,
                     ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28,
                     ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39, ?40,
                     ?41, ?42, ?43, ?44, ?45, ?46, ?47, ?48, ?49, ?50, ?51, ?52,
-                    ?53, ?54, ?55);
+                    ?53, ?54, ?55, ?56);
             """
         } else {
             sql = """
@@ -607,7 +623,8 @@ final class LogbookDatabase {
                 createdAt=?47, modifiedAt=?48,
                 mySotaRefs=?49,
                 myWwffRef=?50, myWwffRefs=?51, theirWwffRef=?52,
-                myBotaRef=?53, myBotaRefs=?54, theirBotaRef=?55
+                myBotaRef=?53, myBotaRefs=?54, theirBotaRef=?55,
+                qrzLogbookStatus=?56
             WHERE id=?1;
             """
         }
@@ -667,6 +684,7 @@ final class LogbookDatabase {
         stmt.bind(53, qso.myBotaRef)
         stmt.bind(54, qso.myBotaRefs)
         stmt.bind(55, qso.theirBotaRef)
+        stmt.bind(56, qso.qrzLogbookStatus)
 
         guard stmt.step() == SQLITE_DONE else {
             throw LogbookError.writeFailed(conn.lastErrorMessage)

@@ -34,7 +34,9 @@ enum ADIFCodec {
         return out
     }
 
-    private static func encodeRecord(_ q: QSO) -> String {
+    // Internal statt private — der QRZ-Logbook-Upload-Service nutzt das,
+    // um einen einzelnen QSO ohne ADIF-Header-Block zu serialisieren.
+    static func encodeRecord(_ q: QSO) -> String {
         var s = ""
         // Pflichtfelder
         s += field("CALL", q.call)

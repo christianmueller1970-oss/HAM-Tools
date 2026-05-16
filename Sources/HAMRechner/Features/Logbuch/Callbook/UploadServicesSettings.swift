@@ -46,6 +46,13 @@ final class UploadServicesSettings: ObservableObject {
     @Published var hrdlogAutoUpload:   Bool
     @Published var hrdlogMarkQslSent:  Bool
 
+    // QRZ Logbook (live, Phase 6 Schritt 1). API-Key (32-Hex) erzeugt der
+    // User in seinem QRZ-Account → Settings → API Keys. Auto-Upload feuert
+    // nur bei Standard-Logs (DX); Outdoor-Programme (POTA/SOTA/WWFF/BOTA)
+    // bleiben außen vor, weil dort eigene Upload-Pfade greifen.
+    @Published var qrzLogbookApiKey:        String
+    @Published var qrzAutoUploadOnLog:      Bool
+
     // MARK: - Zusätzliche Callbooks (read-only, Implementation folgt)
 
     // QRZCQ (alternative zu QRZ.com für non-US)
@@ -126,6 +133,10 @@ final class UploadServicesSettings: ObservableObject {
         self.hrdlogAutoUpload  = (s.object(forKey: p + "hrdlog.auto") as? Bool) ?? false
         self.hrdlogMarkQslSent = (s.object(forKey: p + "hrdlog.markQsl") as? Bool) ?? false
 
+        // QRZ Logbook
+        self.qrzLogbookApiKey      = s.string(forKey: p + "qrzLogbook.apiKey") ?? ""
+        self.qrzAutoUploadOnLog    = (s.object(forKey: p + "qrzLogbook.auto") as? Bool) ?? false
+
         // QRZCQ
         self.qrzcqUsername  = s.string(forKey: p + "qrzcq.username") ?? ""
         self.qrzcqPassword  = s.string(forKey: p + "qrzcq.password") ?? ""
@@ -188,6 +199,9 @@ final class UploadServicesSettings: ObservableObject {
         bind($hrdlogUploadCode,  to: p + "hrdlog.uploadCode", in: s)
         bind($hrdlogAutoUpload,  to: p + "hrdlog.auto",       in: s)
         bind($hrdlogMarkQslSent, to: p + "hrdlog.markQsl",    in: s)
+
+        bind($qrzLogbookApiKey,   to: p + "qrzLogbook.apiKey", in: s)
+        bind($qrzAutoUploadOnLog, to: p + "qrzLogbook.auto",   in: s)
 
         bind($qrzcqUsername,   to: p + "qrzcq.username",   in: s)
         bind($qrzcqPassword,   to: p + "qrzcq.password",   in: s)
