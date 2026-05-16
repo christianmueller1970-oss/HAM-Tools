@@ -17,7 +17,7 @@ hero:
       link: /modules/logbuch
     - theme: alt
       text: Download
-      link: https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.1.dmg
+      link: https://toolbox.funkwelt.net/app/dmg/latest.dmg
 
 features:
   - icon: 📒

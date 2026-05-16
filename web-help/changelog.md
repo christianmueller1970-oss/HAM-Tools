@@ -2,13 +2,16 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
-## In Arbeit (1.8.7)
+## 1.8.7 — 2026-05-16
+
+**Club-Log-Upload · SOTA-Punkte komplett · Update-System gehärtet**
 
 ### Club Log Upload (Phase 6 Schritt 3)
 
-- **Einstellungen → Lookup & Upload → Club Log**: Email + Application-Password
-  (nicht das Login-Passwort — kommt aus Club Log → *Settings → Application
-  Passwords*).
+- **Einstellungen → Lookup & Upload → Club Log**: nur Email + Application-Password
+  eintragen (nicht das Login-Passwort — kommt aus Club Log → *Settings →
+  Application Passwords*). Den API-Key, den Club Log seit 2026 zusätzlich
+  verlangt, bringt HAM-Tools intern mit — kein extra Onboarding nötig.
 - **Auto-Upload-Toggle** schickt jedes neu geloggte DX-QSO im Hintergrund an
   Club Log. Greift nur in Standard-Logs — Outdoor-Programme (POTA/SOTA/WWFF/
   BOTA) bleiben außen vor.
@@ -19,6 +22,25 @@ Vollständiger Versionsverlauf von HAM-Tools.
   Chance hast, die Credentials zu fixen, bevor Club Log den Zugriff blockt.
 - Erfolgreich hochgeladene QSOs werden mit „QSL via Club Log gesendet"
   markiert und tauchen im QSL-Tab sowie in der Tabellen-Übersicht auf.
+
+### SOTA — Phase 4d komplett
+
+- **Activator-Punkte-Card** im Awards-Tab → SOTA: zeigt die Summe aller
+  gültigen Aktivierungen (≥ 4 QSOs auf demselben Summit / UTC-Tag), inklusive
+  saisonalem **Winterbonus** (Nord 1. Dez – 15. März, Süd 1. Juni – 15. Sept).
+- **Multi-Summit-Hopping** korrekt: jeder Summit in der Komma-Liste zählt
+  eigene 4-QSO-Schwelle.
+- Damit ist die SOTA-Funktionalität bis auf den Upload zu sotadata.org.uk
+  (kommt in Phase 6) komplett.
+
+### Update-System gehärtet
+
+- **macOS-Mindestversion** wird vor dem Anbieten geprüft — numerisch korrekt
+  (vorher hätte ein String-Vergleich z. B. „10.15" als kleiner als „10.9"
+  eingestuft).
+- Inkompatible Updates: der „Download öffnen"-Button im Update-Dialog wird
+  **deaktiviert**, mit klarer Erklärung warum. Der Dialog erscheint trotzdem,
+  damit du weißt dass es eine neue Version gibt.
 
 ## 1.8.6 — 2026-05-16
 

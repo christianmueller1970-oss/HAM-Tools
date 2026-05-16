@@ -5,22 +5,42 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
-## [Unreleased]
+## [1.8.7] — 2026-05-16
 
 ### Logbuch — Phase 6 Schritt 3 (Club Log)
 **Live-Upload** an clublog.org: pro QSO automatisch beim Log-QSO (`realtime.php`)
 oder per Bulk via Rechtsklick-Menü „N QSOs an Club Log hochladen" (`putlogs.php`).
 Credentials kommen aus *Einstellungen → Lookup & Upload → Club Log*: Email +
-Application-Password (kein Login-Passwort — Club Log Settings → Application
-Passwords). Auto-Upload greift nur in Standard-Logs (DX); Outdoor-Programme
-nutzen weiterhin ihre eigenen Pfade. Erfolgreich hochgeladene QSOs werden lokal
-mit `clublogSent = true` markiert (taucht im QSL-Tab und in der Tabellen-Spalte
+Application Password (kein Login-Passwort — Club Log Settings → Application
+Passwords). Den eigentlichen App-API-Key (seit 2026 von Club Log gefordert)
+bringt HAM-Tools obfuskiert in der App mit — User müssen den nicht selbst
+anfragen. Auto-Upload greift nur in Standard-Logs (DX); Outdoor-Programme nutzen
+weiterhin ihre eigenen Pfade. Erfolgreich hochgeladene QSOs werden lokal mit
+`clublogSent = true` markiert (taucht im QSL-Tab und in der Tabellen-Übersicht
 auf).
 
 **Firewall-Schutz**: Club Log sperrt die Client-IP nach wiederholten
 4xx-Fehlern. Bei Auth-Fail wird der Auto-Upload-Toggle deshalb automatisch
-deaktiviert, der User bekommt einen klaren Hinweis (»Login fehlgeschlagen,
-Auto-Upload pausiert«) statt eines stillen Retry-Loops.
+deaktiviert, der User bekommt einen klaren Hinweis statt eines stillen
+Retry-Loops. Auch fehlender API-Key wird clientseitig abgefangen — kein
+Request geht raus, bevor er hinterlegt ist.
+
+### Logbuch — Phase 4d Closing (SOTA)
+**Activator-Punkte-Card** im Awards-Tab → SOTA: zeigt die Summe aller gültigen
+Aktivierungen (≥ 4 QSOs auf demselben Summit / UTC-Tag) inklusive Winterbonus
+nach saisonalen Regeln (Nordhalbkugel: 1. Dezember – 15. März, Südhalbkugel:
+1. Juni – 15. September). Multi-Summit-Hopping: jeder Summit in der
+Komma-Liste zählt eigene 4-QSO-Schwelle. Damit ist die Phase-4d-Funktionalität
+komplett — Upload zu sotadata.org.uk kommt mit Phase 6.
+
+### Update-System
+- macOS-Min-Version-Check vor dem Anbieten eines Updates: numerischer
+  Version-Compare über `OperatingSystemVersion.major/minor/patch` (vorher
+  String-Vergleich — bei „10.15" vs „10.9" hätte der lexikografisch das
+  Falsche gesagt).
+- Inkompatible Updates: Download-Button im Update-Sheet wird **deaktiviert**;
+  Warning-Text erklärt warum. Das Sheet erscheint trotzdem, damit User wissen,
+  dass es ein Update gibt.
 
 ---
 
