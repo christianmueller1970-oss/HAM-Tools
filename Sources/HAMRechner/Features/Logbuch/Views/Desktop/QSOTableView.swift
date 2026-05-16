@@ -50,34 +50,42 @@ struct QSOTableView: View {
         KeyPathComparator(\QSO.datetime, order: .reverse)
     ]
 
+    // Performance: bei 7000+ QSOs liefen filteredQSOs/sortedQSOs/
+    // chronologicalIndex bisher pro View-Render mehrfach — das hat
+    // beim Scrollen merklich gelagt. Wir halten sie jetzt als @State-
+    // Caches und recompute nur bei tatsächlichen Daten-/Filter-/Sort-
+    // Änderungen (siehe .onAppear / .onChange-Modifier am body).
+    @State private var sortedRows: [QSO] = []
+    @State private var chronoIndex: [UUID: Int] = [:]
+    @State private var filteredCount: Int = 0
+
     private var theme: AppTheme { themeManager.theme }
 
-    var filteredQSOs: [QSO] {
-        manager.currentQSOs.filter { qso in
+    /// Rechnet alle drei Caches in einem Durchgang aus dem aktuellen
+    /// Stand von currentQSOs + Filter-Strings + sortOrder neu.
+    private func recomputeRows() {
+        let qsos = manager.currentQSOs
+
+        // 1) Chronologischer Index — bewusst aus *currentQSOs* gebaut
+        //    (nicht aus sortedRows), damit die Nummer dem QSO erhalten
+        //    bleibt, egal in welcher Sortierung die Tabelle gerade steht.
+        var idx: [UUID: Int] = [:]
+        idx.reserveCapacity(qsos.count)
+        let byDate = qsos.sorted { $0.datetime < $1.datetime }
+        for (i, q) in byDate.enumerated() { idx[q.id] = i + 1 }
+        chronoIndex = idx
+
+        // 2) Filter (4 Spalten — Call/Band/Mode/Country)
+        let filtered = qsos.filter { qso in
             (filterCall.isEmpty    || qso.call.localizedCaseInsensitiveContains(filterCall)) &&
             (filterBand.isEmpty    || qso.band.localizedCaseInsensitiveContains(filterBand)) &&
             (filterMode.isEmpty    || qso.mode.localizedCaseInsensitiveContains(filterMode)) &&
             (filterCountry.isEmpty || (qso.country ?? "").localizedCaseInsensitiveContains(filterCountry))
         }
-    }
+        filteredCount = filtered.count
 
-    // Sortierung wird durch Klick auf Spaltenkopf gesetzt (binding gegen
-    // sortOrder); hier wenden wir das Komparator-Array auf die gefilterten
-    // Daten an.
-    private var sortedQSOs: [QSO] {
-        filteredQSOs.sorted(using: sortOrder)
-    }
-
-    // Chronologische QSO-Nummer (ältestes = 1, neuestes = N).
-    // Bewusst aus *currentQSOs* abgeleitet, nicht aus sortedQSOs — die Nummer
-    // bleibt dem QSO erhalten, egal in welcher Sortierung die Tabelle steht.
-    private var chronologicalIndex: [UUID: Int] {
-        let byDate = manager.currentQSOs.sorted { $0.datetime < $1.datetime }
-        var map: [UUID: Int] = [:]
-        for (i, qso) in byDate.enumerated() {
-            map[qso.id] = i + 1
-        }
-        return map
+        // 3) Sort gemäß aktuellem sortOrder (KeyPathComparator-Array).
+        sortedRows = filtered.sorted(using: sortOrder)
     }
 
     private var currentLog: Log? {
@@ -89,10 +97,10 @@ struct QSOTableView: View {
         Group {
             if manager.currentLogID == nil {
                 emptyMessage("Kein Log aktiv", "Wähle oben links ein Log oder lege ein neues an.")
-            } else if sortedQSOs.isEmpty && manager.currentQSOs.isEmpty {
+            } else if sortedRows.isEmpty && manager.currentQSOs.isEmpty {
                 emptyMessage("Noch keine QSOs",
                              "Fülle oben das QSO-Panel aus und drücke »Log QSO« (⌘↩).")
-            } else if sortedQSOs.isEmpty {
+            } else if sortedRows.isEmpty {
                 emptyMessage("Kein Treffer im Filter", "Filter oben zurücksetzen oder anpassen.")
             } else {
                 qsoTable
@@ -110,12 +118,22 @@ struct QSOTableView: View {
                   dismissButton: .default(Text("OK")))
         }
         .onAppear {
+            recomputeRows()
             recomputeDupes()
         }
-        .onChange(of: manager.currentQSOs) { _, _ in recomputeDupes() }
+        .onChange(of: manager.currentQSOs) { _, _ in
+            recomputeRows()
+            recomputeDupes()
+        }
         .onChange(of: manager.currentLogID) { _, _ in
+            recomputeRows()
             recomputeDupes()
         }
+        .onChange(of: filterCall)    { _, _ in recomputeRows() }
+        .onChange(of: filterBand)    { _, _ in recomputeRows() }
+        .onChange(of: filterMode)    { _, _ in recomputeRows() }
+        .onChange(of: filterCountry) { _, _ in recomputeRows() }
+        .onChange(of: sortOrder)     { _, _ in recomputeRows() }
     }
 
     /// Berechnet die Menge der Dupe-QSO-IDs im aktiven Log neu.
@@ -163,7 +181,7 @@ struct QSOTableView: View {
     // MARK: - Tabelle
 
     private var qsoTable: some View {
-        Table(sortedQSOs,
+        Table(sortedRows,
               selection: $selectedQSOs,
               sortOrder: $sortOrder,
               columnCustomization: $columnStore.customization) {
@@ -176,7 +194,7 @@ struct QSOTableView: View {
                 // schon hat. Sortier-Value zeigt auf datetime, damit der Builder
                 // Sort-Typ-konsistent zu den anderen Spalten bleibt.
                 TableColumn("#", value: \QSO.datetime) { (qso: QSO) in
-                    let idx = chronologicalIndex[qso.id]
+                    let idx = chronoIndex[qso.id]
                     let label: String = idx.map { String($0) } ?? ""
                     Text(label)
                         .font(.system(.caption, design: .monospaced).weight(.semibold))
