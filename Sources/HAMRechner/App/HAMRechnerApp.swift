@@ -48,6 +48,11 @@ struct HAMRechnerApp: App {
         // Spot-Cache liegt jetzt in Root/Cache/.
         SpotPersistence.cacheDirectory = root.cacheDir
 
+        // QRZ-Profilbild-Cache: <Root>/Cache/qrz-images/ mit 30-Tage-TTL.
+        // configure() ist idempotent + ungefährlich, falls AppDataRoot
+        // später mal einen anderen Pfad bekommt.
+        QRZImageCache.shared.configure(dataRoot: root)
+
         let settings = LogbookSettings(dataRoot: root)
         _logbookSettings = StateObject(wrappedValue: settings)
         _logbookManager  = StateObject(wrappedValue:

@@ -553,32 +553,13 @@ struct QSOEntryPanel: View {
     private var callbookCard: some View {
         if let urlString = callbookImageURL, let imgURL = URL(string: urlString) {
             VStack(alignment: .leading, spacing: 6) {
-                AsyncImage(url: imgURL) { phase in
-                    switch phase {
-                    case .empty:
-                        ZStack {
-                            Rectangle().fill(theme.bgCard2)
-                            ProgressView().controlSize(.small)
-                        }
-                    case .success(let img):
-                        img.resizable().scaledToFit()
-                    case .failure:
-                        ZStack {
-                            Rectangle().fill(theme.bgCard2)
-                            Image(systemName: "person.crop.square")
-                                .font(.title)
-                                .foregroundStyle(theme.textDim)
-                        }
-                    @unknown default:
-                        EmptyView()
-                    }
-                }
-                .frame(width: 250, height: 200)
-                .clipShape(RoundedRectangle(cornerRadius: 5))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5)
-                        .stroke(theme.separator, lineWidth: 1)
-                )
+                CachedQRZImage(url: imgURL, theme: theme)
+                    .frame(width: 250, height: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(theme.separator, lineWidth: 1)
+                    )
 
                 if !callbookSummary.isEmpty {
                     Text(callbookSummary)
