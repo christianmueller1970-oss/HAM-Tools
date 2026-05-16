@@ -34,9 +34,14 @@ final class UploadServicesSettings: ObservableObject {
     @Published var eqslAutoUpload:     Bool
     @Published var eqslMarkQslSent:    Bool
 
-    // Club Log
+    // Club Log — seit dem API-Update (2026) ist neben Email/Password ein
+    // separater `api`-Parameter Pflicht. Den kriegt man **nicht** im
+    // Account-Self-Service, sondern via clublog.org → Helpdesk → API-Key
+    // anfragen. Ohne den blockt die nginx-WAF jeden Request mit blankem
+    // 403 (noch bevor das PHP überhaupt läuft).
     @Published var clublogEmail:       String
     @Published var clublogPassword:    String
+    @Published var clublogApiKey:      String
     @Published var clublogAutoUpload:  Bool
     @Published var clublogMarkQslSent: Bool
     @Published var clublogShowInComments: Bool
@@ -124,6 +129,7 @@ final class UploadServicesSettings: ObservableObject {
         // Club Log
         self.clublogEmail            = s.string(forKey: p + "clublog.email")    ?? ""
         self.clublogPassword         = s.string(forKey: p + "clublog.password") ?? ""
+        self.clublogApiKey           = s.string(forKey: p + "clublog.apiKey")   ?? ""
         self.clublogAutoUpload       = (s.object(forKey: p + "clublog.auto") as? Bool) ?? false
         self.clublogMarkQslSent      = (s.object(forKey: p + "clublog.markQsl") as? Bool) ?? false
         self.clublogShowInComments   = (s.object(forKey: p + "clublog.showInComments") as? Bool) ?? false
@@ -192,6 +198,7 @@ final class UploadServicesSettings: ObservableObject {
 
         bind($clublogEmail,          to: p + "clublog.email",          in: s)
         bind($clublogPassword,       to: p + "clublog.password",       in: s)
+        bind($clublogApiKey,         to: p + "clublog.apiKey",         in: s)
         bind($clublogAutoUpload,     to: p + "clublog.auto",           in: s)
         bind($clublogMarkQslSent,    to: p + "clublog.markQsl",        in: s)
         bind($clublogShowInComments, to: p + "clublog.showInComments", in: s)

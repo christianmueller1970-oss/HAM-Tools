@@ -178,6 +178,13 @@ final class LogbookManager: ObservableObject {
     // App-Lifetime.
     var uploadServices: UploadServicesSettings?
 
+    // Vom App-Root injiziert. Wird in recomputeAwards für die Activator-
+    // Punkte-Berechnung (Summit-Lookup + Lat für Winterbonus) gebraucht.
+    // Optional, weil LogbookManager ohne Service-Setup initialisiert wird;
+    // fehlt der Service zur Aggregations-Zeit, bleibt sotaActivatorPoints
+    // einfach 0 (alle anderen Counter funktionieren weiter).
+    var sotaSummits: SotaSummitService?
+
     func addQSO(_ qso: QSO) {
         guard let db = openDB else { return }
         if let gate = licenseAllowsMoreQSOs, !gate() {
@@ -619,12 +626,14 @@ final class LogbookManager: ObservableObject {
               settings.clublogAutoUpload,
               !settings.clublogEmail.trimmingCharacters(in: .whitespaces).isEmpty,
               !settings.clublogPassword.trimmingCharacters(in: .whitespaces).isEmpty,
+              !settings.clublogApiKey.trimmingCharacters(in: .whitespaces).isEmpty,
               let log = logs.first(where: { $0.id == qso.logID }),
               log.type == .standard
         else { return }
 
         let email = settings.clublogEmail
         let password = settings.clublogPassword
+        let apiKey = settings.clublogApiKey
         let opCall = qso.operatorCall?.trimmingCharacters(in: CharacterSet.whitespaces) ?? ""
         let ownCall = UserDefaults.standard.string(forKey: "callsign") ?? ""
         let callsign = opCall.isEmpty ? ownCall : opCall
@@ -636,6 +645,7 @@ final class LogbookManager: ObservableObject {
             let outcome = await service.uploadSingle(qso: qso,
                                                      email: email,
                                                      password: password,
+                                                     apiKey: apiKey,
                                                      callsign: callsign)
             await MainActor.run {
                 self?.applyClubLogUploadOutcome(outcome, to: qso.id, markQsl: markQsl)
@@ -681,7 +691,7 @@ final class LogbookManager: ObservableObject {
     func bulkUploadToClubLog(ids: Set<UUID>) async -> ClubLogBulkResult? {
         guard let settings = uploadServices,
               !settings.clublogEmail.trimmingCharacters(in: .whitespaces).isEmpty,
-              !settings.clublogPassword.trimmingCharacters(in: .whitespaces).isEmpty
+              !settings.clublogApiKey.trimmingCharacters(in: .whitespaces).isEmpty
         else { return nil }
         let qsos = currentQSOs.filter { ids.contains($0.id) }
         guard !qsos.isEmpty else {
@@ -689,7 +699,7 @@ final class LogbookManager: ObservableObject {
                                       stoppedDueToAuth: false, firstError: nil)
         }
         let email = settings.clublogEmail
-        let password = settings.clublogPassword
+        let apiKey = settings.clublogApiKey
         let ownCall = UserDefaults.standard.string(forKey: "callsign") ?? ""
         let opCall = qsos.first?.operatorCall?.trimmingCharacters(in: CharacterSet.whitespaces) ?? ""
         let callsign = opCall.isEmpty ? ownCall : opCall
@@ -704,7 +714,7 @@ final class LogbookManager: ObservableObject {
         let outcome = await service.uploadBatch(qsos: qsos,
                                                  logName: logName,
                                                  email: email,
-                                                 password: password,
+                                                 apiKey: apiKey,
                                                  callsign: callsign)
 
         switch outcome {
@@ -916,6 +926,10 @@ final class LogbookManager: ObservableObject {
         var sotaChaserPoints  = 0
         var sotaActivatorSummits: Set<String> = []
         var sotaChaserSummits:    Set<String> = []
+        // Für Activator-Punkte: pro (Summit, UTC-Tag) zählen. Ab 4 QSOs zählt
+        // die Aktivierung — Base-Punkte + ggf. Winterbonus (Summit-Lookup
+        // gegen sotaSummits-DB nach dem Loop).
+        var sotaActivatorQSOsBySummitDay: [SummitDayKey: Int] = [:]
         var wwffActivatorQSOs = 0
         var wwffHunterQSOs    = 0
         var wwffR2R           = 0
@@ -965,6 +979,15 @@ final class LogbookManager: ObservableObject {
                 if !mySummits.isEmpty {
                     sotaActivatorQSOs += 1
                     sotaActivatorSummits.formUnion(mySummits)
+                    // Pro Hopping-Summit eigene 4-QSO-Aktivierungs-Zählung.
+                    // Tag bezieht sich auf UTC, damit Aktivierungen, die um
+                    // Mitternacht stattfinden, korrekt einem Datum zugeordnet
+                    // werden (SOTA-Regel = UTC).
+                    let dayKey = Self.utcDayString(qso.datetime)
+                    for ref in mySummits {
+                        let key = SummitDayKey(summit: ref, day: dayKey)
+                        sotaActivatorQSOsBySummitDay[key, default: 0] += 1
+                    }
                 }
                 if !theirSummits.isEmpty {
                     sotaChaserQSOs += 1
@@ -1065,6 +1088,22 @@ final class LogbookManager: ObservableObject {
         let confirmedZones     = wazBreakdown.filter(\.confirmed).count
         let confirmedStates    = wasBreakdown.filter(\.confirmed).count
 
+        // SOTA-Activator-Punkte: nur gültige Aktivierungen (≥4 QSOs auf
+        // demselben Summit am selben UTC-Tag) zählen. Base-Punkte aus
+        // Summit-DB, Winterbonus über SOTAPointsCalculator (Halbkugel-aware).
+        // Fehlt der Service oder ist der Summit nicht in der DB, fällt der
+        // Eintrag aus der Zählung — kein Crash, kein Half-Match.
+        var sotaActivatorPoints = 0
+        if let sotaDB = sotaSummits?.db {
+            for (key, count) in sotaActivatorQSOsBySummitDay where count >= 4 {
+                guard let summit = sotaDB.summit(reference: key.summit) else { continue }
+                let activationDate = Self.parseUTCDay(key.day) ?? Date()
+                let p = SOTAPointsCalculator.activatorPoints(for: summit,
+                                                              on: activationDate)
+                sotaActivatorPoints += p.base + p.bonus
+            }
+        }
+
         awards = AwardCounts(
             dxccWorked:    dxccBreakdown.count,
             dxccConfirmed: confirmedCountries,
@@ -1080,6 +1119,7 @@ final class LogbookManager: ObservableObject {
             potaP2P:            potaP2P,
             sotaActivatorQSOs:    sotaActivatorQSOs,
             sotaActivatorSummits: sotaActivatorSummits.count,
+            sotaActivatorPoints:  sotaActivatorPoints,
             sotaChaserQSOs:       sotaChaserQSOs,
             sotaChaserSummits:    sotaChaserSummits.count,
             sotaS2S:              sotaS2S,
@@ -1214,6 +1254,27 @@ final class LogbookManager: ObservableObject {
         if result.isEmpty { result = "Logbuch" }
         return result
     }
+
+    // MARK: - SOTA-Helpers (Activator-Punkte)
+
+    fileprivate struct SummitDayKey: Hashable {
+        let summit: String   // SOTA-Ref, z.B. "HB/BE-001"
+        let day: String      // UTC-Tag im Format "yyyyMMdd"
+    }
+
+    fileprivate static func utcDayString(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyyMMdd"
+        return f.string(from: date)
+    }
+
+    fileprivate static func parseUTCDay(_ s: String) -> Date? {
+        let f = DateFormatter()
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyyMMdd"
+        return f.date(from: s)
+    }
 }
 
 // Treffer aus der Cross-Log-Suche: QSO + Log-Name (woher).
@@ -1250,6 +1311,7 @@ struct AwardCounts {
     // direkt aus theirSotaPoints summiert (1× pro QSO).
     var sotaActivatorQSOs:    Int = 0
     var sotaActivatorSummits: Int = 0
+    var sotaActivatorPoints:  Int = 0  // Σ Base+Winterbonus aller gültigen Aktivierungen (≥4 QSOs / Summit-Tag)
     var sotaChaserQSOs:       Int = 0
     var sotaChaserSummits:    Int = 0
     var sotaS2S:              Int = 0  // QSOs mit mySotaRef + theirSotaRef

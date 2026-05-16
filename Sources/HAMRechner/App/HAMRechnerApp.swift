@@ -101,6 +101,9 @@ struct HAMRechnerApp: App {
         do {
             let svc = try SotaSummitService(dataRoot: root)
             _sotaSummitService = StateObject(wrappedValue: svc)
+            // Manager braucht die Summit-DB für die Activator-Punkte-
+            // Aggregation (Lookup von Punkte-Wert + Latitude für Winterbonus).
+            mgr.sotaSummits = svc
         } catch {
             fatalError("SOTA-Summit-Service konnte nicht initialisiert werden: \(error)")
         }

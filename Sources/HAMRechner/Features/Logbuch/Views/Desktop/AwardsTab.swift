@@ -556,21 +556,26 @@ struct AwardsTab: View {
                          secondaryValue: a.sotaActivatorQSOs,
                          secondaryLabel: "QSOs",
                          icon: "mountain.2.circle.fill")
+            sotaStatCard(title: "Activator-Punkte",
+                         value: a.sotaActivatorPoints,
+                         secondaryValue: a.sotaActivatorSummits,
+                         secondaryLabel: "Summits",
+                         icon: "trophy.fill")
             sotaStatCard(title: "Chaser-Summits",
                          value: a.sotaChaserSummits,
                          secondaryValue: a.sotaChaserQSOs,
                          secondaryLabel: "QSOs",
                          icon: "binoculars.fill")
-            sotaStatCard(title: "Summit-to-Summit",
-                         value: a.sotaS2S,
-                         secondaryValue: nil,
-                         secondaryLabel: "QSOs",
-                         icon: "arrow.left.arrow.right")
             sotaStatCard(title: "Chaser-Punkte",
                          value: a.sotaChaserPoints,
                          secondaryValue: a.sotaChaserSummits,
                          secondaryLabel: "Summits",
                          icon: "star.fill")
+            sotaStatCard(title: "Summit-to-Summit",
+                         value: a.sotaS2S,
+                         secondaryValue: nil,
+                         secondaryLabel: "QSOs",
+                         icon: "arrow.left.arrow.right")
         }
     }
 
@@ -609,13 +614,16 @@ struct AwardsTab: View {
             Text("Hinweise zur Punkte-Logik")
                 .font(.caption.bold())
                 .foregroundStyle(theme.textSecondary)
+            Text("• Activator-Punkte: pro Summit + UTC-Tag mit ≥ 4 QSOs zählen Base-Punkte aus der Summit-DB plus saisonaler Winterbonus (Nord 1. Dez – 15. März, Süd 1. Juni – 15. Sept).")
+                .font(.caption2)
+                .foregroundStyle(theme.textDim)
             Text("• Chaser-Punkte = Σ der Punkte aus Gegen-Summits (theirSotaPoints im QSO).")
                 .font(.caption2)
                 .foregroundStyle(theme.textDim)
-            Text("• Activator-Punkte (inkl. Winterbonus) werden bei einer SOTA-Aktivierung pro Summit + Tag vergeben — die Detail-Auswertung kommt mit Phase 6.")
+            Text("• S2S = QSOs bei denen sowohl mein als auch das Gegen-Summit gesetzt ist.")
                 .font(.caption2)
                 .foregroundStyle(theme.textDim)
-            Text("• S2S = QSOs bei denen sowohl mein als auch das Gegen-Summit gesetzt ist.")
+            Text("• Multi-Summit-Hopping: jeder Summit in der Komma-Liste zählt eigene 4-QSO-Aktivierung.")
                 .font(.caption2)
                 .foregroundStyle(theme.textDim)
         }

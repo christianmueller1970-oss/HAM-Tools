@@ -137,9 +137,11 @@ struct UpdateAlertView: View {
             if isUpdateBeyondLicense {
                 Button("Update anfragen") { sendRenewalMail() }
                     .keyboardShortcut(.defaultAction)
+                    .disabled(isMacOSIncompatible)
             } else {
                 Button("Download öffnen") { openDownload() }
                     .keyboardShortcut(.defaultAction)
+                    .disabled(isMacOSIncompatible)
             }
         }
     }
@@ -177,13 +179,45 @@ struct UpdateAlertView: View {
         dismiss()
     }
 
-    private func macOSWarning() -> String? {
-        guard let min = payload.minMacOSVersion, !min.isEmpty else { return nil }
+    /// True wenn das Update eine höhere macOS-Version verlangt als das
+    /// laufende System. Verwendet numerischen Version-Compare (vorher war
+    /// das ein String-Vergleich, der bei z.B. "10.15" vs "10.9" falsch
+    /// lieferte). Praktisch nur relevant, falls wir je die min-Version
+    /// senken/erhöhen, aber der String-Compare-Bug wäre eine Falle.
+    private var isMacOSIncompatible: Bool {
+        guard let min = payload.minMacOSVersion?
+            .trimmingCharacters(in: .whitespaces), !min.isEmpty else { return false }
         let current = ProcessInfo.processInfo.operatingSystemVersion
-        let currentStr = "\(current.majorVersion).\(current.minorVersion)"
-        if currentStr < min {
-            return "Diese Version benötigt mindestens macOS \(min). Dein System: \(currentStr)."
+        let required = Self.parseVersion(min)
+        if current.majorVersion != required.major {
+            return current.majorVersion < required.major
         }
-        return nil
+        if current.minorVersion != required.minor {
+            return current.minorVersion < required.minor
+        }
+        return current.patchVersion < required.patch
+    }
+
+    private func macOSWarning() -> String? {
+        guard isMacOSIncompatible,
+              let min = payload.minMacOSVersion?
+            .trimmingCharacters(in: .whitespaces), !min.isEmpty
+        else { return nil }
+        let v = ProcessInfo.processInfo.operatingSystemVersion
+        let cur = "\(v.majorVersion).\(v.minorVersion)"
+            + (v.patchVersion > 0 ? ".\(v.patchVersion)" : "")
+        return "Diese Version benötigt mindestens macOS \(min). Dein System: \(cur). Der Download ist deshalb deaktiviert — bitte zuerst macOS aktualisieren."
+    }
+
+    /// Parsed "14", "14.0", "14.2.1" robust in eine (major, minor, patch)
+    /// Tuple. Fehlende Komponenten = 0.
+    private static func parseVersion(_ s: String) -> (major: Int, minor: Int, patch: Int) {
+        let parts = s.split(separator: ".", maxSplits: 3,
+                            omittingEmptySubsequences: true)
+            .compactMap { Int($0) }
+        let major = parts.count > 0 ? parts[0] : 0
+        let minor = parts.count > 1 ? parts[1] : 0
+        let patch = parts.count > 2 ? parts[2] : 0
+        return (major, minor, patch)
     }
 }

@@ -41,15 +41,23 @@ final class ClubLogService: Sendable {
     /// Single-QSO Live-Upload (realtime.php). Für Auto-Upload nach addQSO.
     /// Returns Outcome — wirft nicht, damit der Aufrufer den State im
     /// QSO persistieren und ggf. weiteres Senden unterbinden kann.
+    ///
+    /// **Wichtig:** seit dem API-Update (2026) muss der `api`-Parameter
+    /// gesetzt sein — sonst blockt die nginx-WAF mit blankem 403.
+    /// Der API-Key wird via clublog.org → Helpdesk angefragt.
     func uploadSingle(qso: QSO,
                       email: String,
                       password: String,
+                      apiKey: String,
                       callsign: String) async -> UploadOutcome {
         let trimmedEmail    = email.trimmingCharacters(in: .whitespaces)
         let trimmedPassword = password.trimmingCharacters(in: .whitespaces)
+        let trimmedApiKey   = apiKey.trimmingCharacters(in: .whitespaces)
         let trimmedCall     = callsign.trimmingCharacters(in: .whitespaces)
         guard !trimmedEmail.isEmpty, !trimmedPassword.isEmpty, !trimmedCall.isEmpty
         else { return .authFailed("Email / Password / Callsign fehlen in Settings") }
+        guard !trimmedApiKey.isEmpty
+        else { return .authFailed("API-Key fehlt — bei clublog.org → Helpdesk anfragen und in den Einstellungen eintragen.") }
 
         // Ein einzelner ADIF-Record, abgeschlossen mit <EOR>. ADIFCodec
         // schreibt den <EOR> ans Ende mit dazu.
@@ -59,13 +67,14 @@ final class ClubLogService: Sendable {
         req.httpMethod = "POST"
         req.setValue("application/x-www-form-urlencoded",
                      forHTTPHeaderField: "Content-Type")
-        req.setValue("HAM-Tools/1.8.6 (macOS)",
+        req.setValue("HAM-Tools (macOS)",
                      forHTTPHeaderField: "User-Agent")
         req.httpBody = formEncode([
             "email":    trimmedEmail,
             "password": trimmedPassword,
             "callsign": trimmedCall,
-            "adif":     adifRecord
+            "adif":     adifRecord,
+            "api":      trimmedApiKey
         ])
         req.timeoutInterval = 30
 
@@ -74,16 +83,20 @@ final class ClubLogService: Sendable {
 
     /// Bulk-Upload (putlogs.php) — eine zusammengefasste ADIF-Datei mit
     /// allen QSOs in einem Request. Für vom User getriggerte Backfills.
+    /// Verlangt seit dem 2026-API-Update zusätzlich `api`-Parameter
+    /// (statt password — putlogs.php ist API-Key-only).
     func uploadBatch(qsos: [QSO],
                      logName: String,
                      email: String,
-                     password: String,
+                     apiKey: String,
                      callsign: String) async -> UploadOutcome {
         let trimmedEmail    = email.trimmingCharacters(in: .whitespaces)
-        let trimmedPassword = password.trimmingCharacters(in: .whitespaces)
+        let trimmedApiKey   = apiKey.trimmingCharacters(in: .whitespaces)
         let trimmedCall     = callsign.trimmingCharacters(in: .whitespaces)
-        guard !trimmedEmail.isEmpty, !trimmedPassword.isEmpty, !trimmedCall.isEmpty
-        else { return .authFailed("Email / Password / Callsign fehlen in Settings") }
+        guard !trimmedEmail.isEmpty, !trimmedCall.isEmpty
+        else { return .authFailed("Email / Callsign fehlen in Settings") }
+        guard !trimmedApiKey.isEmpty
+        else { return .authFailed("API-Key fehlt — bei clublog.org → Helpdesk anfragen und in den Einstellungen eintragen.") }
         guard !qsos.isEmpty else { return .rejected("Keine QSOs zum Hochladen") }
 
         let adifText = ADIFCodec.encode(qsos: qsos, logName: logName)
@@ -91,7 +104,7 @@ final class ClubLogService: Sendable {
 
         var body = Data()
         appendFormField(&body, boundary: boundary, name: "email",    value: trimmedEmail)
-        appendFormField(&body, boundary: boundary, name: "password", value: trimmedPassword)
+        appendFormField(&body, boundary: boundary, name: "api",      value: trimmedApiKey)
         appendFormField(&body, boundary: boundary, name: "callsign", value: trimmedCall)
         appendFileField(&body, boundary: boundary, name: "file",
                         filename: "\(logName).adi",
@@ -103,7 +116,7 @@ final class ClubLogService: Sendable {
         req.httpMethod = "POST"
         req.setValue("multipart/form-data; boundary=\(boundary)",
                      forHTTPHeaderField: "Content-Type")
-        req.setValue("HAM-Tools/1.8.6 (macOS)",
+        req.setValue("HAM-Tools (macOS)",
                      forHTTPHeaderField: "User-Agent")
         req.httpBody = body
         req.timeoutInterval = 60
