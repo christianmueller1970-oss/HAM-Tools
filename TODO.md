@@ -54,7 +54,7 @@ Convention:
     - [ ] **i18n** (DE/EN) — Localizable.xcstrings
     - [x] **QSL-Tab als Übersicht offener Konfirmationen** (2026-05-16) — neuer Tab zwischen Memories und History (Briefumschlag-Icon). Filter: Offen / Bestätigt / Alle, plus Service-Filter (LoTW / eQSL / Club Log / Direkt-QSL) und Sortierung (ältesten/neuesten zuerst, persistent via AppStorage). Tabelle zeigt pro Channel ein Status-Badge (✓ grün bestätigt, → gelb wartend, — grau nichts). Stift-Icon öffnet das bestehende QSO-Edit-Sheet zum Flag-Setzen. Sichtbar in Standard- und Programm-Logs (POTA/SOTA/WWFF/BOTA), bewusst nicht im Contest. **Datenquelle:** aktuell die QSO-Flags (lotwSent/Confirmed, eqslSent/Confirmed, clublogSent, qslSentDate, qslReceivedDate) — manuell oder via ADIF-Import gesetzt. Auto-Sync mit LoTW/eQSL/Club Log gehört zu Phase 6.
     - [ ] **Schedules-Tab** als Liste anstehender Skeds (aus Memories ableitbar)
-    - [ ] **Stats-Dashboard** (Phase 8 — QSOs/Band/Mode/Jahr, Best DX, Operator-Aktivität)
+    - [x] **Stats-Dashboard MVP** (2026-05-16) — neuer Tab „Stats" zwischen Awards und Memories (Bar-Chart-Icon). 4 KPI-Karten (QSOs/Best DX/DXCC/Jahre), 2×2 Chart-Grid (QSOs pro Jahr · Band · Mode · Kontinent via Swift Charts), 2 Listen (Top 10 DXCC-Länder, Top 5 längste DX-Strecken). Aggregiert über das aktive Log; Multi-Log-Filter + Operator-Aktivität für Phase 8 v2.
   - **Award-Tracking** baut darauf auf: DXCC/SOTA/POTA-Fortschritt (gearbeitet/bestätigt) → Karte + Statistiken
   - **Live-ATNO-Erkennung** im DX-Cluster: Spot-Liste markiert "neu" / "neue Band" / "neuer Mode" / "schon gearbeitet"
   - Erst gründlich planen, dann iterativ umsetzen — kein Quick-Fix.

@@ -10,6 +10,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
     case dxClusters  = "DXClusters"
     case schedules   = "Schedules"
     case awards      = "Awards"
+    case stats       = "Stats"
     case memories    = "Memories"
     case qsl         = "QSL"
     case history     = "History"
@@ -31,6 +32,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
         case .dxClusters: return "server.rack"
         case .schedules:  return "calendar"
         case .awards:     return "trophy"
+        case .stats:      return "chart.bar.fill"
         case .memories:   return "star"
         case .qsl:        return "envelope"
         case .history:    return "clock"
@@ -46,7 +48,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
 
     var isAvailable: Bool {
         switch self {
-        case .log, .dxClusters, .awards, .map, .bands,
+        case .log, .dxClusters, .awards, .stats, .map, .bands,
              .history, .memories, .qsl, .potaMap, .sotaMap, .wwffMap, .botaMap,
              .contestMap, .bandplan: return true
         default:                                                            return false
@@ -86,22 +88,22 @@ struct LogbookTabBar: View {
                 }
             case .pota:
                 switch tab {
-                case .log, .dxClusters, .potaMap, .awards, .memories, .qsl: return true
+                case .log, .dxClusters, .potaMap, .awards, .stats, .memories, .qsl: return true
                 default: return false
                 }
             case .sota:
                 switch tab {
-                case .log, .dxClusters, .sotaMap, .awards, .memories, .qsl: return true
+                case .log, .dxClusters, .sotaMap, .awards, .stats, .memories, .qsl: return true
                 default: return false
                 }
             case .wwff:
                 switch tab {
-                case .log, .dxClusters, .wwffMap, .awards, .memories, .qsl: return true
+                case .log, .dxClusters, .wwffMap, .awards, .stats, .memories, .qsl: return true
                 default: return false
                 }
             case .bota:
                 switch tab {
-                case .log, .dxClusters, .botaMap, .awards, .memories, .qsl: return true
+                case .log, .dxClusters, .botaMap, .awards, .stats, .memories, .qsl: return true
                 default: return false
                 }
             case .standard, .none:

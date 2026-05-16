@@ -747,6 +747,8 @@ struct LogbuchView: View {
                         showOnlyUpcomingSkeds: $memoriesUpcomingOnly)
         case .qsl:
             QSLTab()
+        case .stats:
+            StatsDashboard()
         case .potaMap:
             POTAMapTab()
         case .sotaMap:
