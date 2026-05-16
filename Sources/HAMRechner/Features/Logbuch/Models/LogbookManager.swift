@@ -178,8 +178,10 @@ final class LogbookManager: ObservableObject {
             onLicenseBlocked?()
             return
         }
+        var local = qso
+        recomputeGeometry(&local)
         do {
-            try db.addQSO(qso); currentQSOs = db.qsos
+            try db.addQSO(local); currentQSOs = db.qsos
             recomputeAwards()
             onQSOLogged?()
         } catch { print("addQSO failed: \(error.localizedDescription)") }
@@ -187,10 +189,31 @@ final class LogbookManager: ObservableObject {
 
     func updateQSO(_ qso: QSO) {
         guard let db = openDB else { return }
+        var local = qso
+        recomputeGeometry(&local)
         do {
-            try db.updateQSO(qso); currentQSOs = db.qsos
+            try db.updateQSO(local); currentQSOs = db.qsos
             recomputeAwards()
         } catch { print("updateQSO failed: \(error.localizedDescription)") }
+    }
+
+    /// Setzt `distanceKm` und `bearingDeg` aus dem eigenen QTH-Locator
+    /// (`AppStorage("qthLocator")`) und dem QSO-Locator. Behutsam:
+    /// — fehlt einer der beiden Locatoren, bleiben bestehende Werte
+    ///   unangetastet (wichtig für ADIF-Import, der eine DISTANCE
+    ///   vom Original-Logger schon mitgebracht haben kann).
+    /// — sind beide da, wird überschrieben (Locator-Änderung soll auch
+    ///   die Geometrie aktualisieren).
+    private func recomputeGeometry(_ qso: inout QSO) {
+        let ownLoc = (UserDefaults.standard.string(forKey: "qthLocator") ?? "")
+            .trimmingCharacters(in: .whitespaces)
+        guard !ownLoc.isEmpty else { return }
+        guard let qsoLoc = qso.locator?.trimmingCharacters(in: .whitespaces),
+              !qsoLoc.isEmpty else { return }
+        if let geo = QSO.computeGeometry(from: ownLoc, to: qsoLoc) {
+            qso.distanceKm = geo.distance
+            qso.bearingDeg = geo.bearing
+        }
     }
 
     func deleteQSO(_ qso: QSO) {
