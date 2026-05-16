@@ -503,6 +503,84 @@ struct QSOTableView: View {
         }
         .scrollContentBackground(.hidden)
         .background(theme.bgApp)
+        // Rechtsklick auf Zeile(n): Mehrfach-Selektion + Single-Row beide
+        // unterstützt — SwiftUI füllt `items` automatisch entweder mit der
+        // aktiven Selektion (Rechtsklick AUF selektierte Zeile) oder mit der
+        // geklickten Einzel-Zeile (sonst).
+        .contextMenu(forSelectionType: UUID.self) { items in
+            qsoContextMenu(for: items)
+        }
+    }
+
+    // MARK: - Context-Menu
+
+    @ViewBuilder
+    private func qsoContextMenu(for ids: Set<UUID>) -> some View {
+        if !ids.isEmpty {
+            Button {
+                bulkCallbookLookup(for: ids)
+            } label: {
+                let n = ids.count
+                Label(n == 1
+                      ? "Aus QRZ/HamQTH vervollständigen"
+                      : "\(n) QSOs aus QRZ/HamQTH vervollständigen",
+                      systemImage: "wand.and.stars")
+            }
+            if ids.count == 1, let id = ids.first,
+               let qso = manager.currentQSOs.first(where: { $0.id == id }) {
+                Divider()
+                Button {
+                    editingQSO = qso
+                } label: {
+                    Label("Bearbeiten…", systemImage: "pencil")
+                }
+                Button(role: .destructive) {
+                    manager.deleteQSO(qso)
+                } label: {
+                    Label("Löschen", systemImage: "trash")
+                }
+            }
+        }
+    }
+
+    // MARK: - Bulk-Callbook
+
+    /// Mehrfach-Lookup für die selektierten QSOs. Pro QSO wird die bestehende
+    /// `applyFillingEmpty`-Logik aus dem Single-Retry wiederverwendet —
+    /// existierende Felder werden NIE überschrieben, nur leere befüllt.
+    ///
+    /// `forceRefresh: false` ist hier bewusst gesetzt: bei einer Bulk-Aktion
+    /// nutzen wir den 30-Tage-Cache, um QRZ/HamQTH nicht mit z. B. 50
+    /// parallelen identischen Anfragen zu fluten. Wer einen einzelnen Call
+    /// frisch nachladen will, hat dafür den `?`-Button in der QRZ-Spalte.
+    private func bulkCallbookLookup(for ids: Set<UUID>) {
+        let qsos = manager.currentQSOs.filter { ids.contains($0.id) }
+        guard !qsos.isEmpty else { return }
+        for q in qsos { lookupInFlight.insert(q.id) }
+        Task {
+            await withTaskGroup(of: (UUID, CallbookResult?).self) { group in
+                for qso in qsos {
+                    group.addTask {
+                        let r = await callbookManager.lookup(call: qso.call,
+                                                              forceRefresh: false)
+                        return (qso.id, r)
+                    }
+                }
+                for await (id, result) in group {
+                    await MainActor.run {
+                        lookupInFlight.remove(id)
+                        guard let r = result,
+                              let original = manager.currentQSOs.first(where: { $0.id == id })
+                        else { return }
+                        var updated = original
+                        r.applyFillingEmpty(to: &updated)
+                        if updated != original {
+                            manager.updateQSO(updated)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - State aus POTA-Park-DB
