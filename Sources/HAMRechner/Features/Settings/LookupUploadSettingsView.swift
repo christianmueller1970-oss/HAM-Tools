@@ -153,22 +153,22 @@ struct LookupUploadSettingsView: View {
         }
     }
 
-    // POTA-Login: pota.app vergibt keinen Long-Lived-API-Key, sondern
-    // arbeitet mit AWS Cognito (1h-Token). Wir speichern Username +
-    // Passwort lokal (Passwort im macOS-Keychain) und holen das ID-Token
-    // pro Upload-Session frisch.
+    // POTA: Auto-Upload via Cognito-SRP wurde 2026-05-16 versucht, die
+    // Crypto-Math gegen POTAs Hosted-UI-Pool blieb hartnäckig auf
+    // NotAuthorizedException stehen. Workflow ist bis auf Weiteres manuell
+    // (ADIF-Export + Browser-Upload auf pota.app). Username bleibt
+    // optional persistiert, falls wir später nochmal ansetzen.
     private var potaPanel: some View {
         servicePanel(name: "POTA (pota.app)", web: "https://pota.app") {
             VStack(alignment: .leading, spacing: 8) {
+                Text("Auto-Upload aktuell nicht aktiv — siehe »pota.app…«-Button in der POTA-Log-Toolbar für den manuellen Workflow (ADIF-Export + Browser-Upload).")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
                 credentialField(label: "Username", text: $upload.potaUsername)
-                credentialField(label: "Passwort", text: $upload.potaPassword,
-                                secure: true)
-                Text("Dein pota.app-Account-Passwort. Wird ausschließlich lokal im macOS-Keychain gespeichert und nur beim manuellen Upload an Cognito gesendet, um ein Session-Token zu erhalten.")
+                Text("Username wird aktuell nicht verwendet, aber gespeichert — wenn der Auto-Upload-Flow später (re)aktiviert wird, ist der Wert schon da.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                statusLine(configured:
-                    !upload.potaUsername.trimmingCharacters(in: .whitespaces).isEmpty &&
-                    !upload.potaPassword.trimmingCharacters(in: .whitespaces).isEmpty)
+                comingSoonBadge
             }
         }
     }

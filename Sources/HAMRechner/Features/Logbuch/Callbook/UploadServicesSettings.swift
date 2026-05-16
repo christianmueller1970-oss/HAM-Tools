@@ -58,12 +58,12 @@ final class UploadServicesSettings: ObservableObject {
 
     // MARK: - Award-Programme (KEIN Real-Time-Upload, Konfig zentral)
 
-    // pota.app — Username in UserDefaults, Passwort im Keychain (siehe
-    // PotaKeychain). pota.app vergibt keinen Long-Lived-API-Key; wir
-    // halten Username + Password und holen uns das Cognito-ID-Token pro
-    // Upload-Session via CognitoAuthService.
+    // pota.app — aktuell nur Username persistiert (für späteren Auto-Upload).
+    // Auto-Upload via Cognito-SRP-Auth wurde am 2026-05-16 versucht und
+    // wieder zurückgerollt (NotAuthorizedException, Crypto-Math passte nicht
+    // gegen POTAs Hosted-UI-Pool). User-Workflow: ADIF-Export → manuell auf
+    // pota.app hochladen, siehe PotaUploadSheet.
     @Published var potaUsername:       String
-    @Published var potaPassword:       String
 
     // sotadata.org.uk
     @Published var sotaUsername:       String
@@ -134,13 +134,10 @@ final class UploadServicesSettings: ObservableObject {
         self.hamcallUsername = s.string(forKey: p + "hamcall.username") ?? ""
         self.hamcallPassword = s.string(forKey: p + "hamcall.password") ?? ""
 
-        // POTA — Migration: alter Stub-Eintrag aus pota.token war ein
-        // statischer "API-Token", den wir jetzt durch ein echtes Passwort
-        // im Keychain ersetzen. Einmalig aufräumen, falls vorhanden.
+        // POTA — Migrations-Cleanup: alte experimentelle Felder aus
+        // gescheitertem SRP-Versuch (2026-05-16) wegräumen.
         s.removeObject(forKey: p + "pota.token")
-        let storedPotaUser = s.string(forKey: p + "pota.username") ?? ""
-        self.potaUsername  = storedPotaUser
-        self.potaPassword  = PotaKeychain.password(account: storedPotaUser) ?? ""
+        self.potaUsername  = s.string(forKey: p + "pota.username") ?? ""
 
         // SOTA
         self.sotaUsername  = s.string(forKey: p + "sota.username") ?? ""
@@ -199,19 +196,6 @@ final class UploadServicesSettings: ObservableObject {
         bind($hamcallPassword, to: p + "hamcall.password", in: s)
 
         bind($potaUsername, to: p + "pota.username", in: s)
-
-        // Passwort landet im macOS-Keychain unter dem aktuellen Username
-        // als Account. Wenn der User den Username umbenennt, bleibt der
-        // alte Eintrag im Keychain stehen — kein Drama (Edge-Case), beim
-        // nächsten Schreiben unter neuem Account wird ein neuer Eintrag
-        // angelegt.
-        $potaPassword
-            .dropFirst()
-            .sink { [weak self] newPwd in
-                guard let user = self?.potaUsername, !user.isEmpty else { return }
-                PotaKeychain.setPassword(newPwd, account: user)
-            }
-            .store(in: &cancellables)
 
         bind($sotaUsername, to: p + "sota.username", in: s)
         bind($sotaPassword, to: p + "sota.password", in: s)
