@@ -153,20 +153,22 @@ struct LookupUploadSettingsView: View {
         }
     }
 
-    // POTA hat funktionale Felder (im Gegensatz zu SOTA/WWFF/BOTA), weil der
-    // Upload-Service als erster gebaut wird. Username + API-Token werden im
-    // PotaUploadSheet beim manuellen Upload aus dem POTA-Log gelesen.
+    // POTA-Login: pota.app vergibt keinen Long-Lived-API-Key, sondern
+    // arbeitet mit AWS Cognito (1h-Token). Wir speichern Username +
+    // Passwort lokal (Passwort im macOS-Keychain) und holen das ID-Token
+    // pro Upload-Session frisch.
     private var potaPanel: some View {
         servicePanel(name: "POTA (pota.app)", web: "https://pota.app") {
             VStack(alignment: .leading, spacing: 8) {
                 credentialField(label: "Username", text: $upload.potaUsername)
-                credentialField(label: "API-Token", text: $upload.potaApiToken,
+                credentialField(label: "Passwort", text: $upload.potaPassword,
                                 secure: true)
-                Text("Token findest du auf pota.app unter deinem Account-Profil. Wird nur beim manuellen Upload verwendet — kein Auto-Upload.")
+                Text("Dein pota.app-Account-Passwort. Wird ausschließlich lokal im macOS-Keychain gespeichert und nur beim manuellen Upload an Cognito gesendet, um ein Session-Token zu erhalten.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                statusLine(configured: !upload.potaApiToken
-                    .trimmingCharacters(in: .whitespaces).isEmpty)
+                statusLine(configured:
+                    !upload.potaUsername.trimmingCharacters(in: .whitespaces).isEmpty &&
+                    !upload.potaPassword.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
     }

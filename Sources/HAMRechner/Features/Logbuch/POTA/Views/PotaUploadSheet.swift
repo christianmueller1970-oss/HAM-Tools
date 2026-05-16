@@ -1,19 +1,27 @@
 import SwiftUI
 
-// Schritt 1 (UI-Gerüst, kein echter API-Call):
-// Sheet zum Hochladen der QSOs eines POTA-Logs an pota.app. Layout-Vorlage
-// ist das mit dem User abgestimmte Mockup (Header → Stats-Card → Vorschau
-// → Optionen → Status-Banner → Aktion-Footer). Der „Jetzt hochladen"-Button
-// triggert hier nur eine simulierte 1.5-Sekunden-Operation, damit die
-// Status-Übergänge sichtbar werden. Der echte Multipart-Request kommt in
-// Schritt 3 via `PotaUploadService`, sobald die API-Form per Browser-DevTools
-// verifiziert ist.
+// Sheet zum Hochladen der QSOs eines POTA-Logs an pota.app. Schritt 3 —
+// echte API-Anbindung (CognitoAuthService → PotaUploadService → POST /adif
+// → PotaJobsService poll). Auth-Daten kommen aus UploadServicesSettings
+// (Username UserDefaults, Passwort Keychain).
+//
+// Polling-Strategie: nach dem POST haben wir nur die JobId. POTA verarbeitet
+// asynchron im Backend; wir pollen `GET /user/jobs` alle 2 Sekunden bis zu
+// 30s lang, dann zeigen wir den letzten bekannten Status. Verfehlt das
+// 30s-Fenster den Wechsel auf `status==2`, ist das nicht tragisch — der
+// Job ist trotzdem eingereicht, der User kann später auf pota.app
+// nachschauen.
 struct PotaUploadSheet: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
     @EnvironmentObject var parkService: PotaParkService
     @EnvironmentObject var uploadSettings: UploadServicesSettings
     @Environment(\.dismiss) private var dismiss
+
+    // CognitoAuthService hält den ID-Token-Cache. Wir halten ihn als
+    // @StateObject im Sheet — Token überlebt mehrere Klicks auf "Jetzt
+    // hochladen" innerhalb derselben Sheet-Session.
+    @StateObject private var auth = CognitoAuthService()
 
     // Vom Aufrufer mitgegeben — wir wollen nicht implizit vom „aktuellen Log"
     // abhängen, sonst würde ein Log-Wechsel im Hintergrund den Sheet-Kontext
@@ -27,8 +35,8 @@ struct PotaUploadSheet: View {
 
     enum UploadState: Equatable {
         case idle
-        case uploading
-        case succeeded(at: Date, accepted: Int)
+        case uploading(phase: String)
+        case succeeded(at: Date, jobId: Int, counts: String?)
         case failed(String)
     }
 
@@ -73,12 +81,18 @@ struct PotaUploadSheet: View {
         Array(qsos.sorted { $0.datetime < $1.datetime }.prefix(5))
     }
 
-    private var hasToken: Bool {
-        !uploadSettings.potaApiToken.trimmingCharacters(in: .whitespaces).isEmpty
+    private var hasCredentials: Bool {
+        !uploadSettings.potaUsername.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !uploadSettings.potaPassword.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private var isUploading: Bool {
+        if case .uploading = uploadState { return true }
+        return false
     }
 
     private var canUpload: Bool {
-        !qsos.isEmpty && hasToken && uploadState != .uploading && !parkRefs.isEmpty
+        !qsos.isEmpty && hasCredentials && !isUploading && !parkRefs.isEmpty
     }
 
     // MARK: - Body
@@ -234,11 +248,11 @@ struct PotaUploadSheet: View {
     private var statusSection: some View {
         switch uploadState {
         case .idle:
-            if !hasToken {
+            if !hasCredentials {
                 statusBanner(systemName: "key",
                              tint: .orange,
-                             title: "Kein POTA-API-Token gesetzt",
-                             detail: "Einstellungen → Lookup & Upload → POTA")
+                             title: "POTA-Login fehlt",
+                             detail: "Einstellungen → Lookup & Upload → POTA: Username + Passwort eintragen")
             } else if parkRefs.isEmpty {
                 statusBanner(systemName: "exclamationmark.triangle",
                              tint: .orange,
@@ -247,18 +261,18 @@ struct PotaUploadSheet: View {
             } else {
                 EmptyView()
             }
-        case .uploading:
+        case .uploading(let phase):
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
-                Text("Hochladen läuft…")
+                Text(phase)
                     .font(.caption)
                     .foregroundStyle(theme.textSecondary)
             }
-        case .succeeded(let at, let accepted):
+        case .succeeded(let at, let jobId, let counts):
             statusBanner(systemName: "checkmark.seal.fill",
                          tint: .green,
-                         title: "Hochgeladen \(at.formatted(date: .omitted, time: .shortened))",
-                         detail: "\(accepted) QSOs angenommen")
+                         title: "Hochgeladen \(at.formatted(date: .omitted, time: .shortened)) · Job #\(jobId)",
+                         detail: counts ?? "POTA hat den Job in seine Warteschlange aufgenommen — verarbeitet im Hintergrund.")
         case .failed(let msg):
             statusBanner(systemName: "exclamationmark.triangle.fill",
                          tint: .red,
@@ -320,16 +334,110 @@ struct PotaUploadSheet: View {
 
     // MARK: - Action
 
-    // Schritt 1: simulierte Operation, damit die Status-Übergänge in der UI
-    // sichtbar werden. Schritt 3 ersetzt das durch einen echten Service-Call.
+    /// Echter Upload-Flow (Schritt 3):
+    ///   1. Cognito-Login (cached) → ID-Token
+    ///   2. ADIF-Multipart-POST an api.pota.app/adif → JobId
+    ///   3. Job-Polling (alle 2s, max 30s) bis Status==2 (processed)
+    ///   4. Verarbeitete QSO-Counts an die Sheet-UI durchreichen
     private func triggerUpload() {
-        uploadState = .uploading
+        let username = uploadSettings.potaUsername
+        let password = uploadSettings.potaPassword
+        let logName  = log.name
+        let snapshotQSOs = qsos
+        // Filename folgt POTAs eigener Konvention (siehe userComment-Feld
+        // in den Bestands-Jobs): "POTA@<REF>.adi". Bei Multi-Park nehmen
+        // wir die primäre Ref — POTA liest die echten Refs eh aus dem
+        // ADIF (MY_SIG_INFO).
+        let primaryRef = parkRefs.first ?? "UNKNOWN"
+        let filename = "POTA@\(primaryRef).adi"
+
+        uploadState = .uploading(phase: "Bei pota.app anmelden…")
+
         Task {
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            await MainActor.run {
-                uploadState = .succeeded(at: Date(), accepted: qsos.count)
+            let uploadService = PotaUploadService(auth: auth)
+            let jobsService   = PotaJobsService(auth: auth)
+
+            do {
+                await MainActor.run {
+                    uploadState = .uploading(phase: "ADIF wird hochgeladen…")
+                }
+                let result = try await uploadService.upload(
+                    qsos: snapshotQSOs,
+                    logName: logName,
+                    filename: filename,
+                    username: username,
+                    password: password)
+
+                // Polling — POTA arbeitet asynchron. Wir geben dem
+                // Backend ein paar Sekunden, dann zeigen wir das, was
+                // wir bekommen haben (status 7 = noch in Queue oder
+                // status 2 = fertig mit Counts).
+                let pollResult = await pollJob(id: result.jobId,
+                                                username: username,
+                                                password: password,
+                                                via: jobsService)
+                await MainActor.run {
+                    let countText = pollResult.flatMap { job -> String? in
+                        guard job.isProcessed else { return nil }
+                        let m = [
+                            "\(job.total) gesamt",
+                            "\(job.inserted) übernommen",
+                            job.cw    > 0 ? "\(job.cw) CW"        : nil,
+                            job.phone > 0 ? "\(job.phone) Phone"  : nil,
+                            job.data  > 0 ? "\(job.data) Digital" : nil,
+                        ].compactMap { $0 }
+                        return m.joined(separator: " · ")
+                    }
+                    uploadState = .succeeded(at: Date(),
+                                              jobId: result.jobId,
+                                              counts: countText)
+                }
+            } catch {
+                let msg = (error as? LocalizedError)?.errorDescription
+                          ?? error.localizedDescription
+                await MainActor.run {
+                    uploadState = .failed(msg)
+                }
             }
         }
+    }
+
+    /// Pollt die Job-Liste alle 2 Sekunden bis zu 15× (= 30s). Liefert den
+    /// gefundenen Job sobald `isProcessed`. Falls Timeout zuschlägt, kommt
+    /// trotzdem der letzte Job-Snapshot zurück (oder nil bei Fehler — dann
+    /// zeigen wir die generische "in Warteschlange"-Meldung).
+    private func pollJob(id: Int,
+                         username: String,
+                         password: String,
+                         via service: PotaJobsService) async -> PotaJobsService.Job? {
+        var last: PotaJobsService.Job?
+        for attempt in 0..<15 {
+            if attempt > 0 {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                await MainActor.run {
+                    uploadState = .uploading(phase: "POTA verarbeitet… (Polling \(attempt)/15)")
+                }
+            } else {
+                await MainActor.run {
+                    uploadState = .uploading(phase: "POTA verarbeitet…")
+                }
+            }
+            do {
+                if let job = try await service.findJob(id: id,
+                                                       username: username,
+                                                       password: password) {
+                    last = job
+                    if job.isProcessed { return job }
+                }
+            } catch {
+                // Polling-Fehler verschlucken — die initiale Upload-
+                // Quittung war ja schon erfolgreich (Job liegt im
+                // Server). Bei harten Fehlern brechen wir nicht ab,
+                // wir geben nur den letzten Stand zurück.
+                continue
+            }
+        }
+        return last
     }
 
     private func formatUTC(_ date: Date) -> String {
