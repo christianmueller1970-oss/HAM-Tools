@@ -15,6 +15,17 @@ DMG_NAME="${VOL_NAME}-${VERSION}.dmg"
 # regelmäßig ein ("Drive-Stuck"), wenn swift build dort Intermediates schreibt.
 BUILD_PATH="/tmp/hamtools-build"
 
+# Pflege der Build-Metadaten (vor swift build, damit der Compile-Step
+# die aktuellen Werte einbacken kann). `appVersion` liest seit dem
+# 2026-05-16-Refactor zur Laufzeit aus CFBundleShortVersionString —
+# der wird unten in der Info.plist mit $VERSION gesetzt. Nur das
+# Build-Datum braucht noch einen Sed-Patch, damit es niemals stale ist
+# (Bug 1.7.1 → 1.8.5: BuildInfo war jahrelang nicht nachgezogen).
+BUILD_INFO="Sources/HAMRechner/Features/License/BuildInfo.swift"
+BUILD_DATE_ISO="$(date +%Y-%m-%d)"
+sed -i '' "s|static let appBuildDate: String = \".*\"|static let appBuildDate: String = \"$BUILD_DATE_ISO\"|" "$BUILD_INFO"
+echo "==> appBuildDate in BuildInfo.swift auf $BUILD_DATE_ISO gepatcht."
+
 echo "==> Release-Build (swift build -c release)..."
 swift build -c release --build-path "$BUILD_PATH"
 
