@@ -21,37 +21,46 @@ import CryptoKit
 
 // MARK: - RELEASE-DATEN (für jeden Release anpassen)
 
-let RELEASE_VERSION   = "1.8.5"
-let RELEASE_BUILDDATE = "2026-05-15"          // ISO 8601, YYYY-MM-DD
+let RELEASE_VERSION   = "1.8.6"
+let RELEASE_BUILDDATE = "2026-05-16"          // ISO 8601, YYYY-MM-DD
 let RELEASE_MIN_MACOS = "14.0"                 // oder nil
-let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.5.dmg"
+let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.6.dmg"
 let RELEASE_CRITICAL  = false                  // true zwingt User zur Installation (kein Skip)
 let RELEASE_NOTES = """
-Neues "Fenster"-Menü in der macOS-Menubar mit zwei großen Erweiterungen:
+QRZ-Logbook-Anbindung, neue Tabs und viel Polish.
 
-Bandmaps als eigene Pop-up-Fenster (Mehrmonitor-Freundlich): Pro Klick \
-auf "Neue Bandmap → {Band}" öffnet sich ein 320×800-Fenster mit \
-spalten-basierter Bandmap im N1MM/Skookum-Stil. Vertikale Frequenz- \
-Skala links, Spots als farbige Striche rechts mit Mode-Codierung \
-(SSB gold, CW orange, FT8 grün, FT4 blau, RTTY pink, FM lila, \
-DIGI magenta). Pro Band genau ein Fenster (zweiter Klick = nach vorn \
-holen). Wählbare Auflösung (1-16 px/kHz mit Scrollbalken bei hohem \
-Zoom), Zeit-Filter (5min-Alle), Mode-Filter (Default SSB), Klick auf \
-einen Spot lädt ihn ins Logbuch.
+QRZ Logbook (Phase 6 Schritt 1+2):
+- Live-Upload jedes QSO an QRZ.com — API-Key in Einstellungen → \
+Lookup & Upload → QRZ.com → Logbook, Toggle für Auto-Upload bei \
+DX-Logs (Outdoor-Programme bleiben außen vor).
+- Bulk-Upload für historische QSOs via Rechtsklick im Log: \
+"N QSOs an QRZ Logbook hochladen".
+- Bestätigungen abrufen: neuer Button im QSL-Tab, holt paginiert \
+das komplette QRZ-Logbook und ergänzt fehlende LoTW-/eQSL-/Direkt- \
+Bestätigungen lokal — additiv, manuelle lokale Flags bleiben.
 
-Grayline-Fenster (⌘⇧G): Welt-Karte mit Tag/Nacht-Linie für DX- \
-Propagations-Planning. Echte Terminator-Linie als oranger Großkreis, \
-Dämmerungs-Zonen in vier Stufen (bürgerlich/nautisch/astronomisch/ \
-Nacht) als smoothe Schattierung. QTH-Marker auf deinem Locator, \
-Sonnen-Marker am Subsolar-Punkt. DatePicker mit "Jetzt"-Button und \
-Live-Mode (Tick jede Minute). Fenster-Position + Größe gemerkt.
+Neue Tabs:
+- QSL-Tab (Briefumschlag): Übersicht offener und bestätigter QSOs, \
+Filter pro Service, Doppelklick öffnet das Edit-Sheet.
+- Stats-Dashboard (Balken): 4 Kennzahlen + Charts pro Jahr/Band/ \
+Mode/Kontinent + Top-DXCC und Top-DX-Strecken.
 
-Beide Pop-up-Fenster bleiben bei App-Neustart erhalten (NSWindow- \
-Restoration).
+Distance & Bearing pro QSO:
+- Automatische Berechnung beim Loggen/Editieren aus dem eigenen \
+QTH-Locator. Neue Spalten Distanz/Peilung (default ausgeblendet).
+- Bulk-Backfill für ältere QSOs via Spalten-Menü → Wartung.
 
-UI-Polish: Einstellungen-Zahnrad aus der Logbuch-Top-Bar entfernt — \
-Standard-macOS-Konvention nutzt das App-Menü "HAM-Tools → \
-Einstellungen…" (⌘,) und der direkte Eintrag im Transceiver-Menü.
+Workflow:
+- Bulk-Vervollständigen via Rechtsklick — mehrere QSOs markieren \
+und parallel aus QRZ/HamQTH ergänzen.
+- QRZ-Profilbild-Cache (30 Tage) — Bilder erscheinen beim zweiten \
+Öffnen sofort statt mit Lade-Spinner.
+- ADIF-Import läuft async — große Dateien (z. B. 7 MB QRZ-Export) \
+blockieren die UI nicht mehr.
+
+Web/Download-Bereich:
+- Verzeichnis-Listing aller DMG-Versionen funktioniert wieder.
+- Top-Nav-Download zeigt auf eine versionslose latest.dmg.
 """
 
 // MARK: - Implementation (sollte stabil bleiben)
