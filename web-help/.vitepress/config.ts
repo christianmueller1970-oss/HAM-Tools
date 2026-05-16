@@ -71,7 +71,7 @@ export default defineConfig({
       { text: 'Module', link: '/modules/logbuch' },
       { text: 'FAQ', link: '/faq' },
       { text: 'Bekannte Bugs', link: '/known-bugs' },
-      { text: 'Download', link: 'https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.7.1.dmg' },
+      { text: 'Download', link: 'https://toolbox.funkwelt.net/app/dmg/latest.dmg' },
     ],
 
     sidebar: {

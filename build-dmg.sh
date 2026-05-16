@@ -181,8 +181,12 @@ cat <<EOF
 ────────────────────────────────────────────────────────────────────
 Nächste Schritte fürs Auto-Update der Beta-Tester:
 
-1) DMG hochladen:
+1) DMG hochladen + latest.dmg-Symlink nachziehen:
      scp $DMG_NAME hb9hji@toolbox.funkwelt.net:/var/www/toolbox/app/dmg/
+     ssh root@toolbox.funkwelt.net 'ln -sfn $DMG_NAME /var/www/toolbox/app/dmg/latest.dmg'
+
+   (Der Symlink wird vom Download-Link in /help/ und ggf. anderen Stellen
+   verwendet — so muss kein einziger Link bei einem Release nachgeführt werden.)
 
 2) Im License-Generator (cd tools/HAMToolsLicenseGen && swift run)
    den Tab »Update-Manifest« öffnen, ausfüllen:
