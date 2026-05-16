@@ -26,6 +26,13 @@ struct LogContextBar: View {
     @State private var showExportDoneAlert = false
     @State private var bulkLookupProgress: BulkProgress?
     @State private var showCabrilloSheet = false
+    @State private var geometryBackfillAlert: GeometryBackfillAlert?
+
+    struct GeometryBackfillAlert: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+    }
 
     struct BulkProgress {
         var total: Int
@@ -141,6 +148,33 @@ struct LogContextBar: View {
                 .environmentObject(themeManager)
                 .environmentObject(manager)
         }
+        .alert(item: $geometryBackfillAlert) { entry in
+            Alert(title: Text(entry.title),
+                  message: Text(entry.message),
+                  dismissButton: .default(Text("OK")))
+        }
+    }
+
+    private func runGeometryBackfill() {
+        guard let result = manager.recomputeGeometryForAllQSOs() else {
+            geometryBackfillAlert = GeometryBackfillAlert(
+                title: "QTH-Locator fehlt",
+                message: "Trag in den Einstellungen deinen eigenen QTH-Locator ein, damit Distanz und Peilung berechnet werden können.")
+            return
+        }
+        let title: String
+        let message: String
+        if result.updated == 0 && result.unchanged == 0 && result.skipped == 0 {
+            title = "Keine QSOs im Log"
+            message = "Das aktive Log enthält keine QSOs zum Nachrechnen."
+        } else if result.updated == 0 {
+            title = "Nichts zu tun"
+            message = "Alle berechenbaren QSOs sind bereits aktuell — \(result.unchanged) mit gültiger Geometrie, \(result.skipped) ohne Locator (nicht berechenbar)."
+        } else {
+            title = "\(result.updated) QSOs nachgerechnet"
+            message = "Aktualisiert: \(result.updated) · unverändert: \(result.unchanged) · ohne Locator: \(result.skipped)"
+        }
+        geometryBackfillAlert = GeometryBackfillAlert(title: title, message: message)
     }
 
     // Dropdown-Menü zum Ein-/Ausblenden aller Spalten der QSO-Tabelle.
@@ -156,6 +190,12 @@ struct LogContextBar: View {
             Divider()
             Button("Standard-Spalten wiederherstellen") {
                 columnStore.resetToDefaults(for: currentLogType)
+            }
+            Divider()
+            Section("Wartung") {
+                Button("Distanz/Peilung für alle QSOs nachrechnen…") {
+                    runGeometryBackfill()
+                }
             }
         } label: {
             HStack(spacing: 3) {

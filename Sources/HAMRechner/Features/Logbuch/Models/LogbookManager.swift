@@ -216,6 +216,58 @@ final class LogbookManager: ObservableObject {
         }
     }
 
+    struct GeometryBackfillResult: Equatable {
+        var updated: Int      // QSOs mit neuen/geänderten Werten
+        var unchanged: Int    // QSOs mit gültigem Locator, Werte stimmten schon
+        var skipped: Int      // ohne QSO-Locator → nicht berechenbar
+        var totalChecked: Int { updated + unchanged + skipped }
+    }
+
+    /// Bulk-Backfill: läuft durch alle QSOs des aktiven Logs und berechnet
+    /// `distanceKm`/`bearingDeg` neu, wo möglich. Nützlich für ältere QSOs
+    /// (vor der Auto-Berechnung geloggt) oder nach Wechsel des eigenen QTHs.
+    /// Liefert ein Ergebnis-Triple für UI-Feedback. Gibt nil zurück, wenn
+    /// kein Log offen ist oder der eigene QTH-Locator nicht gesetzt ist.
+    func recomputeGeometryForAllQSOs() -> GeometryBackfillResult? {
+        guard let db = openDB else { return nil }
+        let ownLoc = (UserDefaults.standard.string(forKey: "qthLocator") ?? "")
+            .trimmingCharacters(in: .whitespaces)
+        guard !ownLoc.isEmpty else { return nil }
+
+        var updated = 0
+        var unchanged = 0
+        var skipped = 0
+        for q in currentQSOs {
+            guard let qsoLoc = q.locator?.trimmingCharacters(in: .whitespaces),
+                  !qsoLoc.isEmpty,
+                  let geo = QSO.computeGeometry(from: ownLoc, to: qsoLoc)
+            else {
+                skipped += 1
+                continue
+            }
+            // Float-Vergleich mit Epsilon (DB-Roundtrip kann minimale
+            // Differenzen erzeugen, die wir nicht als "geändert" zählen).
+            let same = (q.distanceKm.map { abs($0 - geo.distance) < 0.5 } ?? false)
+                    && (q.bearingDeg.map { abs($0 - geo.bearing)  < 0.1 } ?? false)
+            if same {
+                unchanged += 1
+                continue
+            }
+            var local = q
+            local.distanceKm = geo.distance
+            local.bearingDeg = geo.bearing
+            do { try db.updateQSO(local); updated += 1 }
+            catch { print("recomputeGeometryForAllQSOs update failed: \(error)") }
+        }
+        if updated > 0 {
+            currentQSOs = db.qsos
+            recomputeAwards()
+        }
+        return GeometryBackfillResult(updated: updated,
+                                       unchanged: unchanged,
+                                       skipped: skipped)
+    }
+
     func deleteQSO(_ qso: QSO) {
         guard let db = openDB else { return }
         do {
