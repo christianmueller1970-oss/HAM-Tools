@@ -13,7 +13,7 @@ import Foundation
 // Lizenz weiterhin voll läuft) oder Update-Verlängerung anfragen.
 enum BuildInfo {
     /// Datum dieses App-Builds. Bei jedem Release-Build manuell aktualisieren.
-    static let appBuildDate: String = "2026-05-13"
+    static let appBuildDate: String = "2026-05-16"
 
     /// Support-/Lizenz-Anfragen
     static let licenseRequestEmail = "hb9hji@funkwelt.net"
@@ -24,6 +24,10 @@ enum BuildInfo {
     /// Update-Manifest auf Christians Webserver. Server-Setup s. tools/README-server.md.
     static let updateManifestURL = "https://toolbox.funkwelt.net/app/updates.json"
 
-    /// User-sichtbare App-Version (für About-Box, Update-Vergleich-Anzeige).
-    static let appVersion = "1.7.0"
+    /// User-sichtbare App-Version. Wird im Update-Dialog als „Aktuell"-
+    /// Anzeige verwendet. Pflicht nachzuziehen bei jedem Release zusammen
+    /// mit `appBuildDate`, CHANGELOG.md und der build-dmg.sh-VERSION —
+    /// sonst zeigt der Update-Dialog beim Beta-Tester eine veraltete
+    /// „Aktuell"-Version (Bug bis einschließlich 1.8.5).
+    static let appVersion = "1.8.6"
 }
