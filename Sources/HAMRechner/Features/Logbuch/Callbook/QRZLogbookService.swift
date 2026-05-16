@@ -120,6 +120,157 @@ final class QRZLogbookService: Sendable {
         }
     }
 
+    // MARK: - FETCH (Confirmations abrufen)
+
+    enum FetchError: LocalizedError {
+        case noApiKey
+        case authFailed(String)
+        case rejected(String)
+        case network(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .noApiKey:           return "Kein API-Key in Settings"
+            case .authFailed(let m):  return "Auth: \(m)"
+            case .rejected(let m):    return m
+            case .network(let m):     return "Netzwerk: \(m)"
+            }
+        }
+    }
+
+    struct FetchResult {
+        let count: Int      // QRZ-eigenes COUNT (Anzahl QSOs in der Antwort)
+        let adif: String    // rohes ADIF, vom Aufrufer mit ADIFCodec.parse zerlegt
+    }
+
+    /// Holt eine Page der QSOs aus QRZs Logbook (MAX:250 ab dem
+    /// gegebenen `afterLogId`). Aufrufer muss durch Pagination iterieren:
+    /// nach jedem Batch die höchste `app_qrzlog_logid` aus dem ADIF lesen,
+    /// +1, und als `afterLogId` in die nächste Anfrage geben.
+    func fetchAll(apiKey: String, afterLogId: Int = 0) async -> Result<FetchResult, FetchError> {
+        let key = apiKey.trimmingCharacters(in: .whitespaces)
+        guard !key.isEmpty else { return .failure(.noApiKey) }
+
+        // QRZ-Doku sagt POST, in der Praxis funktioniert FETCH aber NUR
+        // mit GET (siehe QRZ-Forum-Thread 798437 — andere haben dasselbe
+        // Problem gehabt). Parameter müssen daher als Query-String an die
+        // URL, nicht als Body.
+        // MAX:5000 liefert in der Praxis still 0 Bytes (vermutlich Server-
+        // Timeout oder Response-Größen-Limit). MAX:250 ist die in anderen
+        // Loggern bewährte Batch-Größe. Pagination passiert beim Aufrufer
+        // via afterLogId-Inkrement.
+        let optionString = "ALL,TYPE:ADIF,MAX:250,AFTERLOGID:\(afterLogId)"
+        var components = URLComponents(url: Self.endpoint, resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "KEY",    value: key),
+            URLQueryItem(name: "ACTION", value: "FETCH"),
+            URLQueryItem(name: "OPTION", value: optionString)
+        ]
+        var req = URLRequest(url: components.url!)
+        req.httpMethod = "GET"
+        req.setValue("application/x-www-form-urlencoded, text/plain, */*",
+                     forHTTPHeaderField: "Accept")
+        // Browser-Header-Spoofing: QRZ liefert für URLSessions mit dem
+        // default "<bundle>/<v> CFNetwork/...Darwin"-UA stillschweigend
+        // 0 Bytes zurück (verifiziert 2026-05-16). Browser sendet zusätzlich
+        // einen Referer auf die QRZ-Domain und Accept-Language.
+        req.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+                     forHTTPHeaderField: "User-Agent")
+        req.setValue("https://logbook.qrz.com/", forHTTPHeaderField: "Referer")
+        req.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
+        // Cache umgehen — eine 0-Byte-Antwort von einem fehlgeschlagenen
+        // Versuch davor würde sonst gemerkt und immer wieder zurückgegeben.
+        req.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        req.timeoutInterval = 60
+
+        let data: Data
+        let http: HTTPURLResponse
+        do {
+            let (d, resp) = try await URLSession.shared.data(for: req)
+            data = d
+            guard let h = resp as? HTTPURLResponse else {
+                return .failure(.network("Keine HTTP-Antwort"))
+            }
+            http = h
+        } catch {
+            return .failure(.network(error.localizedDescription))
+        }
+        let body = String(data: data, encoding: .utf8) ?? ""
+
+        // Vor allem zur Diagnose der "leer"-Antwort: HTTP-Status + Bytes
+        // im Fehler-Snippet mitführen.
+        if http.statusCode != 200 {
+            let snip = String(body.prefix(150))
+                .replacingOccurrences(of: "\n", with: "⏎")
+            return .failure(.network("HTTP \(http.statusCode) · \(data.count) Bytes · \(snip)"))
+        }
+
+        if body.isEmpty {
+            // URL für den User: Key vor dem Output rausfiltern, damit er nicht
+            // im Alert sichtbar wird. URL-Encoding direkt von URLComponents.
+            let urlString = components.url?.absoluteString ?? "?"
+            let sanitized = urlString.replacingOccurrences(
+                of: "KEY=\(key)", with: "KEY=<HIDDEN>")
+            let ct = http.value(forHTTPHeaderField: "Content-Type") ?? "?"
+            return .failure(.rejected(
+                "HTTP 200, 0 Bytes Body (Content-Type: \(ct)).\n\nGesendete URL: \(sanitized)\n\nMögliche Ursache: API-Key hat keine FETCH-Berechtigung. Kopier die URL oben, ersetze <HIDDEN> mit deinem Key, und ruf sie im Browser auf — wenn der Browser auch nur weiß zeigt, ist's ein QRZ-Account-Issue."))
+        }
+        // QRZ FETCH liefert zwei Varianten je nach Größe / Pool-Konfiguration:
+        //  (a) form-urlencoded Wrapper wie INSERT: RESULT=OK&COUNT=N&ADIF=...
+        //  (b) **direkter ADIF-Stream** als Body — keine RESULT-Hülle.
+        // Wir erkennen (b) am <EOH>/<EOR>-Tag (case-insensitive).
+        let lower = body.lowercased()
+        let looksLikeRawADIF = lower.contains("<eor>") || lower.contains("<eoh>")
+
+        if looksLikeRawADIF {
+            // Variante (b): Body IST das ADIF.
+            // COUNT aus QRZ-Header-Tags ableiten (z.B. <APP_QRZLOG_COUNT>),
+            // sonst aus der Anzahl <eor> abzählen.
+            let count = countOccurrences(of: "<eor>", in: lower)
+            return .success(FetchResult(count: count, adif: body))
+        }
+
+        // Variante (a): form-urlencoded Wrapper.
+        let parsed = parseFormURLEncoded(body)
+        let result = (parsed["RESULT"] ?? "").uppercased()
+        let reason = parsed["REASON"] ?? ""
+
+        // Vollständige Server-Antwort als Diagnose-Snippet, falls QRZ einen
+        // Hinweis in einem nicht-Standard-Feld unterbringt.
+        let diagSnippet: String = {
+            let snippet = String(body.prefix(200))
+                .replacingOccurrences(of: "\n", with: "⏎")
+            return snippet.isEmpty ? "(leer)" : snippet
+        }()
+
+        switch result {
+        case "OK":
+            let count = parsed["COUNT"].flatMap { Int($0) } ?? 0
+            let adif  = parsed["ADIF"] ?? ""
+            return .success(FetchResult(count: count, adif: adif))
+        case "AUTH":
+            return .failure(.authFailed(reason.isEmpty ? "API-Key ungültig" : reason))
+        case "FAIL":
+            let msg = reason.isEmpty
+                ? "Server-Antwort: \(diagSnippet)"
+                : reason
+            return .failure(.rejected(msg))
+        default:
+            return .failure(.rejected("Unerwartete Antwort: \(diagSnippet)"))
+        }
+    }
+
+    private func countOccurrences(of needle: String, in haystack: String) -> Int {
+        guard !needle.isEmpty else { return 0 }
+        var count = 0
+        var range = haystack.startIndex..<haystack.endIndex
+        while let r = haystack.range(of: needle, options: .literal, range: range) {
+            count += 1
+            range = r.upperBound..<haystack.endIndex
+        }
+        return count
+    }
+
     // MARK: - Helpers
 
     private func formEncode(_ params: [String: String]) -> Data {

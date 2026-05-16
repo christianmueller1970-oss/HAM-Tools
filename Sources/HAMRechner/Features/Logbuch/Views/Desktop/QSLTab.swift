@@ -17,12 +17,26 @@ import SwiftUI
 struct QSLTab: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
+    @EnvironmentObject var uploadSettings: UploadServicesSettings
 
     @AppStorage("logbook.qsl.filter") private var filter: Filter = .open
     @AppStorage("logbook.qsl.serviceFilter") private var serviceFilter: ServiceFilter = .all
     @AppStorage("logbook.qsl.sort") private var sortNewestFirst: Bool = false
 
     @State private var editingQSO: QSO?
+    @State private var qrzFetchInFlight: Bool = false
+    @State private var qrzFetchAlert: QRZFetchAlert?
+
+    struct QRZFetchAlert: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+    }
+
+    private var qrzConfigured: Bool {
+        !uploadSettings.qrzLogbookApiKey
+            .trimmingCharacters(in: .whitespaces).isEmpty
+    }
 
     enum Filter: String, CaseIterable, Identifiable {
         case open      = "Offen"
@@ -126,6 +140,11 @@ struct QSLTab: View {
                 .environmentObject(themeManager)
                 .environmentObject(manager)
         }
+        .alert(item: $qrzFetchAlert) { entry in
+            Alert(title: Text(entry.title),
+                  message: Text(entry.message),
+                  dismissButton: .default(Text("OK")))
+        }
     }
 
     @ViewBuilder
@@ -172,6 +191,27 @@ struct QSLTab: View {
 
             Spacer()
 
+            // QRZ-Confirmation-Sync — additiv (überschreibt lokal-true nie).
+            Button {
+                runQRZFetch()
+            } label: {
+                HStack(spacing: 3) {
+                    if qrzFetchInFlight {
+                        ProgressView().controlSize(.mini)
+                    } else {
+                        Image(systemName: "arrow.down.circle")
+                    }
+                    Text("QRZ-Bestätigungen abrufen")
+                        .font(.caption)
+                }
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(theme.accentBlue)
+            .disabled(!qrzConfigured || qrzFetchInFlight)
+            .help(qrzConfigured
+                  ? "Holt alle QSOs von QRZ und ergänzt fehlende LoTW-/eQSL-/Direkt-Bestätigungen lokal."
+                  : "QRZ-Logbook-API-Key in den Einstellungen eintragen.")
+
             Text("\(rowCount) QSO\(rowCount == 1 ? "" : "s")")
                 .font(.caption)
                 .foregroundStyle(theme.textSecondary)
@@ -181,6 +221,33 @@ struct QSLTab: View {
         .background(theme.bgPanel)
         .overlay(alignment: .bottom) {
             Rectangle().fill(theme.separator).frame(height: 1)
+        }
+    }
+
+    private func runQRZFetch() {
+        guard !qrzFetchInFlight else { return }
+        qrzFetchInFlight = true
+        Task {
+            do {
+                let r = try await manager.fetchQRZConfirmations()
+                await MainActor.run {
+                    qrzFetchInFlight = false
+                    let title = r.newConfirmations > 0
+                        ? "\(r.newConfirmations) neue Bestätigungen"
+                        : "Nichts neu"
+                    qrzFetchAlert = QRZFetchAlert(
+                        title: title,
+                        message: "QRZ-Log: \(r.serverTotal) QSOs · zugeordnet: \(r.matchedLocal) · neu bestätigt: \(r.newConfirmations) · nur auf QRZ: \(r.serverOnly)")
+                }
+            } catch {
+                await MainActor.run {
+                    qrzFetchInFlight = false
+                    qrzFetchAlert = QRZFetchAlert(
+                        title: "Sync fehlgeschlagen",
+                        message: (error as? LocalizedError)?.errorDescription
+                                 ?? error.localizedDescription)
+                }
+            }
         }
     }
 

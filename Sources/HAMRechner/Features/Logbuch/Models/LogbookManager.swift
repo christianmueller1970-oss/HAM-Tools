@@ -325,6 +325,214 @@ final class LogbookManager: ObservableObject {
         var total: Int { uploaded + duplicate + failed }
     }
 
+    struct QRZFetchSyncResult: Equatable {
+        var serverTotal:      Int    // Anzahl QSOs auf QRZ
+        var matchedLocal:     Int    // davon konnten wir lokal zuordnen
+        var newConfirmations: Int    // QSOs, bei denen wir Bestätigungs-Flags neu gesetzt haben
+        var serverOnly:       Int    // auf QRZ, aber nicht lokal (informativ)
+    }
+    enum QRZFetchSyncError: LocalizedError {
+        case notConfigured
+        case service(String)
+        var errorDescription: String? {
+            switch self {
+            case .notConfigured:    return "QRZ-Logbook-API-Key fehlt in den Einstellungen."
+            case .service(let m):   return m
+            }
+        }
+    }
+
+    /// Holt alle QSOs von QRZ via ACTION=FETCH und merged die
+    /// Bestätigungs-Felder (lotwConfirmed, eqslConfirmed, qslReceivedDate,
+    /// qslReceivedVia) **additiv** in unsere lokalen Datensätze:
+    ///   • setzt nur dann, wenn Server-true und lokal noch false (bzw.
+    ///     Datum lokal nil).
+    ///   • überschreibt niemals einen lokal manuell gesetzten Status.
+    /// Match-Schlüssel: Call|YYYYMMDDHHMM|Band|Mode (case-normalisiert).
+    /// Bei Multi-Match ungewöhnlich, aber theoretisch möglich → wir
+    /// updaten alle Treffer (würde nur passieren wenn der lokale Log
+    /// Duplikate enthält).
+    func fetchQRZConfirmations() async throws -> QRZFetchSyncResult {
+        guard let settings = uploadServices,
+              !settings.qrzLogbookApiKey.trimmingCharacters(in: .whitespaces).isEmpty
+        else { throw QRZFetchSyncError.notConfigured }
+        let key = settings.qrzLogbookApiKey
+
+        // Index der lokalen QSOs für O(1)-Match. Wir bauen den einmal vor
+        // der Pagination-Schleife — und referenzieren die QSO-IDs, damit
+        // wir nach dem Page-Update immer die aktuelle Version aus
+        // currentQSOs holen können (Updates aus der vorigen Page könnten
+        // den lokalen Stand verändert haben).
+        var localIndex: [String: [UUID]] = [:]
+        for q in currentQSOs {
+            let mk = Self.qrzMatchKey(call: q.call,
+                                       datetime: q.datetime,
+                                       band: q.band,
+                                       mode: q.mode)
+            localIndex[mk, default: []].append(q.id)
+        }
+
+        let service = QRZLogbookService()
+        var serverTotal = 0
+        var matchedLocal = 0
+        var newConfirmations = 0
+        var serverOnly = 0
+
+        // Pagination: solange QRZ ein volles Batch liefert (= 250), gibt's
+        // mehr; sobald weniger kommen, sind wir am Ende. Sicherheits-Cap
+        // auf 200 Iterationen = 50 000 QSOs.
+        var afterLogId = 0
+        var iteration = 0
+        let maxIterations = 200
+
+        outer: while iteration < maxIterations {
+            iteration += 1
+            let result = await service.fetchAll(apiKey: key, afterLogId: afterLogId)
+            let payload: QRZLogbookService.FetchResult
+            switch result {
+            case .success(let r):
+                payload = r
+            case .failure(let err):
+                if iteration == 1 {
+                    throw QRZFetchSyncError.service(err.errorDescription ?? "FETCH fehlgeschlagen")
+                }
+                // Spätere Pages: Fehler verschlucken, mit dem bisher
+                // Gesammelten heimkehren.
+                break outer
+            }
+
+            let records = ADIFCodec.parse(payload.adif)
+            serverTotal += records.count
+
+            // Höchste app_qrzlog_logid in diesem Batch — wird zur Vorgabe
+            // für den nächsten AFTERLOGID.
+            var highestLogId = afterLogId
+
+            for rec in records {
+                if let logIdStr = rec["app_qrzlog_logid"] ?? rec["APP_QRZLOG_LOGID"],
+                   let logId = Int(logIdStr.trimmingCharacters(in: .whitespaces)) {
+                    if logId > highestLogId { highestLogId = logId }
+                }
+
+                guard let mk = Self.qrzMatchKey(fromADIF: rec),
+                      let candidateIDs = localIndex[mk], !candidateIDs.isEmpty else {
+                    serverOnly += 1
+                    continue
+                }
+                matchedLocal += candidateIDs.count
+
+                for id in candidateIDs {
+                    guard let original = currentQSOs.first(where: { $0.id == id }) else { continue }
+                    var updated = original
+                    var didChange = false
+
+                    // Additiv: nur setzen, wenn lokal noch nicht gesetzt
+                    // UND Server-true.
+                    if !updated.lotwConfirmed,
+                       let v = rec["LOTW_QSLRDATE"], !v.isEmpty {
+                        updated.lotwConfirmed = true
+                        didChange = true
+                    }
+                    if !updated.eqslConfirmed,
+                       let v = rec["EQSL_QSLRDATE"], !v.isEmpty {
+                        updated.eqslConfirmed = true
+                        didChange = true
+                    }
+                    if updated.qslReceivedDate == nil {
+                        if let rcvd = rec["QSL_RCVD"]?.uppercased(), rcvd == "Y" {
+                            if let dateStr = rec["QSL_RCVDDATE"],
+                               let date = Self.parseADIFDate(dateStr) {
+                                updated.qslReceivedDate = date
+                                didChange = true
+                            }
+                        } else if let dateStr = rec["QSL_RCVDDATE"], !dateStr.isEmpty,
+                                  let date = Self.parseADIFDate(dateStr) {
+                            updated.qslReceivedDate = date
+                            didChange = true
+                        }
+                    }
+                    if (updated.qslReceivedVia ?? "").isEmpty,
+                       let via = rec["QSL_RCVD_VIA"]?.trimmingCharacters(in: .whitespaces),
+                       !via.isEmpty {
+                        updated.qslReceivedVia = via
+                        didChange = true
+                    }
+
+                    if didChange, let db = openDB {
+                        do {
+                            try db.updateQSO(updated)
+                            newConfirmations += 1
+                        } catch {
+                            print("QRZ confirm-sync update failed: \(error.localizedDescription)")
+                        }
+                    }
+                }
+            }
+
+            // currentQSOs refresh, damit der next-Page-Loop die frischen
+            // Werte sieht.
+            if newConfirmations > 0, let db = openDB {
+                currentQSOs = db.qsos
+            }
+
+            // Abbruch-Bedingungen:
+            //   • leere Page → fertig
+            //   • Server-COUNT < MAX → letzte Page
+            //   • highestLogId hat sich nicht erhöht → keine neuen Daten
+            if records.isEmpty || payload.count < 250 || highestLogId == afterLogId {
+                break
+            }
+            afterLogId = highestLogId + 1
+        }
+
+        if newConfirmations > 0 {
+            recomputeAwards()
+        }
+        return QRZFetchSyncResult(serverTotal: serverTotal,
+                                   matchedLocal: matchedLocal,
+                                   newConfirmations: newConfirmations,
+                                   serverOnly: serverOnly)
+    }
+
+    // MARK: - QRZ-Match-Schlüssel
+
+    /// Normalisierter Match-Key für QSO-Equality über Logger-Grenzen:
+    /// Call|YYYYMMDDHHMM|Band|Mode (alle uppercased/lowercased).
+    private static func qrzMatchKey(call: String,
+                                     datetime: Date,
+                                     band: String,
+                                     mode: String) -> String {
+        let f = DateFormatter()
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyyMMddHHmm"
+        let c = call.uppercased().trimmingCharacters(in: .whitespaces)
+        let b = band.lowercased().trimmingCharacters(in: .whitespaces)
+        let m = mode.uppercased().trimmingCharacters(in: .whitespaces)
+        return "\(c)|\(f.string(from: datetime))|\(b)|\(m)"
+    }
+
+    private static func qrzMatchKey(fromADIF dict: [String: String]) -> String? {
+        guard let callRaw = dict["CALL"]?.trimmingCharacters(in: .whitespaces),
+              !callRaw.isEmpty,
+              let dateStr = dict["QSO_DATE"],
+              let timeStr = dict["TIME_ON"],
+              let band = dict["BAND"]?.trimmingCharacters(in: .whitespaces),
+              let mode = dict["MODE"]?.trimmingCharacters(in: .whitespaces)
+        else { return nil }
+        // ADIF TIME_ON kann HHmm oder HHmmss sein — wir matchen auf Minute.
+        let timeOnly = String(timeStr.prefix(4))
+        return "\(callRaw.uppercased())|\(dateStr)\(timeOnly)|\(band.lowercased())|\(mode.uppercased())"
+    }
+
+    private static func parseADIFDate(_ s: String) -> Date? {
+        let trimmed = s.trimmingCharacters(in: .whitespaces)
+        guard trimmed.count >= 8 else { return nil }
+        let f = DateFormatter()
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyyMMdd"
+        return f.date(from: String(trimmed.prefix(8)))
+    }
+
     /// Bulk-Upload für eine Auswahl QSOs. Parallel via TaskGroup, max 6
     /// gleichzeitige Requests (QRZ hat keine offizielle Rate-Limit, aber
     /// freundlich bleiben). Status-Flags werden pro QSO direkt in der DB

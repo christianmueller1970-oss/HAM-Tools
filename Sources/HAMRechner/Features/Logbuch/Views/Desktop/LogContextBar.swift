@@ -27,6 +27,14 @@ struct LogContextBar: View {
     @State private var bulkLookupProgress: BulkProgress?
     @State private var showCabrilloSheet = false
     @State private var geometryBackfillAlert: GeometryBackfillAlert?
+    @State private var importInFlight: Bool = false
+    @State private var importErrorAlert: ImportErrorAlert?
+
+    struct ImportErrorAlert: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+    }
 
     struct GeometryBackfillAlert: Identifiable {
         let id = UUID()
@@ -121,7 +129,10 @@ struct LogContextBar: View {
                 }
 
                 columnsMenu
-                actionButton("Import…", icon: "square.and.arrow.down", action: openADIFImport)
+                actionButton(importInFlight ? "Importiere…" : "Import…",
+                             icon: importInFlight ? "hourglass" : "square.and.arrow.down",
+                             enabled: !importInFlight,
+                             action: openADIFImport)
                 actionButton("Export ADIF", icon: "square.and.arrow.up", action: exportADIF)
                 actionButton("Cabrillo…", icon: "stopwatch",
                              action: { showCabrilloSheet = true })
@@ -149,6 +160,11 @@ struct LogContextBar: View {
                 .environmentObject(manager)
         }
         .alert(item: $geometryBackfillAlert) { entry in
+            Alert(title: Text(entry.title),
+                  message: Text(entry.message),
+                  dismissButton: .default(Text("OK")))
+        }
+        .alert(item: $importErrorAlert) { entry in
             Alert(title: Text(entry.title),
                   message: Text(entry.message),
                   dismissButton: .default(Text("OK")))
@@ -295,7 +311,8 @@ struct LogContextBar: View {
     // MARK: - Import
 
     private func openADIFImport() {
-        guard let activeID = manager.currentLogID,
+        guard !importInFlight,
+              let activeID = manager.currentLogID,
               let activeLog = manager.logs.first(where: { $0.id == activeID })
         else { return }
         let panel = NSOpenPanel()
@@ -309,12 +326,46 @@ struct LogContextBar: View {
         panel.message = "ADIF-Datei (.adi) zum Import auswählen"
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
-        let qsos = manager.parseADIF(at: url, targetLogID: activeID)
-        guard !qsos.isEmpty else {
-            // Falls Parse fehlschlug, hier könnte ein Alert kommen
-            return
+        // Async: bei großen ADIFs (7 MB, 7000 Records aus dem QRZ-Download)
+        // braucht der Parser merklich Zeit. ADIFCodec ist static und nicht
+        // MainActor-isoliert, also können wir Parse+QSO-Konvertierung
+        // wirklich im Background machen. UI bekommt während dessen einen
+        // Spinner.
+        importInFlight = true
+        Task.detached(priority: .userInitiated) {
+            // Encoding-Fallback: QRZ-Downloads sind meist ASCII (UTF-8-
+            // kompatibel), aber andere Logger-Exports können Latin-1 sein.
+            let text: String? = {
+                if let s = try? String(contentsOf: url, encoding: .utf8) { return s }
+                if let s = try? String(contentsOf: url, encoding: .isoLatin1) { return s }
+                return nil
+            }()
+            guard let raw = text else {
+                await MainActor.run {
+                    importInFlight = false
+                    importErrorAlert = ImportErrorAlert(
+                        title: "Datei nicht lesbar",
+                        message: "\(url.lastPathComponent) konnte weder als UTF-8 noch als ISO-Latin-1 gelesen werden.")
+                }
+                return
+            }
+
+            let records = ADIFCodec.parse(raw)
+            let qsos = records.compactMap { ADIFCodec.qso(from: $0, logID: activeID) }
+
+            await MainActor.run {
+                importInFlight = false
+                if qsos.isEmpty {
+                    importErrorAlert = ImportErrorAlert(
+                        title: "Keine QSOs gefunden",
+                        message: "Aus \(url.lastPathComponent) wurden \(records.count) Records geparst, aber keiner hatte gültige Pflichtfelder (CALL, QSO_DATE, TIME_ON).")
+                } else {
+                    pendingImport = PendingImport(url: url,
+                                                   qsos: qsos,
+                                                   targetLog: activeLog)
+                }
+            }
         }
-        pendingImport = PendingImport(url: url, qsos: qsos, targetLog: activeLog)
     }
 
     private func filterField(_ placeholder: String,
