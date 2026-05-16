@@ -26,6 +26,20 @@ final class QRZLogbookService: Sendable {
 
     static let endpoint = URL(string: "https://logbook.qrz.com/api")!
 
+    // Eigene URLSession, ephemeral & ohne State — URLSession.shared
+    // hatte am 2026-05-16 nach den ersten FETCH-Versuchen einen Zustand
+    // (vermutlich gecachte 0-Byte-Response oder ein Set-Cookie), bei dem
+    // weitere identische Anfragen RESULT=OK&COUNT=0 zurückgaben, obwohl
+    // die gleiche URL im Browser einwandfrei lief.
+    nonisolated(unsafe) private static let session: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        config.urlCache = nil
+        config.httpCookieStorage = nil
+        config.httpShouldSetCookies = false
+        return URLSession(configuration: config)
+    }()
+
     enum UploadOutcome: Equatable {
         case accepted(logId: Int?)
         case duplicate
@@ -74,6 +88,10 @@ final class QRZLogbookService: Sendable {
                      forHTTPHeaderField: "Content-Type")
         req.setValue("application/x-www-form-urlencoded, text/plain, */*",
                      forHTTPHeaderField: "Accept")
+        // QRZ-Doku: alle API-Aufrufe brauchen einen identifizierbaren UA,
+        // sonst gibt's Rate-Limiting/Filtering.
+        req.setValue("HAM-Tools/1.8.5 (macOS)",
+                     forHTTPHeaderField: "User-Agent")
         req.httpBody = formEncode([
             "KEY":    key,
             "ACTION": "INSERT",
@@ -83,7 +101,7 @@ final class QRZLogbookService: Sendable {
         let data: Data
         let http: HTTPURLResponse
         do {
-            let (d, resp) = try await URLSession.shared.data(for: req)
+            let (d, resp) = try await Self.session.data(for: req)
             data = d
             guard let h = resp as? HTTPURLResponse else {
                 return .network("Keine HTTP-Antwort")
@@ -155,11 +173,15 @@ final class QRZLogbookService: Sendable {
         // mit GET (siehe QRZ-Forum-Thread 798437 — andere haben dasselbe
         // Problem gehabt). Parameter müssen daher als Query-String an die
         // URL, nicht als Body.
-        // MAX:5000 liefert in der Praxis still 0 Bytes (vermutlich Server-
-        // Timeout oder Response-Größen-Limit). MAX:250 ist die in anderen
-        // Loggern bewährte Batch-Größe. Pagination passiert beim Aufrufer
-        // via afterLogId-Inkrement.
-        let optionString = "ALL,TYPE:ADIF,MAX:250,AFTERLOGID:\(afterLogId)"
+        // OPTION-Konstruktion gemäß offizieller QRZ-API-Doku (gelesen
+        // 2026-05-16):
+        //   • Default Scope = ALL (alle Records). Aber: "When the option
+        //     ALL is given, only the options TYPE and STATUS may also be
+        //     specified." → MAX/AFTERLOGID **darf nicht** mit ALL kombiniert
+        //     werden, sonst antwortet QRZ mit COUNT=0.
+        //   • MAX:nnnn ohne ALL ist der empfohlene Paging-Modus.
+        //   • MAX:250 + AFTERLOGID:N → Standard-Pagination-Schritt.
+        let optionString = "TYPE:ADIF,MAX:250,AFTERLOGID:\(afterLogId)"
         var components = URLComponents(url: Self.endpoint, resolvingAgainstBaseURL: false)!
         components.queryItems = [
             URLQueryItem(name: "KEY",    value: key),
@@ -168,16 +190,13 @@ final class QRZLogbookService: Sendable {
         ]
         var req = URLRequest(url: components.url!)
         req.httpMethod = "GET"
+        // App-spezifischer User-Agent — QRZ-Doku verlangt Identifikation
+        // (generische UAs wie Safari/node-fetch werden rate-limited oder
+        // ignoriert). Format gem. Empfehlung: AppName/version.
+        req.setValue("HAM-Tools/1.8.5 (macOS)",
+                     forHTTPHeaderField: "User-Agent")
         req.setValue("application/x-www-form-urlencoded, text/plain, */*",
                      forHTTPHeaderField: "Accept")
-        // Browser-Header-Spoofing: QRZ liefert für URLSessions mit dem
-        // default "<bundle>/<v> CFNetwork/...Darwin"-UA stillschweigend
-        // 0 Bytes zurück (verifiziert 2026-05-16). Browser sendet zusätzlich
-        // einen Referer auf die QRZ-Domain und Accept-Language.
-        req.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-                     forHTTPHeaderField: "User-Agent")
-        req.setValue("https://logbook.qrz.com/", forHTTPHeaderField: "Referer")
-        req.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
         // Cache umgehen — eine 0-Byte-Antwort von einem fehlgeschlagenen
         // Versuch davor würde sonst gemerkt und immer wieder zurückgegeben.
         req.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
@@ -186,7 +205,7 @@ final class QRZLogbookService: Sendable {
         let data: Data
         let http: HTTPURLResponse
         do {
-            let (d, resp) = try await URLSession.shared.data(for: req)
+            let (d, resp) = try await Self.session.data(for: req)
             data = d
             guard let h = resp as? HTTPURLResponse else {
                 return .failure(.network("Keine HTTP-Antwort"))
@@ -196,6 +215,17 @@ final class QRZLogbookService: Sendable {
             return .failure(.network(error.localizedDescription))
         }
         let body = String(data: data, encoding: .utf8) ?? ""
+
+        // Diagnose-Dump bei Fetch-Aufrufen: Request-URL + Response-Header
+        // + ersten 4 KB Body nach /tmp/hamtools-qrz-fetch.log, damit wir
+        // den Unterschied Browser-vs-App debuggen können.
+        #if DEBUG
+        QRZLogbookService.logFetchDebug(url: components.url,
+                                         http: http,
+                                         body: body,
+                                         requestHeaders: req.allHTTPHeaderFields ?? [:],
+                                         apiKey: key)
+        #endif
 
         // Vor allem zur Diagnose der "leer"-Antwort: HTTP-Status + Bytes
         // im Fehler-Snippet mitführen.
@@ -230,8 +260,15 @@ final class QRZLogbookService: Sendable {
             return .success(FetchResult(count: count, adif: body))
         }
 
-        // Variante (a): form-urlencoded Wrapper.
-        let parsed = parseFormURLEncoded(body)
+        // Variante (a): form-urlencoded Wrapper. **Quirk:** QRZ schickt
+        // den ADIF-Wert MIT HTML-Entities (`&lt;` und `&gt;`) ohne das
+        // führende `&` zu URL-encoden. Naives Splitten an `&` zerlegt also
+        // den ADIF-Block in tausend Fragmente und das `ADIF`-Feld bleibt
+        // leer. Wir ziehen `ADIF=` daher manuell als "alles bis zum
+        // Ende" raus und parsen den Rest des Headers normal.
+        let (head, extractedADIF) = splitFetchADIF(body)
+        var parsed = parseFormURLEncoded(head)
+        if let v = extractedADIF { parsed["ADIF"] = v }
         let result = (parsed["RESULT"] ?? "").uppercased()
         let reason = parsed["REASON"] ?? ""
 
@@ -246,7 +283,15 @@ final class QRZLogbookService: Sendable {
         switch result {
         case "OK":
             let count = parsed["COUNT"].flatMap { Int($0) } ?? 0
-            let adif  = parsed["ADIF"] ?? ""
+            // QRZ-FETCH-ADIF-Quirks (beobachtet 2026-05-16):
+            //   1) HTML-Entities (`&lt;`, `&gt;`, `&amp;`) statt rohe `<>&`.
+            //   2) Keine ADIF-Header-Sektion — der Block geht direkt mit
+            //      `<…>`-Feldern los, ohne `<ADIF_VER>...<EOH>`. Unser
+            //      Parser startet aber mit inHeader=true; wir prepend
+            //      darum ein synthetisches `<EOH>`, damit er sofort in
+            //      den Record-Mode springt.
+            let rawADIF = decodeHTMLEntities(parsed["ADIF"] ?? "")
+            let adif = "<EOH>\n" + rawADIF
             return .success(FetchResult(count: count, adif: adif))
         case "AUTH":
             return .failure(.authFailed(reason.isEmpty ? "API-Key ungültig" : reason))
@@ -258,6 +303,72 @@ final class QRZLogbookService: Sendable {
         default:
             return .failure(.rejected("Unerwartete Antwort: \(diagSnippet)"))
         }
+    }
+
+    #if DEBUG
+    private static func logFetchDebug(url: URL?,
+                                       http: HTTPURLResponse,
+                                       body: String,
+                                       requestHeaders: [String: String],
+                                       apiKey: String) {
+        let path = "/tmp/hamtools-qrz-fetch.log"
+        var dump = "\n=== \(Date().description) ===\n"
+        dump += "URL: \((url?.absoluteString ?? "?").replacingOccurrences(of: apiKey, with: "<KEY>"))\n"
+        dump += "HTTP Status: \(http.statusCode)\n"
+        dump += "Response Content-Type: \(http.value(forHTTPHeaderField: "Content-Type") ?? "?")\n"
+        dump += "Response Content-Length header: \(http.value(forHTTPHeaderField: "Content-Length") ?? "?")\n"
+        dump += "Response Set-Cookie: \(http.value(forHTTPHeaderField: "Set-Cookie") ?? "(none)")\n"
+        dump += "Body bytes: \(body.utf8.count)\n"
+        var clean: [String: String] = [:]
+        for (k, v) in requestHeaders { clean[k] = (k == "KEY") ? "<KEY>" : v }
+        dump += "Request Headers: \(clean.map { "\($0.key)=\($0.value)" }.sorted().joined(separator: " | "))\n"
+        dump += "Body (first 4 KB):\n"
+        dump += String(body.prefix(4096))
+        dump += "\n"
+        if let data = dump.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: path) {
+                if let h = try? FileHandle(forWritingTo: URL(fileURLWithPath: path)) {
+                    _ = try? h.seekToEnd()
+                    try? h.write(contentsOf: data)
+                    try? h.close()
+                }
+            } else {
+                try? data.write(to: URL(fileURLWithPath: path))
+            }
+        }
+    }
+    #endif
+
+    /// Extrahiert den `ADIF=`-Block aus einem QRZ-FETCH-Body. Wegen der
+    /// HTML-Entities (mit `&` darin) splittet ein normaler form-url-Parser
+    /// den Block falsch — wir nehmen einfach alles ab `ADIF=` bis zum
+    /// Ende des Body als ADIF-Wert.
+    private func splitFetchADIF(_ body: String) -> (head: String, adif: String?) {
+        if let r = body.range(of: "&ADIF=") {
+            let head = String(body[..<r.lowerBound])
+            let adif = String(body[r.upperBound...])
+            return (head, adif.removingPercentEncoding ?? adif)
+        }
+        if body.hasPrefix("ADIF=") {
+            let adif = String(body.dropFirst("ADIF=".count))
+            return ("", adif.removingPercentEncoding ?? adif)
+        }
+        return (body, nil)
+    }
+
+    /// Decodet die fünf häufigsten HTML-Entities. QRZs FETCH-Response
+    /// schickt das ADIF-Stream HTML-encoded mit at-least `&lt;`/`&gt;`,
+    /// gelegentlich auch `&amp;` in QSO-Comment-Feldern. `&amp;` muss
+    /// ZULETZT decodet werden — sonst würde "&amp;lt;" zu "&lt;" und
+    /// dann zu "<" doppelt-decodieren.
+    private func decodeHTMLEntities(_ s: String) -> String {
+        var r = s
+        r = r.replacingOccurrences(of: "&lt;",   with: "<")
+        r = r.replacingOccurrences(of: "&gt;",   with: ">")
+        r = r.replacingOccurrences(of: "&quot;", with: "\"")
+        r = r.replacingOccurrences(of: "&#39;",  with: "'")
+        r = r.replacingOccurrences(of: "&amp;",  with: "&")
+        return r
     }
 
     private func countOccurrences(of needle: String, in haystack: String) -> Int {

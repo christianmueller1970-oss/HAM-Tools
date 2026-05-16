@@ -387,6 +387,14 @@ final class LogbookManager: ObservableObject {
 
         outer: while iteration < maxIterations {
             iteration += 1
+            // QRZ-Rate-Limit-Schutz: kurze Pause zwischen Pages.
+            // 8 Requests in 12 s waren empirisch zu schnell — Page 8 kam
+            // mit 0 Bytes zurück (2026-05-16). 400 ms Delay ab der 2. Page
+            // gibt dem Server Luft, bleibt aber UX-tolerabel
+            // (~11 s extra für 28 Pages bei 7000 QSOs).
+            if iteration > 1 {
+                try? await Task.sleep(nanoseconds: 400_000_000)
+            }
             let result = await service.fetchAll(apiKey: key, afterLogId: afterLogId)
             let payload: QRZLogbookService.FetchResult
             switch result {
@@ -396,9 +404,15 @@ final class LogbookManager: ObservableObject {
                 if iteration == 1 {
                     throw QRZFetchSyncError.service(err.errorDescription ?? "FETCH fehlgeschlagen")
                 }
-                // Spätere Pages: Fehler verschlucken, mit dem bisher
-                // Gesammelten heimkehren.
-                break outer
+                // Spätere Pages mit Fehler: einmal kurz warten und nochmal
+                // versuchen — Rate-Limits sind oft transient. Bleibt's
+                // hartnäckig, brechen wir mit dem bisher Gesammelten ab.
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                let retry = await service.fetchAll(apiKey: key, afterLogId: afterLogId)
+                switch retry {
+                case .success(let r): payload = r
+                case .failure:        break outer
+                }
             }
 
             let records = ADIFCodec.parse(payload.adif)
