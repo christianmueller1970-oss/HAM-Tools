@@ -9,6 +9,8 @@ struct LogContextBar: View {
     @EnvironmentObject var manager: LogbookManager
     @EnvironmentObject var callbookSettings: CallbookSettings
     @EnvironmentObject var callbookManager: CallbookManager
+    @EnvironmentObject var parkService: PotaParkService
+    @EnvironmentObject var uploadSettings: UploadServicesSettings
 
     @Binding var filterCall: String
     @Binding var filterBand: String
@@ -26,6 +28,7 @@ struct LogContextBar: View {
     @State private var showExportDoneAlert = false
     @State private var bulkLookupProgress: BulkProgress?
     @State private var showCabrilloSheet = false
+    @State private var showPotaUploadSheet = false
 
     struct BulkProgress {
         var total: Int
@@ -118,6 +121,10 @@ struct LogContextBar: View {
                 actionButton("Export ADIF", icon: "square.and.arrow.up", action: exportADIF)
                 actionButton("Cabrillo…", icon: "stopwatch",
                              action: { showCabrilloSheet = true })
+                if currentLogType == .pota {
+                    actionButton("pota.app…", icon: "arrow.up.doc",
+                                 action: { showPotaUploadSheet = true })
+                }
             }
         }
         .sheet(item: $pendingImport) { p in
@@ -140,6 +147,15 @@ struct LogContextBar: View {
             CabrilloExportSheet()
                 .environmentObject(themeManager)
                 .environmentObject(manager)
+        }
+        .sheet(isPresented: $showPotaUploadSheet) {
+            if let log = currentLog {
+                PotaUploadSheet(log: log, qsos: manager.currentQSOs)
+                    .environmentObject(themeManager)
+                    .environmentObject(manager)
+                    .environmentObject(parkService)
+                    .environmentObject(uploadSettings)
+            }
         }
     }
 

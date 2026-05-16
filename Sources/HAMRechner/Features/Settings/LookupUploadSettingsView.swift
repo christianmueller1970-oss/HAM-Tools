@@ -119,8 +119,7 @@ struct LookupUploadSettingsView: View {
         case .eqsl:      placeholder(name: "eQSL.cc",      web: "https://www.eqsl.cc",     showRT: true)
         case .clublog:   placeholder(name: "Club Log",     web: "https://clublog.org",     showRT: true)
         case .hrdlog:    placeholder(name: "HRDLOG.net",   web: "https://www.hrdlog.net",  showRT: true)
-        case .pota:      programmePlaceholder(name: "POTA (pota.app)",
-                                              web: "https://pota.app")
+        case .pota:      potaPanel
         case .sota:      programmePlaceholder(name: "SOTA (sotadata.org.uk)",
                                               web: "https://www.sotadata.org.uk")
         case .wwff:      programmePlaceholder(name: "WWFF (wwff.cc)",
@@ -150,6 +149,24 @@ struct LookupUploadSettingsView: View {
                 credentialField(label: "Password", text: $callbook.hamqthPassword,
                                 secure: true)
                 statusLine(configured: callbook.hamqthIsConfigured)
+            }
+        }
+    }
+
+    // POTA hat funktionale Felder (im Gegensatz zu SOTA/WWFF/BOTA), weil der
+    // Upload-Service als erster gebaut wird. Username + API-Token werden im
+    // PotaUploadSheet beim manuellen Upload aus dem POTA-Log gelesen.
+    private var potaPanel: some View {
+        servicePanel(name: "POTA (pota.app)", web: "https://pota.app") {
+            VStack(alignment: .leading, spacing: 8) {
+                credentialField(label: "Username", text: $upload.potaUsername)
+                credentialField(label: "API-Token", text: $upload.potaApiToken,
+                                secure: true)
+                Text("Token findest du auf pota.app unter deinem Account-Profil. Wird nur beim manuellen Upload verwendet — kein Auto-Upload.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                statusLine(configured: !upload.potaApiToken
+                    .trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
     }

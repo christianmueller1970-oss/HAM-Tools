@@ -38,7 +38,13 @@ Convention:
   - **Offen:**
     - [x] **Phase 4c** POTA-Modus — Park-DB + Activator/Hunter + P2P + Multi-Park-Hopping + Dupe-Markierung + Spots-Feed mit CAT-QSY + ADIF + QSO-Map fertig (siehe Commits b629758…c7dc8f5)
     - [x] **Phase 5** CAT-Anbindung — Hamlib + IC-7300/705/9700 + S-Meter + VFO/Mode/Split + Multi-Config + CI-V-Adresse fertig
-    - [ ] **POTA-Upload** (pota.app/user/api/upload) — Activator-Logs end-to-end aus der App hochladen. API-Key in Settings hinterlegen, Sheet "Hochladen" pro Session, Status-Anzeige
+    - [~] **POTA-Upload** (pota.app/user/api/upload) — Activator-Logs end-to-end aus der App hochladen.
+      - [x] **Schritt 1: UI-Gerüst (2026-05-16)** — `PotaUploadSheet.swift` mit Park-Header (Ref + Name aus `PotaParkService`), Multi-Park-Anzeige, Stats-Card (QSO-Count, Bänder nach Häufigkeit, Last-Upload-Placeholder), Vorschau erste 5 QSOs, Activator+Hunter-Toggles, 4-Zustand-Status-Banner (idle/uploading/success/failed). Toolbar-Button „pota.app…" in `LogContextBar`, nur sichtbar bei `currentLogType == .pota`. Echtes Eingabe-Panel für Username + API-Token in `LookupUploadSettingsView` (vorher nur Placeholder). „Jetzt hochladen" ist Stub: simuliert 1.5s + Success.
+      - [ ] **Schritt 2: API-Verifikation** — pota.app-Upload via Browser-DevTools mitschneiden (Endpoint-URL, Auth-Header-Form, Multipart-Body, Response-JSON). Vor Schritt 3 nötig.
+      - [ ] **Schritt 3: Service-Layer** — `PotaUploadService.swift` mit echtem Multipart-POST, ADIF-Stream via `ADIFExporter` (mit `MY_SIG=POTA`, `MY_SIG_INFO=<ref>`). Sheet bindet sich an Status.
+      - [ ] **Schritt 4: Persistenz** — `potaUploadStatus`-Spalte am Log (Schema v6→v7), Last-Upload-Zeit aus DB statt Hardcoded.
+    - [x] **Bulk-Vervollständigung via Kontextmenü** (2026-05-16) — `QSOTableView` hat jetzt ein `.contextMenu(forSelectionType: UUID.self)`. Bei Mehrfach-Auswahl: "N QSOs aus QRZ/HamQTH vervollständigen" (parallel via `TaskGroup`, `forceRefresh: false` damit der 30-Tage-Cache greift und QRZ nicht geflutet wird). Bei Single-Row zusätzlich Bearbeiten + Löschen direkt im Menü. Pro Zeile läuft der bestehende `lookupInFlight`-Spinner in der QRZ-Spalte, leere Felder werden via `applyFillingEmpty` befüllt (überschreibt nichts). Greift in allen Log-Typen (DX/POTA/SOTA/WWFF/BOTA/Contest), weil alle dieselbe `QSOTableView` nutzen.
+    - [ ] **Upload zu QRZ Logbook / LoTW / eQSL** — gehört zu Phase 6, dort gebündelt bauen
     - [ ] **POTA Self-Spot** — "Spotten von hier"-Button in POTA-Status-Bar (POST api.pota.app/spot mit Auth) für QSY-Wechsel ohne externen Tab
     - [x] **WSJT-X UDP-Bridge** — UDP-Listener (Default Port 2237) für WSJT-X-Protokoll Typ-5 (`QSOLogged`), QSOs landen automatisch im aktuell aktiven HAM-Tools-Log (Commit 913bc44, 2026-05-14). Decode-Stream/Heartbeat-Anzeige bleibt für später.
     - [ ] **Phase 4** Contest-Engine vollständig (contests.json Templates + Live-Score + SCP + F1-F8 Macros + Run/S&P-Toggle) — Basis ist live (Contest-Mode 8a53606), Engine-Ausbau folgt
@@ -59,7 +65,7 @@ Convention:
 - [x] **N:** **Rechtes Seiten-Panel füllen** — Solar-Daten Section (SSN/X-Ray/Solar Wind/Helium 304Å/Aurora-Lat/Geomag-Feld via hamqsl.com XML, farbig nach Schwellwerten) + "Eigene Spots"-Section (filtert `dxCall == myCallsign` aus `@AppStorage("callsign")`, Top 5 mit Zeit/Freq/Spotter); Panel scrollbar; SFI-Gauge `invertColors: true` (hoher SFI = grün rechts, niedriger = rot links); Kp-Gauge unverändert (niedrig = grün, hoch = rot)
 
 ### Ideen
-- [ ] _(Brainstorm-Liste)_
+- [ ] **N:** **KiwiSDR-Integration (Nice to have)** — verfügbare öffentliche KiwiSDRs auflisten (kiwisdr.com/public) und im UI bedienbar machen (Frequenz, Mode, Bandbreite, Audio-Stream). Wenn machbar: (a) automatisches Mute des Kiwi-Streams sobald PTT am eigenen TRX gedrückt wird (über CAT/RadioState beobachten), (b) Frequenz-Sync TRX → Kiwi (eigener TRX QSY → Kiwi folgt auf gleiche QRG). Ziel: man hört sich selbst über den Kiwi, während man auf dem TRX sendet — klassische Cross-Site-Selbstkontrolle. Offene Punkte: Kiwi-WebSocket-API (kein offizielles SDK), Latenz akzeptabel?, Audio-Routing in macOS.
 
 ---
 
@@ -95,6 +101,8 @@ Convention:
 
 ## Bugs
 
+- [x] **W:** **FAQ-Link zu älteren DMGs liefert 403** — gefixt 2026-05-16: in `/etc/nginx/sites-available/toolbox.funkwelt.net` einen `location /app/dmg/`-Block mit `autoindex on; autoindex_exact_size off; autoindex_localtime on;` ergänzt (lokale Spiegelung in `web/nginx-toolbox.conf`). Backup als `.bak-YYYYMMDD-HHMMSS` daneben, `nginx -t` grün, `systemctl reload nginx`. https://toolbox.funkwelt.net/app/dmg/ liefert jetzt 200 mit Listing aller DMGs inkl. Datum + Größe.
+- [x] **W:** **Top-Nav "Download" zeigte hartcodiert auf veraltete 1.7.1** — gefixt 2026-05-16: Symlink `/var/www/toolbox/app/dmg/latest.dmg` → aktuelle DMG-Version eingerichtet, Nav-Link in `web-help/.vitepress/config.ts` auf `https://toolbox.funkwelt.net/app/dmg/latest.dmg` umgezogen, Help-Site neu deployed. `build-dmg.sh` Release-Anleitung um `ssh root@... 'ln -sfn $DMG_NAME .../latest.dmg'`-Schritt erweitert, damit der Symlink bei jedem Release mitläuft und kein Link mehr nachgeführt werden muss.
 - [x] **N:** Propagation-Panel Band-Activity: Verhalten geprüft — Heatmap speist sich aus `vm.spots` (alle Quellen: aktiver Cluster + SOTA + POTA + WWFF), bewusst kein Filter (immer Gesamtbild). Passt so.
 - [x] **N:** DX-Cluster Status-Indikator zeigt **immer grün** — Inactivity-Watchdog ergänzt: nach 5 Min ohne Daten → `.error` Status + automatischer Reconnect (Check alle 60s)
 - [x] **N:** DX-Cluster Spot-Filter unbeschriftet — Custom-Menu mit Label IM Dropdown ("Band: Alle", "Mode: FT8" etc.), aktiver Filter-Wert in Akzentfarbe blau, Häkchen vor ausgewähltem Eintrag im Menü
