@@ -5,6 +5,58 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.8.6] — 2026-05-16
+
+### Logbuch — Phase 6 Schritt 1 + 2 (QRZ Logbook)
+**Live-Upload** an QRZ.com: pro QSO automatisch beim Log-QSO oder per Bulk via
+Rechtsklick-Menü „N QSOs an QRZ Logbook hochladen". API-Key kommt aus
+*Einstellungen → Lookup & Upload → QRZ.com → Logbook*. Auto-Upload greift nur in
+Standard-Logs (DX); Outdoor-Programme (POTA/SOTA/WWFF/BOTA) bleiben außen vor,
+weil die ihre eigenen Upload-Pfade haben. Status pro QSO im neuen `QRZ-LB`-
+Spalten-Badge (default ausgeblendet): ✓ neu / ✓ schon drin / ⚠ Fehler (klick =
+retry). Schema v9 → v10 mit `qrzLogbookStatus`-Spalte.
+
+**Confirmation-Sync**: QSL-Tab hat neuen Button „QRZ-Bestätigungen abrufen". Holt
+paginiert (MAX:250 + AFTERLOGID) das komplette QRZ-Logbook, matcht via
+Call+Datum+Band+Mode gegen die lokalen QSOs und ergänzt fehlende
+LoTW-/eQSL-/Direkt-Bestätigungen *additiv* — lokale manuelle Bestätigungen
+bleiben unberührt.
+
+### Logbuch — neue Tabs
+- **QSL-Tab** (Briefumschlag, zwischen Memories und History) mit Filter
+  Offen/Bestätigt/Alle, Service-Filter (LoTW/eQSL/Club Log/Direkt), Sortierung
+  und Doppelklick-Edit.
+- **Stats-Dashboard** (Balken-Icon, zwischen Awards und Memories) mit
+  4 Kennzahl-Karten (QSOs / Best DX / DXCC / Jahre), 2×2 Charts pro Jahr / Band
+  / Mode / Kontinent und zwei Top-Listen (DXCC-Länder, längste DX-Strecken).
+
+### Logbuch — Phase 3-Rest
+- **Distance/Bearing pro QSO** automatisch beim Anlegen oder Bearbeiten —
+  Haversine + Initial-Bearing aus eigenem QTH-Locator und QSO-Locator.
+  Spalten *Distanz (km)* und *Peil (°)* zeigen die Werte. Bulk-Backfill für
+  bestehende QSOs via Spalten-Menü → „Wartung → Distanz/Peilung für alle
+  QSOs nachrechnen…".
+- **QRZ-Profilbild-Cache** persistent in `~/Documents/HAM-Tools/Cache/qrz-images/`
+  mit 30-Tage-TTL. Beim zweiten Öffnen erscheint das Bild sofort statt mit
+  Lade-Spinner.
+
+### Logbuch — Workflow-Verbesserungen
+- **Bulk-Vervollständigen via Rechtsklick** in der QSO-Tabelle: mehrere QSOs
+  markieren → „N QSOs aus QRZ/HamQTH vervollständigen". Lookups laufen parallel,
+  greifen auf den 30-Tage-Cache zu, befüllen nur leere Felder.
+- **ADIF-Import** läuft jetzt asynchron im Hintergrund mit „Importiere…"-Spinner;
+  früher blockierte die UI bei großen Dateien (7 MB QRZ-Exports). UTF-8 mit
+  ISO-Latin-1-Fallback, klarer Alert bei 0 erkannten QSOs.
+
+### Web/Download
+- FAQ-Link auf ältere DMGs lieferte 403 — nginx mit `autoindex on;` ergänzt,
+  jetzt steht das Versions-Listing unter `/app/dmg/`.
+- Top-Nav „Download" zeigte auf eine veraltete 1.7.1; jetzt auf
+  `/app/dmg/latest.dmg` — Symlink wird bei jedem Release automatisch
+  nachgezogen (siehe `build-dmg.sh`-Anleitung).
+
+---
+
 ## [1.8.2] — 2026-05-14
 
 ### Multi-Call-Lizenz + Portabel-Validation (Phase A + B)
