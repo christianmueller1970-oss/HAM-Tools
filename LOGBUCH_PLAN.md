@@ -197,8 +197,12 @@ Architektur-Punkte gegenüber generischen Loggern.
 - [ ] **Summit-to-Summit-Erkennung** über RBN/SOTAwatch-Spots
 - [ ] **Aktivierungs-Status**: "X/4 QSOs für Aktivierung" + Activator-Punkte-
   Vorschau (saisonaler Bonus Winter)
-- [ ] **SOTA-CSV-Export** im sotadata.org.uk-Format (V2)
-- [ ] **ADIF mit SOTA-Feldern** als Alternative
+- [x] **SOTA-CSV-Export** im sotadata.org.uk-Format (V2) — fertig 2026-05-17,
+      `SOTACSVExporter` unter `Features/Logbuch/Export/`, eigener Toolbar-
+      Button im SOTA-Log, pro Summit gruppiert + zeit-sortiert, S2S in
+      Spalte 9, Band-Mapping (40m → 7.0MHz).
+- [x] **ADIF mit SOTA-Feldern** als Alternative — schon mit Phase 4d 2026-05-14
+      live (`MY_SIG=SOTA`, `MY_SOTA_REF`, S2S via `SIG/SIG_INFO`).
 
 ### Phase 5 — CAT / Radio Control (erweiterbar)
 - [ ] **Hamlib / rigctld als Universal-Layer**
