@@ -129,6 +129,8 @@ struct SOTAEntryForm: View {
             statusPill(icon: "mountain.2",
                        text: "\(role) · \(mySummitLabel)\(summitPointsSuffix)",
                        color: role == "Activator" ? .brown : .blue)
+            Spacer()
+            BandplanStatusPill(frequencyMHz: radio.frequencyMHz, mode: radio.mode)
         }
         .padding(8)
         .background(theme.bgCard2)

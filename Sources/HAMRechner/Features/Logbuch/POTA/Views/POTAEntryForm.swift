@@ -145,6 +145,7 @@ struct POTAEntryForm: View {
             statusPill(icon: "tree", text: "\(role) · \(myParkLabel)",
                        color: role == "Activator" ? .green : .blue)
             Spacer()
+            BandplanStatusPill(frequencyMHz: radio.frequencyMHz, mode: radio.mode)
             if canSelfSpot {
                 Button {
                     spotComments = ""

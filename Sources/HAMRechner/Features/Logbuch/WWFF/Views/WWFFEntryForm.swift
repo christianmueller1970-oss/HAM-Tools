@@ -125,6 +125,8 @@ struct WWFFEntryForm: View {
             statusPill(icon: "leaf",
                        text: "\(role) · \(myRefLabel)\(refCountrySuffix)",
                        color: role == "Activator" ? theme.colorWWFF : .blue)
+            Spacer()
+            BandplanStatusPill(frequencyMHz: radio.frequencyMHz, mode: radio.mode)
         }
         .padding(8)
         .background(theme.bgCard2)

@@ -115,6 +115,8 @@ struct BOTAEntryForm: View {
             statusPill(icon: "shield",
                        text: "\(role) · \(myRefLabel)\(refCountrySuffix)",
                        color: role == "Activator" ? .gray : .blue)
+            Spacer()
+            BandplanStatusPill(frequencyMHz: radio.frequencyMHz, mode: radio.mode)
         }
         .padding(8)
         .background(theme.bgCard2)

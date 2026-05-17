@@ -188,6 +188,7 @@ struct ContestEntryForm: View {
             Text("Scope: \(effectiveScope == .log ? "pro Log" : "pro Band")")
                 .font(.caption2)
                 .foregroundStyle(theme.textDim)
+            BandplanStatusPill(frequencyMHz: radio.frequencyMHz, mode: mode)
         }
     }
 

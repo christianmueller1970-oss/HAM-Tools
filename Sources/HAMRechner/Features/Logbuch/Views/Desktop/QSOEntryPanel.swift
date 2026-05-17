@@ -203,6 +203,12 @@ struct QSOEntryPanel: View {
                 }
                 entryGrid
                     .padding(10)
+                HStack {
+                    Spacer()
+                    BandplanStatusPill(frequencyMHz: radio.frequencyMHz, mode: mode)
+                }
+                .padding(.horizontal, 10)
+                .padding(.bottom, 6)
                 Divider().background(theme.separator)
                 LogActionBar(
                     canLog: canLog,
