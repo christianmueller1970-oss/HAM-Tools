@@ -7,6 +7,13 @@ struct SpotListView: View {
     /// Optional pro-Spot-Farbe (override) für Contest-Kontext: dupe → rot, mult → grün.
     var rowAccent: ((DXSpot) -> Color?)? = nil
 
+    /// ATNO-Pille links vom Call (»ATNO«/»NEW BAND«/»NEW MODE«). Soll nur
+    /// im DX-Kontext erscheinen — im Contest- oder Outdoor-Log lenkt das
+    /// nur ab, weil dort andere Match-Kriterien zählen (Dupe-Färbung etc.).
+    var showATNO: Bool = true
+
+    @EnvironmentObject var manager: LogbookManager
+
     @State private var sortOrder = [KeyPathComparator(\DXSpot.timestamp, order: .reverse)]
     @State private var selection: DXSpot.ID? = nil
     @State private var sortedSpots: [DXSpot] = []
@@ -96,11 +103,27 @@ struct SpotListView: View {
                 let accent = rowAccent?(s)
                 let color: Color = accent
                     ?? (watched ? Color(red: 1, green: 0.8, blue: 0) : bandColor(for: s.band))
-                Text(s.dxCall)
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(color)
+                let status: ATNOStatus = showATNO
+                    ? manager.atnoStatus(country: s.country,
+                                          band: s.band,
+                                          mode: s.displayMode)
+                    : .worked
+                HStack(spacing: 4) {
+                    if status.isHighlight {
+                        Text(status.label)
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .foregroundStyle(status.textColor)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(status.color)
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                    }
+                    Text(s.dxCall)
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(color)
+                }
             }
-            .width(min: 80, ideal: 100)
+            .width(min: 80, ideal: 130)
             .customizationID("call")
 
             TableColumn("Land", value: \.country) { s in

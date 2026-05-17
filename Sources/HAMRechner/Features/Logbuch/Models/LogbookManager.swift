@@ -20,6 +20,14 @@ final class LogbookManager: ObservableObject {
     @Published private(set) var wazBreakdown:  [WAZEntry]  = []
     @Published private(set) var wasBreakdown:  [WASEntry]  = []
 
+    // ATNO-Live-Sets für die Spot-Markierung im DX-Cluster. Werden in
+    // recomputeAwards() aus byCountry abgeleitet — Country-Strings sind
+    // uppercased, Band/Mode auch, damit der Lookup im DXClusterViewModel
+    // robust gegen kleine Schreibvarianten ist.
+    @Published private(set) var workedCountries: Set<String> = []
+    @Published private(set) var workedCountryBand: Set<String> = []
+    @Published private(set) var workedCountryMode: Set<String> = []
+
     private let settings: LogbookSettings
     private let dataRoot: AppDataRoot
     private var openDB: LogbookDatabase?
@@ -1190,6 +1198,22 @@ final class LogbookManager: ObservableObject {
             .map { $0.entry }
             .sorted { $0.state < $1.state }
 
+        // ATNO-Sets aus byCountry ableiten. Country/Band/Mode uppercased,
+        // damit der Live-Lookup im DXClusterViewModel robust ist gegen
+        // gemischte Schreibvarianten aus den verschiedenen Quellen.
+        var wCountries = Set<String>()
+        var wCB = Set<String>()
+        var wCM = Set<String>()
+        for (country, acc) in byCountry {
+            let cKey = country.uppercased()
+            wCountries.insert(cKey)
+            for b in acc.bands { wCB.insert("\(cKey)|\(b.uppercased())") }
+            for m in acc.modes { wCM.insert("\(cKey)|\(m.uppercased())") }
+        }
+        workedCountries   = wCountries
+        workedCountryBand = wCB
+        workedCountryMode = wCM
+
         let confirmedCountries = dxccBreakdown.filter(\.confirmed).count
         let confirmedZones     = wazBreakdown.filter(\.confirmed).count
         let confirmedStates    = wasBreakdown.filter(\.confirmed).count
@@ -1243,6 +1267,20 @@ final class LogbookManager: ObservableObject {
             botaB2B:              botaB2B,
             botaPrograms:         botaPrograms.count
         )
+    }
+
+    /// Live-ATNO-Lookup für einen Cluster-Spot. Reihenfolge der Checks
+    /// gibt die Priorität vor: ATNO > NEW BAND > NEW MODE > worked.
+    /// Leere country → .worked (kein Highlight ohne Information).
+    func atnoStatus(country: String, band: String, mode: String) -> ATNOStatus {
+        let c = country.trimmingCharacters(in: .whitespaces).uppercased()
+        guard !c.isEmpty else { return .worked }
+        if !workedCountries.contains(c) { return .atno }
+        let b = band.uppercased()
+        if !b.isEmpty && !workedCountryBand.contains("\(c)|\(b)") { return .newBand }
+        let m = mode.uppercased()
+        if !m.isEmpty && !workedCountryMode.contains("\(c)|\(m)") { return .newMode }
+        return .worked
     }
 
     /// Parst myPotaRef + myPotaRefs (oder theirPotaRef alleine) in eine

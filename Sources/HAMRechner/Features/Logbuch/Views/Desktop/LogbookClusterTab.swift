@@ -16,10 +16,15 @@ struct LogbookClusterTab: View {
     private var theme: AppTheme { themeManager.theme }
 
     var body: some View {
+        // ATNO-Pille nur im Standard-DX-Log. Contest hat eigene Färbung
+        // (dupe/mult), Outdoor-Programme haben programm-eigene Match-
+        // Kriterien (POTA/SOTA/WWFF/BOTA-Ref-Match in den Spot-Tabs).
+        let showATNO = (activeLog?.type ?? .standard) == .standard
         SpotListView(spots: contextFilteredSpots,
                      theme: theme,
                      watchList: watchList,
-                     rowAccent: contestRowAccent)
+                     rowAccent: contestRowAccent,
+                     showATNO: showATNO)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(theme.bgApp)
     }

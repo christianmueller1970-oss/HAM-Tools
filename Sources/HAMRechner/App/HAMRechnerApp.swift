@@ -251,6 +251,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(themeManager)
                 .environmentObject(dxClusterVM)
                 .environmentObject(watchList)
+                .environmentObject(logbookManager)
                 .frame(minWidth: 600, minHeight: 400)
         }
         .windowStyle(.titleBar)
