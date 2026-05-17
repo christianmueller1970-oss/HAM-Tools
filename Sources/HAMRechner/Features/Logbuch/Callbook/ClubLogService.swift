@@ -159,11 +159,20 @@ final class ClubLogService: Sendable {
 
     // MARK: - Form-Encoding Helpers
 
+    /// RFC-3986-konformes x-www-form-urlencoded — nur die "unreserved
+    /// characters" (ALPHA/DIGIT/-._~) bleiben unkodiert. Alles andere
+    /// wird %XX-escaped. Wichtig: `CharacterSet.urlQueryAllowed` ist
+    /// zu lasch für Form-Bodies (lässt z.B. `@`, `+`, `=` durch) —
+    /// Club Logs nginx-WAF lehnt unencoded `@` mit 403 ab.
+    private static let formAllowed: CharacterSet = {
+        CharacterSet(charactersIn:
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+    }()
+
     private func formEncode(_ params: [String: String]) -> Data {
-        let allowed = CharacterSet.urlQueryAllowed
         let encoded = params.map { key, value -> String in
-            let k = key.addingPercentEncoding(withAllowedCharacters: allowed) ?? key
-            let v = value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+            let k = key.addingPercentEncoding(withAllowedCharacters: Self.formAllowed) ?? key
+            let v = value.addingPercentEncoding(withAllowedCharacters: Self.formAllowed) ?? value
             return "\(k)=\(v)"
         }.joined(separator: "&")
         return Data(encoded.utf8)
