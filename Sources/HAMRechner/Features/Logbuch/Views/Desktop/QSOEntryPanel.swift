@@ -3,44 +3,6 @@ import SwiftUI
 // Inline-QSO-Erfassungs-Panel im Desktop-Logger-Look. Drei Spalten mit
 // allen relevanten QSO-Feldern. Funktion: bei "Log QSO" wird das aktive
 // QSO ins gerade geöffnete Log committed.
-// Treffer für die Dupe-Warnung. Wird via .alert(item:) angezeigt.
-struct DupeWarning: Identifiable {
-    enum Kind {
-        case exactInLog       // Call+Band+Mode bereits im aktiven Log
-        case recentlySeen     // selber Call irgendwo, < 30 min her
-    }
-    let id = UUID()
-    let kind: Kind
-    let match: QSOMatch
-
-    var title: String {
-        switch kind {
-        case .exactInLog:    return "Dupe — schon gearbeitet"
-        case .recentlySeen:  return "Kürzlich schon gesehen"
-        }
-    }
-
-    var message: String {
-        let q = match.qso
-        let when = DupeWarning.format(q.datetime)
-        let band = q.band, mode = q.mode
-        let log = match.logName
-        switch kind {
-        case .exactInLog:
-            return "\(q.call) wurde am \(when) bereits auf \(band) \(mode) im Log »\(log)« geloggt. Trotzdem nochmal eintragen?"
-        case .recentlySeen:
-            return "\(q.call) wurde vor wenigen Minuten geloggt (\(when), \(band) \(mode), Log »\(log)«). Versehentliches Doppel-Loggen?"
-        }
-    }
-
-    private static func format(_ d: Date) -> String {
-        let f = DateFormatter()
-        f.timeZone = TimeZone(identifier: "UTC")
-        f.dateFormat = "yyyy-MM-dd HH:mm 'UTC'"
-        return f.string(from: d)
-    }
-}
-
 struct QSOEntryPanel: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var manager: LogbookManager
@@ -70,7 +32,6 @@ struct QSOEntryPanel: View {
     }
     @State private var lastFilledFromSpot: Date? = nil
     @State private var lastFilledFromCallbook: Date? = nil
-    @State private var pendingDupe: DupeWarning? = nil
     @State private var showNewPOTASheet: Bool = false
     @State private var showNewContestSheet: Bool = false
     @State private var showNewSOTASheet: Bool = false
@@ -214,7 +175,7 @@ struct QSOEntryPanel: View {
                     canLog: canLog,
                     canSendSpot: canSendSpot,
                     currentCall: call,
-                    onLogQSO: commitQSO,
+                    onLogQSO: performCommit,
                     onSendSpot: sendSpotToCluster,
                     onClear: resetForm,
                     onTimeOn: { timeOn = Date() },
@@ -252,16 +213,6 @@ struct QSOEntryPanel: View {
             // geloggt oder das Form resettet wird. Time Off bleibt
             // userkontrolliert.
             timeOn = Date()
-        }
-        .alert(item: $pendingDupe) { dupe in
-            Alert(
-                title: Text(dupe.title),
-                message: Text(dupe.message),
-                primaryButton: .default(Text("Trotzdem loggen")) {
-                    performCommit()
-                },
-                secondaryButton: .cancel(Text("Abbrechen"))
-            )
         }
     }
 
@@ -791,16 +742,11 @@ struct QSOEntryPanel: View {
         clusterVM.sendSpot(freq: freqKHz, call: trimmedCall, comment: comment)
     }
 
-    private func commitQSO() {
-        // Erst Dupe-Check — wenn was gefunden, Alert anzeigen.
-        // Wenn nicht, direkt commiten.
-        if let dupe = findDuplicate() {
-            pendingDupe = dupe
-            return
-        }
-        performCommit()
-    }
-
+    // Standard-DX-Log committed direkt ohne Dupe-Warnung: hier ist es
+    // legitim, denselben Call mehrfach zu loggen (Stammrunde, Lebens-Log).
+    // Programm- und Contest-Logs haben ihre eigenen Dupe-Regeln in den
+    // jeweiligen EntryForms (POTA-Band-Dupe, SOTA-Call-Band-Mode,
+    // Contest-Multiplier-Logik).
     private func performCommit() {
         guard let logID = manager.currentLogID else { return }
         let f = radio.frequencyMHz
@@ -851,35 +797,6 @@ struct QSOEntryPanel: View {
 
         manager.addQSO(qso)
         resetForm()
-    }
-
-    /// Findet potenzielle Duplikate:
-    ///  - Exakter Match (Call+Band+Mode) im aktiven Log → "schon mal gearbeitet"
-    ///  - Recent Match (selber Call irgendwo, letzte 30 min) → "Doppel-Log?"
-    private func findDuplicate() -> DupeWarning? {
-        let trimmedCall = call.trimmingCharacters(in: .whitespaces).uppercased()
-        guard !trimmedCall.isEmpty else { return nil }
-
-        let matches = manager.findQSOs(forCall: trimmedCall)
-        guard !matches.isEmpty else { return nil }
-
-        // 1) Exakter Band+Mode-Match im aktiven Log → klassischer Dupe
-        let currentBand = radio.band
-        if let exact = matches.first(where: {
-            $0.logID == manager.currentLogID
-                && $0.qso.band == currentBand
-                && $0.qso.mode == mode
-        }) {
-            return DupeWarning(kind: .exactInLog, match: exact)
-        }
-
-        // 2) Sehr kurz vorher schonmal (selber Call irgendwo) → Doppel-Log?
-        let cutoff = Date().addingTimeInterval(-30 * 60)
-        if let recent = matches.first(where: { $0.qso.datetime > cutoff }) {
-            return DupeWarning(kind: .recentlySeen, match: recent)
-        }
-
-        return nil
     }
 
     private func resetForm() {
