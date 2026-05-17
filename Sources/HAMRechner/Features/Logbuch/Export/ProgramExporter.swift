@@ -70,9 +70,10 @@ enum ProgramExporterFactory {
     /// Liefert den passenden Exporter für einen Log-Typ — oder nil, wenn
     /// das Programm keinen eigenen Export-Pfad hat (Standard/Contest).
     static func exporter(for logType: LogType) -> ProgramExporter? {
-        if POTAExporter.applies(to: logType)   { return POTAExporter() }
-        if WWFFExporter.applies(to: logType)   { return WWFFExporter() }
-        if WWBOTAExporter.applies(to: logType) { return WWBOTAExporter() }
+        if POTAExporter.applies(to: logType)    { return POTAExporter() }
+        if SOTACSVExporter.applies(to: logType) { return SOTACSVExporter() }
+        if WWFFExporter.applies(to: logType)    { return WWFFExporter() }
+        if WWBOTAExporter.applies(to: logType)  { return WWBOTAExporter() }
         return nil
     }
 }
