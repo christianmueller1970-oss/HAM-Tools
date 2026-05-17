@@ -20,7 +20,8 @@ Convention:
 ## Native (macOS)
 
 ### Geplant
-- [ ] _(deine nächsten Native-Features hier)_
+- [ ] **N:** **Multi-Cluster** — mehrere DX-Cluster-Verbindungen parallel halten, Spots zusammenführen + nach Quelle taggen. Heute hat HAM-Tools nur EINE Cluster-Connection. Vorlage: das ursprüngliche Python/Tkinter-MultiCluster-Tool (siehe Memory `reference_multicluster.md`). Pro Cluster: Host/Port, Login-Sequenz, Color-Tag in der Spotter-Spalte. UI in Settings → Cluster: Liste mit Add/Remove/Enable-Toggle.
+- [ ] **N:** **Weitere UDP-Port-Konfiguration** — zusätzliche UDP-Listener-Ports neben WSJT-X (2237) konfigurierbar machen, z.B. JS8Call (2242), MSHV, N1MM Logger Plus, fldigi. Settings: mehrere Ports parallel + pro Port das erwartete Protokoll/QSO-Format. Aktuell hardcoded auf einen WSJT-X-Listener.
 
 ### DX-Cluster
 - [x] **N:** **Alerting** — vollständig: (a) Watch-Liste für Calls/Präfixe (gold-Markierung in Spot-Liste, macOS-Notification mit Sound), (b) DXCC-Watch-Liste mit Picker auf 57 Most-Wanted-Entitäten beschränkt (`MOST_WANTED_DXCC` in WatchListStore.swift; häufige Länder bewusst ausgeschlossen, dafür gibt's die Call-/Präfix-Watch), (c) konfigurierbarer Cooldown 1–60 Min (Slider in Settings, `@AppStorage("alertCooldownMin")`, Default 15) — verhindert Pile-Up-Spam. `lastNotifiedAt: [String: Date]` ersetzt `notifiedThisSession: Set<String>`. Bell-Counter im Header bleibt. DXCC_DATA von 108 auf 163 Entitäten erweitert (Most-Wanted: Bouvet, Crozet, Heard, Pratas, Scarborough Reef, Spratly, North Korea, Pitcairn, Tristan da Cunha etc. — Caveat: Sub-Präfix-Konflikte z.B. VP8 → defaultet auf Falklands).
