@@ -2,6 +2,59 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.9 — 2026-05-17
+
+**ATNO-Markierung im DX-Cluster · Bandplan-Awareness in QSO-Forms · Club Log live · DX-Log ohne Dupe-Warnung**
+
+### ATNO-Live-Markierung im DX-Cluster 🆕
+
+Pro Spot im DX-Cluster zeigt jetzt eine farbige Pille direkt links
+vom Rufzeichen, ob das Land/Band/Mode für dich noch interessant ist:
+
+- **rot »ATNO«** — All Time New One, dieses DXCC-Country hast du
+  noch nie gearbeitet
+- **orange »NEW BAND«** — Country schon gearbeitet, aber nicht auf
+  diesem Band
+- **gelb »NEW MODE«** — Country+Band schon, aber nicht in dem Mode
+- schon gearbeitet → keine Pille (Liste bleibt ruhig)
+
+Wird live aktualisiert bei jedem geloggten QSO. Im Contest-Log gilt
+die Dupe/Mult-Färbung weiter (rot dupe, grün mult), in Outdoor-
+Programmen zeigt der jeweilige Spot-Tab seine eigene Ref-Match-Logik.
+
+### Bandplan-Live-Awareness in allen QSO-Forms 🆕
+
+Beim Loggen jedes QSOs zeigt eine Pille in der Status-Bar sofort an,
+ob Frequenz + Mode IARU-R1-konform sind:
+
+- **grün** — im Band, Mode passt zum Subsegment
+- **orange** — im Band, aber falsches Subsegment (z.B. SSB im
+  CW-Bereich)
+- **rot** — außerhalb aller Amateurfunkbänder
+
+Reagiert live auf CAT-Frequenzwechsel. Aktiv in allen sechs
+QSO-Formen: DX, Contest, POTA, SOTA, WWFF, BOTA.
+
+### Club Log scharfgeschaltet
+
+Der App-API-Key (zugeteilt von Club Log auf Antrag der HAM-Tools-App)
+ist jetzt enthalten — du brauchst nichts mehr selbst zu beantragen.
+In *Einstellungen → Lookup & Upload → Club Log* einfach Email +
+**Application-Password** eintragen (von clublog.org → Settings →
+Application Passwords, **nicht** dein Login-Passwort) — Auto-Upload
+läuft direkt.
+
+Außerdem ein Form-Encoding-Fix: bestimmte Sonderzeichen (z.B. `@`)
+im HTTP-Body wurden nicht korrekt kodiert, Club Logs nginx-WAF blockte
+das mit »403 Forbidden«. Jetzt RFC-3986-strikt — der 403-Bug ist weg.
+
+### Standard-DX-Log: keine Dupe-Warnung mehr
+
+Im normalen DX-Log (Lebens-Log, Tages-Log, Stammrunde) ist es legitim,
+denselben Call mehrfach zu loggen — die »Schon gearbeitet«-Warnung
+war dort nur lästig. Programm-Logs (POTA/SOTA/WWFF/BOTA) und Contest
+behalten ihre eigenen Dupe-Regeln in den jeweiligen Eingabemasken.
+
 ## 1.8.8 — 2026-05-17
 
 **Outdoor-Programme: Upload jetzt plattform-konform · POTA-Self-Spot · WWBOTA-Live-Anbindung · viele Polishs**

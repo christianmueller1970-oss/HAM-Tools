@@ -5,6 +5,62 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.8.9] — 2026-05-17
+
+### Live-ATNO-Markierung im DX-Cluster
+
+Pro Cluster-Spot eine kleine Pille links vom Call:
+- rot **»ATNO«** — Country noch nie geloggt
+- orange **»NEW BAND«** — Country gearbeitet, aber nicht auf diesem Band
+- gelb **»NEW MODE«** — Country+Band gearbeitet, aber nicht in diesem Mode
+- gearbeitet → kein Marker
+
+`LogbookManager.recomputeAwards` leitet die Worked-Sets aus dem
+bestehenden `DXCCAccumulator` ab (bands/modes pro Country) — kein
+Extra-Scan, Lookup ist O(1) pro Spot. Sichtbar nur im Standard-DX-Log
++ DX-Cluster-Pop-up; Contest und Outdoor-Programme blenden ATNO aus
+(dupe/mult-Färbung bzw. Ref-Match dominieren dort).
+
+### Bandplan-Live-Awareness in allen QSO-Forms
+
+Pille in der QSO-Status-Bar zeigt sofort beim Loggen, ob Frequenz +
+Mode IARU-R1-konform sind:
+- grün **»im Band«** — Sub-Segment passt
+- orange **»falsches Subsegment«** — z.B. SSB im CW-Bereich
+- rot **»außerhalb Amateurfunkband«**
+
+`BandplanChecker` nutzt die existierende `bandplan.json`-Quelle (22
+Bänder + Sub-Segmente), Mode-Compatibility-Tabelle ist tolerant
+(»alle Sendearten«-Subsegmente lassen alles durch). Eingebunden in
+allen sechs QSO-Forms: DX, Contest, POTA, SOTA, WWFF, BOTA. Reagiert
+live auf CAT-Frequenzwechsel.
+
+### Club Log scharfgeschaltet
+
+Der von Club Log zugeteilte Application-API-Key (HAM-Tools-spezifisch,
+seit 2026 verpflichtend) ist jetzt obfuskiert in der App enthalten
+(XOR + Salt in `BuildInfo.swift`). Der `api`-Parameter wird damit
+korrekt mitgesendet — nginx-403 vor dem PHP-Layer ist Geschichte. User
+brauchen den Key NICHT selbst zu beantragen.
+
+Zusätzlich Form-Encoding-Fix: `CharacterSet.urlQueryAllowed` war zu
+lasch für `application/x-www-form-urlencoded` (lässt z.B. `@`
+unkodiert), Club Logs nginx-WAF lehnt das mit 403 ab. Jetzt
+RFC-3986-strikt: nur ALPHA/DIGIT/-._~ bleiben unkodiert, alles andere
+wird %XX-escaped.
+
+### Standard-DX-Log: keine Dupe-Warnung mehr
+
+Im Standard-DX-Log ist es legitim, denselben Call mehrfach zu loggen
+(Lebens-Log, Tages-Log, Stammrunde) — die Dupe-Warnung war dort nur
+lästig. Programm- und Contest-Logs behalten ihre eigenen Dupe-Regeln
+in den jeweiligen EntryForms (POTA-Band-Dupe, SOTA-Call-Band-Mode,
+Contest-Multiplier-Logik). `DupeWarning`-Struct + `findDuplicate()` +
+zugehöriger `.alert(item:)`-Modifier sind aus `QSOEntryPanel` raus
+(toter Code).
+
+---
+
 ## [1.8.8] — 2026-05-17
 
 ### Outdoor-Programme — Upload-Konformität + Spotting
