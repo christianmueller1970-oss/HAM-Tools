@@ -24,11 +24,19 @@ struct LogContextBar: View {
     @State private var pendingImport: PendingImport?
     @State private var lastExportURL: URL?
     @State private var showExportDoneAlert = false
+    @State private var programExportAlert: ProgramExportAlert?
     @State private var bulkLookupProgress: BulkProgress?
     @State private var showCabrilloSheet = false
     @State private var geometryBackfillAlert: GeometryBackfillAlert?
     @State private var importInFlight: Bool = false
     @State private var importErrorAlert: ImportErrorAlert?
+
+    struct ProgramExportAlert: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+        let urls: [URL]
+    }
 
     struct ImportErrorAlert: Identifiable {
         let id = UUID()
@@ -134,6 +142,12 @@ struct LogContextBar: View {
                              enabled: !importInFlight,
                              action: openADIFImport)
                 actionButton("Export ADIF", icon: "square.and.arrow.up", action: exportADIF)
+                if let logType = currentLogType,
+                   let exporter = ProgramExporterFactory.exporter(for: logType) {
+                    actionButton(exporter.menuTitle,
+                                 icon: exporter.iconName,
+                                 action: exportForProgram)
+                }
                 actionButton("Cabrillo…", icon: "stopwatch",
                              action: { showCabrilloSheet = true })
             }
@@ -153,6 +167,14 @@ struct LogContextBar: View {
             Button("OK", role: .cancel) {}
         } message: { url in
             Text("Log nach \(url.lastPathComponent) exportiert.")
+        }
+        .alert(item: $programExportAlert) { entry in
+            Alert(title: Text(entry.title),
+                  message: Text(entry.message),
+                  primaryButton: .default(Text("Im Finder zeigen")) {
+                      NSWorkspace.shared.activateFileViewerSelecting(entry.urls)
+                  },
+                  secondaryButton: .cancel(Text("OK")))
         }
         .sheet(isPresented: $showCabrilloSheet) {
             CabrilloExportSheet()
@@ -306,6 +328,26 @@ struct LogContextBar: View {
         guard let url = manager.exportActiveLogAsADIF() else { return }
         lastExportURL = url
         showExportDoneAlert = true
+    }
+
+    private func exportForProgram() {
+        guard let urls = manager.exportActiveLogForProgram(), !urls.isEmpty else {
+            programExportAlert = ProgramExportAlert(
+                title: "Nichts zu exportieren",
+                message: "Im aktiven Log sind keine QSOs mit eigener Programm-Referenz vorhanden — es gibt also nichts hochzuladen.",
+                urls: [])
+            return
+        }
+        let title = urls.count == 1
+            ? "Export erfolgreich"
+            : "\(urls.count) Files exportiert"
+        let listing = urls.map { "• \($0.lastPathComponent)" }.joined(separator: "\n")
+        programExportAlert = ProgramExportAlert(
+            title: title,
+            message: urls.count == 1
+                ? "Datei: \(urls[0].lastPathComponent)"
+                : "Bereit zum Hochladen (pro Park ein File):\n\(listing)",
+            urls: urls)
     }
 
     // MARK: - Import

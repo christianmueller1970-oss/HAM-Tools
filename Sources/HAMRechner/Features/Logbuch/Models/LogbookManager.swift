@@ -839,6 +839,26 @@ final class LogbookManager: ObservableObject {
         }
     }
 
+    /// Programm-spezifischer Export für das aktive Log (POTA/WWFF/WWBOTA).
+    /// Liefert die Liste der geschriebenen Files — POTA kann mehrere File
+    /// erzeugen (eines pro Park). Gibt nil zurück, wenn das aktuelle Log
+    /// keinen passenden Programm-Exporter hat (z.B. Standard/Contest).
+    func exportActiveLogForProgram() -> [URL]? {
+        guard let logID = currentLogID,
+              let log = logs.first(where: { $0.id == logID }),
+              let exporter = ProgramExporterFactory.exporter(for: log.type) else {
+            return nil
+        }
+        do {
+            return try exporter.export(qsos: currentQSOs,
+                                       log: log,
+                                       exportsDir: dataRoot.exportsDir)
+        } catch {
+            print("Programm-Export fehlgeschlagen: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
     /// Importiert eine ADIF-Datei und liefert die parsierten QSOs zurück
     /// (noch ohne sie zu schreiben — Caller entscheidet was er damit macht).
     func parseADIF(at url: URL, targetLogID: UUID) -> [QSO] {
