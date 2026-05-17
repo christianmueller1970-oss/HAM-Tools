@@ -241,31 +241,48 @@ struct NewBOTALogSheet: View {
                     if up != n { hoppingInput = up }
                 }
             if !hoppingRefs.isEmpty {
-                HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     ForEach(hoppingRefs, id: \.self) { ref in
-                        hoppingRefBadge(ref)
+                        hoppingRefRow(ref)
                     }
                 }
             }
         }
     }
 
-    private func hoppingRefBadge(_ ref: String) -> some View {
-        let known = bota.ref(forReference: ref) != nil
-        return HStack(spacing: 3) {
+    private func hoppingRefRow(_ ref: String) -> some View {
+        let entry = bota.ref(forReference: ref)
+        let known = entry != nil
+        return HStack(spacing: 8) {
             Image(systemName: known ? "checkmark.circle.fill" : "questionmark.circle")
-                .font(.caption2)
                 .foregroundStyle(known ? .green : .orange)
-            Text(ref)
-                .font(.caption.monospaced())
+            VStack(alignment: .leading, spacing: 1) {
+                if let e = entry {
+                    Text("\(ref) — \(e.name)")
+                        .font(.callout)
+                    let detail = [e.country, e.bunkerType]
+                        .compactMap { $0 }
+                        .filter { !$0.isEmpty }
+                        .joined(separator: " · ")
+                    if !detail.isEmpty {
+                        Text(detail)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Text(ref)
+                        .font(.callout.monospaced())
+                    Text("Nicht in der Bunker-DB — wird trotzdem gespeichert")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+            }
+            Spacer()
         }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 2)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
         .background((known ? Color.green : Color.orange).opacity(0.10))
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-        .help(known
-              ? (bota.ref(forReference: ref)?.name ?? ref)
-              : "Bunker nicht in der DB gefunden — wird trotzdem gespeichert")
+        .clipShape(RoundedRectangle(cornerRadius: 5))
     }
 
     private var canCreate: Bool {

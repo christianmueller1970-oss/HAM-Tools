@@ -227,9 +227,10 @@ struct NewPOTALogSheet: View {
         }
     }
 
-    // Hopping-Parks: Komma-getrennte Liste. Keine Autocomplete, weil der User
-    // bei Hopping die Refs in der Regel schon kennt — Validierung gegen die
-    // Park-DB nur als grüner Haken / oranges Warn-Icon.
+    // Hopping-Parks: Komma-getrennte Liste. Live-Lookup pro Eintrag gegen
+    // die Park-DB — bei Treffer wird Park-Name + Land/Programm direkt
+    // unter der Ref angezeigt (gleich wie das primäre Park-Feld oben),
+    // bei unbekannter Ref orange »nicht gefunden«-Warnung.
     private var hoppingParksSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
@@ -247,31 +248,42 @@ struct NewPOTALogSheet: View {
                     if up != n { hoppingInput = up }
                 }
             if !hoppingRefs.isEmpty {
-                HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     ForEach(hoppingRefs, id: \.self) { ref in
-                        hoppingRefBadge(ref)
+                        hoppingRefRow(ref)
                     }
                 }
             }
         }
     }
 
-    private func hoppingRefBadge(_ ref: String) -> some View {
-        let known = pota.park(forReference: ref) != nil
-        return HStack(spacing: 3) {
+    private func hoppingRefRow(_ ref: String) -> some View {
+        let park = pota.park(forReference: ref)
+        let known = park != nil
+        return HStack(spacing: 8) {
             Image(systemName: known ? "checkmark.circle.fill" : "questionmark.circle")
-                .font(.caption2)
                 .foregroundStyle(known ? .green : .orange)
-            Text(ref)
-                .font(.caption.monospaced())
+            VStack(alignment: .leading, spacing: 1) {
+                if let p = park {
+                    Text("\(ref) — \(p.name)")
+                        .font(.callout)
+                    Text(p.locationDesc ?? ref)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(ref)
+                        .font(.callout.monospaced())
+                    Text("Nicht in der Park-DB — wird trotzdem gespeichert")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+            }
+            Spacer()
         }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 2)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
         .background((known ? Color.green : Color.orange).opacity(0.10))
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-        .help(known
-              ? (pota.park(forReference: ref)?.name ?? ref)
-              : "Park nicht in der DB gefunden — wird trotzdem gespeichert")
+        .clipShape(RoundedRectangle(cornerRadius: 5))
     }
 
     private var canCreate: Bool {

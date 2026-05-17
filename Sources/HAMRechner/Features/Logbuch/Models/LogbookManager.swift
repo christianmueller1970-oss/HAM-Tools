@@ -816,12 +816,47 @@ final class LogbookManager: ObservableObject {
         }
     }
 
-    /// Schreibt das aktive Log als ADIF in den Exports-Ordner.
-    /// Liefert die geschriebene URL bei Erfolg, sonst nil.
-    func exportActiveLogAsADIF() -> URL? {
+    /// Schreibt das aktive Log als ADIF in den Exports-Ordner. Bei einem
+    /// POTA-Log mit Multi-Park-Hopping wird automatisch pro Park ein
+    /// eigenes File geschrieben, weil pota.app Komma-Listen in
+    /// MY_SIG_INFO nicht akzeptiert. Sonst ein einzelnes File.
+    func exportActiveLogAsADIF() -> [URL] {
         guard let logID = currentLogID,
-              let log = logs.first(where: { $0.id == logID }) else { return nil }
-        let text = ADIFCodec.encode(qsos: currentQSOs, logName: log.name)
+              let log = logs.first(where: { $0.id == logID }) else { return [] }
+
+        let parks = potaParksForSplit(log: log, qsos: currentQSOs)
+        if parks.count >= 2 {
+            return exportPotaSplitPerPark(log: log, qsos: currentQSOs, parks: parks)
+        }
+        return exportSingleADIF(log: log, qsos: currentQSOs)
+    }
+
+    /// Findet alle eigenen POTA-Parks im aktiven Log (Log-Setup + QSO-
+    /// Refs, deduped, Reihenfolge erhalten). Liefert leeres Array für
+    /// Nicht-POTA-Logs oder Single-Park.
+    private func potaParksForSplit(log: Log, qsos: [QSO]) -> [String] {
+        guard log.type == .pota else { return [] }
+        var seen = Set<String>()
+        var out: [String] = []
+        func append(_ s: String?) {
+            guard let s = s?.trimmingCharacters(in: .whitespaces), !s.isEmpty else { return }
+            if seen.insert(s).inserted { out.append(s) }
+        }
+        append(log.potaParkRef)
+        for part in (log.potaParkRefs ?? "").split(separator: ",") {
+            append(String(part))
+        }
+        for q in qsos {
+            append(q.myPotaRef)
+            for part in (q.myPotaRefs ?? "").split(separator: ",") {
+                append(String(part))
+            }
+        }
+        return out
+    }
+
+    private func exportSingleADIF(log: Log, qsos: [QSO]) -> [URL] {
+        let text = ADIFCodec.encode(qsos: qsos, logName: log.name)
         let stamp: String = {
             let f = DateFormatter()
             f.dateFormat = "yyyyMMdd-HHmmss"
@@ -832,11 +867,69 @@ final class LogbookManager: ObservableObject {
         let url = dataRoot.exportsDir.appendingPathComponent(fileName)
         do {
             try text.write(to: url, atomically: true, encoding: .utf8)
-            return url
+            return [url]
         } catch {
             print("ADIF Export fehlgeschlagen: \(error.localizedDescription)")
-            return nil
+            return []
         }
+    }
+
+    /// POTA-Multi-Park-Split: pro Park ein eigenes File, die QSO-Kopie
+    /// hat nur diesen einen Park in myPotaRef (Komma-Liste in myPotaRefs
+    /// wird auf nil gesetzt). Filename folgt der pota.app-Konvention
+    /// `{call}@{park} YYYYMMDD.adi`, damit das Upload-Tool den Park
+    /// automatisch erkennt.
+    private func exportPotaSplitPerPark(log: Log, qsos: [QSO], parks: [String]) -> [URL] {
+        let call: String = {
+            if let c = log.usedCallsign?.trimmingCharacters(in: .whitespaces),
+               !c.isEmpty { return c.uppercased() }
+            if let c = UserDefaults.standard.string(forKey: "callsign")?
+                .trimmingCharacters(in: .whitespaces), !c.isEmpty {
+                return c.uppercased()
+            }
+            return "UNKNOWN"
+        }()
+        let df = DateFormatter()
+        df.dateFormat = "yyyyMMdd"
+        let dateString = df.string(from: log.startDate)
+        var written: [URL] = []
+        for park in parks {
+            let parkQSOs: [QSO] = qsos.compactMap { q in
+                let qsoParks = qsoPotaSet(q)
+                let activatesThisPark = qsoParks.contains(park)
+                    || (qsoParks.isEmpty && log.potaParkRef == park)
+                guard activatesThisPark else { return nil }
+                var copy = q
+                copy.myPotaRef  = park
+                copy.myPotaRefs = nil
+                return copy
+            }
+            guard !parkQSOs.isEmpty else { continue }
+            let safeCall = call.replacingOccurrences(of: "/", with: "_")
+            let safePark = park.replacingOccurrences(of: "/", with: "_")
+            let fileName = "\(safeCall)@\(safePark) \(dateString).adi"
+            let url = dataRoot.exportsDir.appendingPathComponent(fileName)
+            let text = ADIFCodec.encode(qsos: parkQSOs, logName: "\(log.name) — \(park)")
+            do {
+                try text.write(to: url, atomically: true, encoding: .utf8)
+                written.append(url)
+            } catch {
+                print("POTA-Split-Export fehlgeschlagen (\(park)): \(error.localizedDescription)")
+            }
+        }
+        return written
+    }
+
+    private func qsoPotaSet(_ q: QSO) -> Set<String> {
+        var s = Set<String>()
+        if let p = q.myPotaRef?.trimmingCharacters(in: .whitespaces), !p.isEmpty {
+            s.insert(p)
+        }
+        for part in (q.myPotaRefs ?? "").split(separator: ",") {
+            let r = part.trimmingCharacters(in: .whitespaces)
+            if !r.isEmpty { s.insert(r) }
+        }
+        return s
     }
 
     /// Programm-spezifischer Export für das aktive Log (POTA/WWFF/WWBOTA).

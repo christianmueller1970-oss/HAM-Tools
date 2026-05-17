@@ -22,8 +22,6 @@ struct LogContextBar: View {
     let currentLogType: LogType?
 
     @State private var pendingImport: PendingImport?
-    @State private var lastExportURL: URL?
-    @State private var showExportDoneAlert = false
     @State private var programExportAlert: ProgramExportAlert?
     @State private var bulkLookupProgress: BulkProgress?
     @State private var showCabrilloSheet = false
@@ -164,21 +162,22 @@ struct LogContextBar: View {
                 .environmentObject(themeManager)
                 .environmentObject(manager)
         }
-        .alert("Export erfolgreich", isPresented: $showExportDoneAlert, presenting: lastExportURL) { url in
-            Button("Im Finder zeigen") {
-                NSWorkspace.shared.activateFileViewerSelecting([url])
+        .alert(
+            programExportAlert?.title ?? "",
+            isPresented: Binding(
+                get: { programExportAlert != nil },
+                set: { if !$0 { programExportAlert = nil } }
+            ),
+            presenting: programExportAlert
+        ) { entry in
+            if !entry.urls.isEmpty {
+                Button("Im Finder zeigen") {
+                    NSWorkspace.shared.activateFileViewerSelecting(entry.urls)
+                }
             }
             Button("OK", role: .cancel) {}
-        } message: { url in
-            Text("Log nach \(url.lastPathComponent) exportiert.")
-        }
-        .alert(item: $programExportAlert) { entry in
-            Alert(title: Text(entry.title),
-                  message: Text(entry.message),
-                  primaryButton: .default(Text("Im Finder zeigen")) {
-                      NSWorkspace.shared.activateFileViewerSelecting(entry.urls)
-                  },
-                  secondaryButton: .cancel(Text("OK")))
+        } message: { entry in
+            Text(entry.message)
         }
         .sheet(isPresented: $showCabrilloSheet) {
             CabrilloExportSheet()
@@ -329,9 +328,21 @@ struct LogContextBar: View {
     // MARK: - Export
 
     private func exportADIF() {
-        guard let url = manager.exportActiveLogAsADIF() else { return }
-        lastExportURL = url
-        showExportDoneAlert = true
+        let urls = manager.exportActiveLogAsADIF()
+        guard !urls.isEmpty else {
+            programExportAlert = ProgramExportAlert(
+                title: "Export fehlgeschlagen",
+                message: "Es konnte keine ADIF-Datei geschrieben werden — kein aktives Log oder Schreibrechte fehlen.",
+                urls: [])
+            return
+        }
+        let listing = urls.map { "• \($0.lastPathComponent)" }.joined(separator: "\n")
+        programExportAlert = ProgramExportAlert(
+            title: urls.count == 1 ? "Export erfolgreich" : "\(urls.count) Files exportiert",
+            message: urls.count == 1
+                ? "Datei: \(urls[0].lastPathComponent)"
+                : "Multi-Park-Hopping erkannt — pro Park ein File geschrieben:\n\(listing)",
+            urls: urls)
     }
 
     private func exportForProgram() {
