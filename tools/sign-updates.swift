@@ -21,31 +21,45 @@ import CryptoKit
 
 // MARK: - RELEASE-DATEN (für jeden Release anpassen)
 
-let RELEASE_VERSION   = "1.8.7"
-let RELEASE_BUILDDATE = "2026-05-16"          // ISO 8601, YYYY-MM-DD
+let RELEASE_VERSION   = "1.8.8"
+let RELEASE_BUILDDATE = "2026-05-17"          // ISO 8601, YYYY-MM-DD
 let RELEASE_MIN_MACOS = "14.0"                 // oder nil
-let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.7.dmg"
+let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.8.dmg"
 let RELEASE_CRITICAL  = false                  // true zwingt User zur Installation (kein Skip)
 let RELEASE_NOTES = """
-Club-Log-Upload, SOTA-Punkte komplett, Update-System gehärtet.
+Outdoor-Programme: Upload jetzt plattform-konform, POTA-Self-Spot, \
+WWBOTA-Live-Anbindung, viele Polishs.
 
-Club Log (Phase 6 Schritt 3):
-- Live-Upload jedes QSO an clublog.org — Email + Application Password \
-in Einstellungen → Lookup & Upload → Club Log, Toggle für Auto-Upload \
-bei DX-Logs.
-- Bulk-Upload für historische QSOs via Rechtsklick im Log: \
-"N QSOs an Club Log hochladen" (ein zusammengefasster ADIF-Batch).
-- Bei Auth-Fehlern wird der Auto-Upload automatisch pausiert — Club \
-Log sperrt die IP nach wiederholten 4xx-Fehlern, das verhindert die App.
+ADIF-Export jetzt direkt hochladbar:
+- POTA-ADIF entspricht 1:1 der pota.app-Vorgabe (MY_SIG=POTA, kein \
+nicht-dokumentiertes MY_POTA_REF mehr).
+- WWBOTA-ADIF mit MY_SIG=WWBOTA und Komma-Liste in MY_SIG_INFO für \
+Multi-Bunker — laut offiziellem WWBOTA-ADIF-Guide.
+- Multi-Park-Hopping (POTA): pro Park ein eigenes File mit \
+{CALL}@{PARK} YYYYMMDD.adi — pota.app erlaubt keine Komma-Listen.
 
-SOTA (Phase 4d komplett):
-- Activator-Punkte-Card im Awards-Tab: Summe gültiger Aktivierungen \
-(≥4 QSOs / Summit-Tag) inklusive Winterbonus nach Halbkugel-Regeln.
-- Multi-Summit-Hopping zählt jeden Summit separat.
+POTA Self-Spot:
+- Im Activator-Modus mit gesetztem Park + Frequenz erscheint in der \
+Status-Bar ein "Spot senden"-Button. Sheet mit Vorschau + Comment, \
+Senden direkt an pota.app — sofort für alle Hunter sichtbar.
 
-Update-System gehärtet:
-- macOS-Mindestversion wird numerisch geprüft (nicht mehr als String).
-- Bei macOS-Mismatch ist der Download-Button im Update-Sheet deaktiviert.
+SOTA-CSV für sotadata.org.uk:
+- Neuer Toolbar-Button "Für sotadata.org.uk exportieren (CSV)" \
+schreibt das offizielle V2-CSV-Format inkl. Summit-Gruppierung, \
+S2S-Spalte und Band-Mapping.
+
+WWBOTA-Anbindung:
+- Bunker-Datenbank lädt jetzt von api.wwbota.org (~26.7k Bunker \
+weltweit). Snapshot kommt direkt aus der App, jederzeit aktualisierbar.
+- Refs durchgängig im offiziellen B/XX-NNNN-Format.
+
+Logbuch-Polish:
+- QRZ-Auto-Fill in Outdoor-Logs übernimmt jetzt auch QTH, Locator, \
+Country, Continent, CQ-/ITU-Zone (nicht mehr nur den Namen).
+- Hopping-Felder beim Log-Anlegen zeigen pro Eintrag den \
+vollständigen Park-/Summit-/Bunker-Namen + Details.
+- Bandplan jetzt eigenes Fenster (Fenster → Bandplan-Fenster, ⌘⇧P).
+- Multi-File-Export zeigt alle Dateinamen + "Im Finder zeigen"-Button.
 """
 
 // MARK: - Implementation (sollte stabil bleiben)
