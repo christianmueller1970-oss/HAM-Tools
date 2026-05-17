@@ -21,45 +21,39 @@ import CryptoKit
 
 // MARK: - RELEASE-DATEN (für jeden Release anpassen)
 
-let RELEASE_VERSION   = "1.8.8"
+let RELEASE_VERSION   = "1.8.9"
 let RELEASE_BUILDDATE = "2026-05-17"          // ISO 8601, YYYY-MM-DD
 let RELEASE_MIN_MACOS = "14.0"                 // oder nil
-let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.8.dmg"
+let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.9.dmg"
 let RELEASE_CRITICAL  = false                  // true zwingt User zur Installation (kein Skip)
 let RELEASE_NOTES = """
-Outdoor-Programme: Upload jetzt plattform-konform, POTA-Self-Spot, \
-WWBOTA-Live-Anbindung, viele Polishs.
+ATNO-Markierung im DX-Cluster, Bandplan-Awareness in QSO-Forms, \
+Club Log scharfgeschaltet, DX-Log ohne Dupe-Warnung.
 
-ADIF-Export jetzt direkt hochladbar:
-- POTA-ADIF entspricht 1:1 der pota.app-Vorgabe (MY_SIG=POTA, kein \
-nicht-dokumentiertes MY_POTA_REF mehr).
-- WWBOTA-ADIF mit MY_SIG=WWBOTA und Komma-Liste in MY_SIG_INFO für \
-Multi-Bunker — laut offiziellem WWBOTA-ADIF-Guide.
-- Multi-Park-Hopping (POTA): pro Park ein eigenes File mit \
-{CALL}@{PARK} YYYYMMDD.adi — pota.app erlaubt keine Komma-Listen.
+ATNO-Live-Markierung im DX-Cluster:
+- Pro Spot links vom Rufzeichen eine farbige Pille:
+  rot "ATNO" (Land noch nie gearbeitet), orange "NEW BAND", \
+gelb "NEW MODE", schon gearbeitet = kein Marker.
+- Live-Update bei jedem geloggten QSO. Nur im Standard-DX-Log; \
+Contest/Outdoor haben ihre eigenen Markierungen.
 
-POTA Self-Spot:
-- Im Activator-Modus mit gesetztem Park + Frequenz erscheint in der \
-Status-Bar ein "Spot senden"-Button. Sheet mit Vorschau + Comment, \
-Senden direkt an pota.app — sofort für alle Hunter sichtbar.
+Bandplan-Live-Awareness:
+- Pille in der QSO-Status-Bar zeigt sofort beim Loggen: grün im Band \
++ Mode passt, orange falsches Subsegment, rot außerhalb Band. \
+Reagiert live auf CAT-Frequenzwechsel.
+- Aktiv in allen sechs QSO-Forms: DX, Contest, POTA, SOTA, WWFF, BOTA.
 
-SOTA-CSV für sotadata.org.uk:
-- Neuer Toolbar-Button "Für sotadata.org.uk exportieren (CSV)" \
-schreibt das offizielle V2-CSV-Format inkl. Summit-Gruppierung, \
-S2S-Spalte und Band-Mapping.
+Club Log scharfgeschaltet:
+- App-API-Key ist enthalten (musste seit dem 2026-API-Update von \
+Club Log explizit beantragt werden) — Auto-Upload funktioniert jetzt \
+sofort, sobald du Email + Application-Password einträgst.
+- Form-Encoding-Fix: das @-Zeichen in der Email wurde nicht korrekt \
+kodiert, nginx blockte mit 403. RFC-3986-strikt jetzt — 403-Bug weg.
 
-WWBOTA-Anbindung:
-- Bunker-Datenbank lädt jetzt von api.wwbota.org (~26.7k Bunker \
-weltweit). Snapshot kommt direkt aus der App, jederzeit aktualisierbar.
-- Refs durchgängig im offiziellen B/XX-NNNN-Format.
-
-Logbuch-Polish:
-- QRZ-Auto-Fill in Outdoor-Logs übernimmt jetzt auch QTH, Locator, \
-Country, Continent, CQ-/ITU-Zone (nicht mehr nur den Namen).
-- Hopping-Felder beim Log-Anlegen zeigen pro Eintrag den \
-vollständigen Park-/Summit-/Bunker-Namen + Details.
-- Bandplan jetzt eigenes Fenster (Fenster → Bandplan-Fenster, ⌘⇧P).
-- Multi-File-Export zeigt alle Dateinamen + "Im Finder zeigen"-Button.
+Standard-DX-Log ohne Dupe-Warnung:
+- Im Lebens-Log/Tages-Log/Stammrunde ist es legitim, denselben Call \
+mehrfach zu loggen — die "Schon gearbeitet"-Warnung war dort nur \
+lästig. Programm- und Contest-Logs behalten ihre eigene Dupe-Logik.
 """
 
 // MARK: - Implementation (sollte stabil bleiben)
