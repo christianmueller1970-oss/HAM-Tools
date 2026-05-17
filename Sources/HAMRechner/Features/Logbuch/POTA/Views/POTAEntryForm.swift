@@ -42,6 +42,21 @@ struct POTAEntryForm: View {
         return combined.isEmpty ? nil : combined
     }
 
+    // Self-Spot. Button erscheint in der Status-Bar nur im Activator-Modus
+    // mit gesetztem Park. Sheet fragt nach Comments + sendet POST an
+    // api.pota.app/spot/ (anonym, kein Auth).
+    @State private var showSpotSheet: Bool = false
+    @State private var spotComments: String = ""
+    @State private var spotInFlight: Bool = false
+    @State private var spotResult: SpotResult?
+
+    struct SpotResult: Identifiable {
+        let id = UUID()
+        let success: Bool
+        let title: String
+        let message: String
+    }
+
     // Dupe-Hinweis. POTA-Regel: gleicher Call auf gleichem Band im aktiven
     // Log = Dupe (Mode irrelevant — POTA-Spec zählt pro Band, nicht pro Mode).
     // Wird NICHT blockierend angezeigt: das QSO wird trotzdem gespeichert,
@@ -73,6 +88,19 @@ struct POTAEntryForm: View {
             }
         }
         .padding(12)
+        .sheet(isPresented: $showSpotSheet) {
+            spotSheet
+        }
+        .alert(spotResult?.title ?? "",
+               isPresented: Binding(
+                   get: { spotResult != nil },
+                   set: { if !$0 { spotResult = nil } }
+               ),
+               presenting: spotResult) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { entry in
+            Text(entry.message)
+        }
         .onAppear {
             call = ""
             timeOn = Date()
@@ -116,10 +144,35 @@ struct POTAEntryForm: View {
             statusPill(icon: "person", text: log?.name ?? "—")
             statusPill(icon: "tree", text: "\(role) · \(myParkLabel)",
                        color: role == "Activator" ? .green : .blue)
+            Spacer()
+            if canSelfSpot {
+                Button {
+                    spotComments = ""
+                    showSpotSheet = true
+                } label: {
+                    Label("Spot senden", systemImage: "dot.radiowaves.left.and.right")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .help("Self-Spot an pota.app senden (\(role == "Activator" ? "Activator" : "Hunter")-Modus)")
+            }
         }
         .padding(8)
         .background(theme.bgCard2)
         .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+
+    /// Self-Spot ist nur sinnvoll wenn wir Activator sind, einen Park
+    /// haben, der TRX eine Frequenz kennt und ein Mode gesetzt ist.
+    private var canSelfSpot: Bool {
+        guard let log = currentLog else { return false }
+        guard log.role == "Activator" else { return false }
+        guard let ref = log.potaParkRef?.trimmingCharacters(in: .whitespaces),
+              !ref.isEmpty else { return false }
+        guard radio.frequencyMHz > 0 else { return false }
+        guard !radio.mode.isEmpty else { return false }
+        return true
     }
 
     private func statusPill(icon: String, text: String, color: Color = .accentColor) -> some View {
@@ -423,5 +476,111 @@ struct POTAEntryForm: View {
         f.dateFormat = "HH:mm:ss"
         f.timeZone = TimeZone(identifier: "UTC")
         return f.string(from: d)
+    }
+
+    // MARK: - Self-Spot Sheet
+
+    @ViewBuilder
+    private var spotSheet: some View {
+        let activatorCall = resolveActivatorCall()
+        let park = currentLog?.potaParkRef ?? "—"
+        let freqKHz = Int((radio.frequencyMHz * 1000).rounded())
+        let mode = radio.mode.uppercased()
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .font(.title2)
+                    .foregroundStyle(.green)
+                Text("POTA Self-Spot")
+                    .font(.title3.bold())
+            }
+            Divider()
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                GridRow {
+                    Text("Activator").foregroundStyle(.secondary)
+                    Text(activatorCall).font(.body.monospaced())
+                }
+                GridRow {
+                    Text("Park").foregroundStyle(.secondary)
+                    Text(park).font(.body.monospaced())
+                }
+                GridRow {
+                    Text("Frequenz").foregroundStyle(.secondary)
+                    Text("\(freqKHz) kHz · \(String(format: "%.5f MHz", radio.frequencyMHz))")
+                        .font(.body.monospaced())
+                }
+                GridRow {
+                    Text("Mode").foregroundStyle(.secondary)
+                    Text(mode).font(.body.monospaced())
+                }
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Comment (optional)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextField("z.B. QRT 5min, QSY 14260, …", text: $spotComments)
+                    .textFieldStyle(.roundedBorder)
+            }
+            HStack {
+                Button("Abbrechen") { showSpotSheet = false }
+                    .keyboardShortcut(.cancelAction)
+                Spacer()
+                Button {
+                    Task { await sendSpot() }
+                } label: {
+                    if spotInFlight {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Label("Senden", systemImage: "paperplane.fill")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+                .disabled(spotInFlight)
+            }
+        }
+        .padding(20)
+        .frame(width: 440)
+    }
+
+    private func resolveActivatorCall() -> String {
+        if let c = currentLog?.usedCallsign?.trimmingCharacters(in: .whitespaces),
+           !c.isEmpty {
+            return c.uppercased()
+        }
+        return UserDefaults.standard.string(forKey: "callsign")?
+            .trimmingCharacters(in: .whitespaces).uppercased() ?? ""
+    }
+
+    @MainActor
+    private func sendSpot() async {
+        guard let log = currentLog,
+              let park = log.potaParkRef?.trimmingCharacters(in: .whitespaces),
+              !park.isEmpty else { return }
+        let call = resolveActivatorCall()
+        let freqKHz = Int((radio.frequencyMHz * 1000).rounded())
+        let mode = radio.mode.uppercased()
+        let comments = spotComments.trimmingCharacters(in: .whitespaces)
+        spotInFlight = true
+        defer { spotInFlight = false }
+        do {
+            try await POTASelfSpotService.sendSpot(
+                activator: call,
+                spotter: call,
+                frequencyKHz: freqKHz,
+                reference: park,
+                mode: mode,
+                comments: comments.isEmpty ? nil : comments)
+            showSpotSheet = false
+            spotResult = SpotResult(
+                success: true,
+                title: "Spot gesendet",
+                message: "\(call) @ \(park) auf \(freqKHz) kHz \(mode) ist auf pota.app sichtbar.")
+        } catch {
+            spotResult = SpotResult(
+                success: false,
+                title: "Spot fehlgeschlagen",
+                message: error.localizedDescription)
+        }
     }
 }
