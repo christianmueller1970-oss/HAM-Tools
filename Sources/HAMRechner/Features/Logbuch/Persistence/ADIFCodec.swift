@@ -9,8 +9,6 @@ import Foundation
 //   Längen sind UTF-8-Byte-Anzahl.
 enum ADIFCodec {
 
-    static let appVersion = "HAM-Tools 1.5"
-
     // MARK: - Export
 
     static func encode(qsos: [QSO], logName: String) -> String {
@@ -22,7 +20,11 @@ enum ADIFCodec {
         // drauf für maximale Kompatibilität).
         var out = field("ADIF_VER", "3.1.5")
         out += field("PROGRAMID", "HAM-Tools")
-        out += field("PROGRAMVERSION", appVersion)
+        // PROGRAMVERSION nimmt laut ADIF-Spec nur die Versionsnummer (App-
+        // Name steckt schon in PROGRAMID). BuildInfo.appVersion liest sie
+        // zur Laufzeit aus dem Info.plist, ist also automatisch synchron
+        // mit dem aktuellen Build.
+        out += field("PROGRAMVERSION", BuildInfo.appVersion)
         out += field("CREATED_TIMESTAMP", adifTimestamp(Date()))
         out += field("APP_HAMTOOLS_LOGNAME", logName)
         out += "<EOH>\n\n"
@@ -90,15 +92,23 @@ enum ADIFCodec {
         if let v = q.distanceKm  { s += field("DISTANCE", String(format: "%.0f", v)) }
         if let v = q.bearingDeg  { s += field("ANT_AZ", String(format: "%.0f", v)) }
 
-        // POTA — sowohl spezifische als auch generische SIG-Felder schreiben
-        // (verschiedene Logger lesen das unterschiedlich).
-        // Multi-Park-Hopping: myPotaRefs (Komma-Liste) wird, wenn gesetzt,
-        // bevorzugt — entspricht POTA-ADIF-Spec für MY_POTA_REF mit Komma.
+        // POTA — pota.app-konformer Export. Die offizielle Doku
+        // (docs.pota.app) sagt ausdrücklich »DO NOT USE Any other field
+        // names!« — also nur MY_SIG/MY_SIG_INFO als sichtbare Standard-
+        // Tags. Die früheren MY_POTA_REF/POTA_REF-Tags landen jetzt unter
+        // APP_HAMTOOLS_* (für Re-Import in unsere App), damit fremde
+        // pota.app-Uploader nicht auf nicht-dokumentierte Felder stoßen.
+        //
+        // Multi-Park-Hopping: pota.app erlaubt KEINE Komma-Liste in
+        // MY_SIG_INFO und verlangt pro Park ein eigenes File. Der monoli-
+        // thische Export schreibt die Komma-Liste trotzdem (für Re-Import
+        // und andere Logger), die saubere Split-per-Park-Lösung kommt in
+        // Phase 2 mit dem POTAExporter.
         let myPota = (q.myPotaRefs?.isEmpty == false ? q.myPotaRefs : q.myPotaRef) ?? ""
         if !myPota.isEmpty {
             s += field("MY_SIG", "POTA")
             s += field("MY_SIG_INFO", myPota)
-            s += field("MY_POTA_REF", myPota)
+            s += field("APP_HAMTOOLS_MY_POTA_REF", myPota)
             // pota.app empfiehlt MY_GRIDSQUARE — übernimm Locator aus App-
             // Settings (Stations-Tab → qthLocator).
             if let myGrid = UserDefaults.standard.string(forKey: "qthLocator")?
@@ -109,7 +119,7 @@ enum ADIFCodec {
         if let v = q.theirPotaRef, !v.isEmpty {
             s += field("SIG", "POTA")
             s += field("SIG_INFO", v)
-            s += field("POTA_REF", v)
+            s += field("APP_HAMTOOLS_POTA_REF", v)
         }
         // SOTA — analog POTA strukturiert, mit MY_SIG für maximale
         // Kompatibilität (manche Logger lesen nur SIG, nicht das spezifische
@@ -184,9 +194,13 @@ enum ADIFCodec {
             s += field("WWFF_REF", v)
         }
 
-        // BOTA — kein ADIF-Standard-Tag. Proprietäre APP_HAMTOOLS-Felder
-        // sichern den Wert für Re-Import in dieselbe App. Multi-Bunker
-        // analog WWFF: bei Hopping bevorzugen wir die Komma-Liste.
+        // BOTA — WWBOTA-konformer Export. Der offizielle ADIF-Guide
+        // (wwbota.net/adifguide) verlangt MY_SIG="WWBOTA" + MY_SIG_INFO
+        // mit den Bunker-Refs. Multi-Bunker ist ausdrücklich erlaubt als
+        // Komma-Liste in MY_SIG_INFO (Beispiel aus dem Guide:
+        // "B/G-1524,B/G-0001"). Proprietäre APP_HAMTOOLS-Felder bleiben
+        // zusätzlich, damit Re-Import unsere Multi-Bunker-Struktur exakt
+        // wiederherstellt (myBotaRef + myBotaRefs).
         let myBotaPrimary: String? = {
             if let raw = q.myBotaRefs?.trimmingCharacters(in: .whitespaces),
                !raw.isEmpty { return raw }
@@ -195,9 +209,17 @@ enum ADIFCodec {
             return nil
         }()
         if let v = myBotaPrimary {
+            s += field("MY_SIG", "WWBOTA")
+            s += field("MY_SIG_INFO", v)
             s += field("APP_HAMTOOLS_MY_BOTA_REF", v)
+            if let myGrid = UserDefaults.standard.string(forKey: "qthLocator")?
+                .trimmingCharacters(in: .whitespaces), !myGrid.isEmpty {
+                s += field("MY_GRIDSQUARE", myGrid)
+            }
         }
         if let v = q.theirBotaRef, !v.isEmpty {
+            s += field("SIG", "WWBOTA")
+            s += field("SIG_INFO", v)
             s += field("APP_HAMTOOLS_BOTA_REF", v)
         }
 
@@ -341,11 +363,14 @@ enum ADIFCodec {
         q.distanceKm     = fields["DISTANCE"].flatMap(Double.init)
         q.bearingDeg     = fields["ANT_AZ"].flatMap(Double.init)
 
-        // POTA/SOTA — Spezial-Felder bevorzugen, sonst aus SIG-Tag.
-        // Bei Komma-Liste (Multi-Park-Hopping): myPotaRef = erster Park,
-        // myPotaRefs = volle Liste. POTA-ADIF spec erlaubt Komma in MY_POTA_REF.
-        let myPotaRaw = fields["MY_POTA_REF"]
+        // POTA — Suchreihenfolge: zuerst proprietäres APP_HAMTOOLS_*
+        // (unsere App-Exports seit dem POTA-Konformitäts-Fix), dann
+        // SIG-Tag-Fallback (für pota.app-konforme fremde Exports), dann
+        // legacy MY_POTA_REF/POTA_REF für Logs aus älteren App-Versionen
+        // oder anderen Tools, die das nicht-Standard-Tag nutzten.
+        let myPotaRaw = fields["APP_HAMTOOLS_MY_POTA_REF"]
                      ?? (fields["MY_SIG"] == "POTA" ? fields["MY_SIG_INFO"] : nil)
+                     ?? fields["MY_POTA_REF"]
         if let raw = myPotaRaw, !raw.isEmpty {
             let refs = raw.split(separator: ",")
                 .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -353,8 +378,9 @@ enum ADIFCodec {
             q.myPotaRef  = refs.first
             q.myPotaRefs = refs.count > 1 ? refs.joined(separator: ",") : nil
         }
-        q.theirPotaRef = fields["POTA_REF"]
+        q.theirPotaRef = fields["APP_HAMTOOLS_POTA_REF"]
                      ?? (fields["SIG"] == "POTA" ? fields["SIG_INFO"] : nil)
+                     ?? fields["POTA_REF"]
         // SOTA — symmetrisch zum POTA-Pfad oben. Multi-Summit-Hopping wird
         // beim Re-Import als Komma-Liste in mySotaRefs gespeichert; der
         // erste Eintrag landet zusätzlich in mySotaRef für Single-Summit-
@@ -386,8 +412,13 @@ enum ADIFCodec {
         }
         q.theirWwffRef = fields["WWFF_REF"]
                      ?? (fields["SIG"] == "WWFF" ? fields["SIG_INFO"] : nil)
-        // BOTA — proprietäre APP_HAMTOOLS-Felder, kein Standard-ADIF-Tag.
-        if let raw = fields["APP_HAMTOOLS_MY_BOTA_REF"], !raw.isEmpty {
+        // BOTA — symmetrisch zum WWFF-Pfad. Standard-Tag MY_SIG/MY_SIG_INFO
+        // wird zuerst probiert (WWBOTA-konforme Exports von anderen
+        // Loggern wie Ham2k PoLo), Fallback auf das proprietäre Feld für
+        // Logs aus älteren App-Versionen.
+        let myBotaRaw = fields["APP_HAMTOOLS_MY_BOTA_REF"]
+                     ?? (fields["MY_SIG"] == "WWBOTA" ? fields["MY_SIG_INFO"] : nil)
+        if let raw = myBotaRaw, !raw.isEmpty {
             let refs = raw.split(separator: ",")
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }
@@ -395,6 +426,7 @@ enum ADIFCodec {
             q.myBotaRefs = refs.count > 1 ? refs.joined(separator: ",") : nil
         }
         q.theirBotaRef = fields["APP_HAMTOOLS_BOTA_REF"]
+                     ?? (fields["SIG"] == "WWBOTA" ? fields["SIG_INFO"] : nil)
 
         q.lotwSent      = parseBool(fields["LOTW_QSL_SENT"])
         q.lotwConfirmed = parseBool(fields["LOTW_QSL_RCVD"])
