@@ -16,7 +16,7 @@ enum BuildInfo {
     /// Datum dieses App-Builds. Wird vom build-dmg.sh automatisch via
     /// sed gepatcht — manuelle Bearbeitung ist nicht nötig (und würde
     /// beim nächsten Release-Build wieder überschrieben).
-    static let appBuildDate: String = "2026-05-16"
+    static let appBuildDate: String = "2026-05-17"
 
     /// Support-/Lizenz-Anfragen
     static let licenseRequestEmail = "hb9hji@funkwelt.net"
