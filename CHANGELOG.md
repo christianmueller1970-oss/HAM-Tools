@@ -5,6 +5,80 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.8.8] — 2026-05-17
+
+### Outdoor-Programme — Upload-Konformität + Spotting
+
+**ADIF jetzt plattform-konform** für alle vier Outdoor-Programme:
+- POTA: `MY_SIG=POTA` + `MY_SIG_INFO` als alleinige sichtbare Tags
+  (docs.pota.app verbietet zusätzliche Tags explizit). `MY_POTA_REF` /
+  `POTA_REF` wandern in `APP_HAMTOOLS_*` für Re-Import-Roundtrip.
+- WWBOTA: `MY_SIG=WWBOTA` + `MY_SIG_INFO` (Komma-Liste laut Guide
+  erlaubt), Schema aus wwbota.net/adifguide. `APP_HAMTOOLS_*`-Felder
+  bleiben für Roundtrip in unsere App.
+- WWFF / SOTA: bereits konform, unverändert.
+- Codec-Header-Fix: `PROGRAMVERSION` zieht jetzt `BuildInfo.appVersion`
+  dynamisch statt hardcoded "HAM-Tools 1.5" und doppelt den App-Namen
+  nicht mehr.
+
+**POTA Multi-Park-Split** beim Export: bei Multi-Park-Hopping schreibt
+HAM-Tools automatisch pro Park ein eigenes File mit `MY_SIG_INFO=einzelnem
+Park`. Filename `{CALL}@{PARK} YYYYMMDD.adi` — pota.app erkennt das
+Pattern beim Upload automatisch.
+
+**SOTA-CSV-V2-Export** für sotadata.org.uk: eigener Toolbar-Button im
+SOTA-Log, pro Summit gruppiert + zeit-sortiert (sotadata-Pflicht), S2S
+in Spalte 9, Band-Mapping (40m → 7.0MHz). Schließt das Phase-4d-Polish.
+
+**POTA Self-Spot** direkt aus dem Activator-Modus: Button in der POTA-
+Status-Bar öffnet ein Sheet mit Vorschau (Call/Park/Frequenz/Mode) +
+optionalem Comment. Senden via `api.pota.app/spot/` (anonym, kein Auth-
+Token, kein Cognito-SRP — der frühere Auth-Bug betraf nur den Logbook-
+Upload). Spot landet im POTA-Cluster, sichtbar für alle Hunter.
+
+### WWBOTA-Anbindung (vorher Stub)
+
+- **api.wwbota.org** als Datenquelle für die Bunker-Referenz-DB
+  (vorher: bunkersontheair.com — Stub, kein API).
+- **Initial-CSV-Snapshot** (~26.7k Bunker weltweit) im App-Bundle, wird
+  beim ersten Start automatisch ingestet. Versionsstand via
+  `bundle_snapshot_date`-Meta-Key, App-Updates ziehen neue Snapshots
+  nach.
+- **`B/`-Präfix-Format** durchgängig korrekt (`B/9A-0001` statt
+  `9A-0001`): `programFromRef` strippt den globalen Präfix für
+  Awards-Aggregation, Spot-Pattern erkennt mit + ohne Präfix, Service
+  normalisiert User-Eingaben.
+- Settings-Sektion umgeschrieben auf neue Quelle: prominenter
+  „Aktualisieren"-Button für Live-Refresh, CSV-Import bleibt als
+  Override.
+
+### Logbuch — Polish
+
+**Callbook-Auto-Fill in Outdoor-Logs komplett** (Bug-Fix): in den
+EntryForms für POTA/SOTA/WWFF/BOTA wurden beim QRZ/HamQTH-Lookup
+bisher nur der Name ins QSO geschrieben — QTH, GRIDSQUARE, COUNTRY,
+CONT, CQZ, ITUZ fielen unter den Tisch. Mit `applyFillingEmpty(to:)`
+landen jetzt alle vom Service gelieferten Felder im QSO (überschreibt
+keine vom User selbst getippten Werte).
+
+**Hopping-Live-Lookup beim Log-Anlegen**: das »Weitere Parks/Summits/
+Refs/Bunker (Hopping)«-Feld in den vier New-Sheets zeigt jetzt pro
+Komma-Eintrag eine eigene Zeile mit Programm-Namen + Detail (Land/
+Region/Höhe/Kategorie/Bunker-Typ je nach Programm). Vorher nur
+Status-Icon mit Namen im Tooltip.
+
+**Multi-File-Alert** bei Export: konsolidierter Alert-Pfad in der
+LogContextBar auf moderne SwiftUI-Alert-API. Bei Multi-File-Output
+zeigt der Alert die Filenamen und bietet „Im Finder zeigen" für alle.
+
+### UI
+
+**Bandplan als eigenes Fenster** statt Logbuch-Sub-Tab: zu wenig
+Höhe im Sub-Tab für die langen Band-Listen. Jetzt Single-Instance-
+Pop-up über *Fenster → Bandplan-Fenster* (⌘⇧P), Default 980×760.
+
+---
+
 ## [1.8.7] — 2026-05-16
 
 ### Logbuch — Phase 6 Schritt 3 (Club Log)

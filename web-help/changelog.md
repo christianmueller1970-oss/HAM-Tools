@@ -2,6 +2,66 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.8 — 2026-05-17
+
+**Outdoor-Programme: Upload jetzt plattform-konform · POTA-Self-Spot · WWBOTA-Live-Anbindung · viele Polishs**
+
+### ADIF-Export jetzt direkt hochladbar
+
+- **POTA-ADIF** entspricht jetzt 1:1 der pota.app-Vorgabe
+  (`MY_SIG=POTA` + `MY_SIG_INFO`, kein nicht-dokumentiertes
+  `MY_POTA_REF` mehr). Wird beim Upload nicht mehr von pota.app
+  abgelehnt.
+- **WWBOTA-ADIF** mit `MY_SIG=WWBOTA` und Komma-Liste in
+  `MY_SIG_INFO` für Multi-Bunker — laut offiziellem
+  WWBOTA-ADIF-Guide.
+- Bei **Multi-Park-Hopping** (POTA) wird beim Export automatisch
+  pro Park ein eigenes File geschrieben — pota.app erlaubt
+  keine Komma-Listen und verlangt File-pro-Park.
+
+### POTA Self-Spot 🆕
+
+Aus dem POTA-Log heraus direkt auf den POTA-Cluster spotten:
+
+- Im **Activator-Modus** mit gesetztem Park + Frequenz erscheint
+  in der Status-Bar ein **„Spot senden"**-Button.
+- Sheet zeigt Vorschau (Call/Park/Frequenz/Mode) + optionales
+  Comment-Feld. Nach „Senden" ist der Spot sofort auf pota.app
+  sichtbar — inklusive Re-Spot-Button für Hunter.
+
+### SOTA-CSV für sotadata.org.uk 🆕
+
+Neuer Toolbar-Button in SOTA-Logs: **„Für sotadata.org.uk
+exportieren (CSV)"**. Schreibt das offizielle V2-CSV-Format
+inkl. Summit-Gruppierung, S2S-Spalte und Band-Mapping (40m →
+7.0MHz). Damit kannst du deine Aktivierungen direkt bei
+sotadata hochladen.
+
+### WWBOTA-Anbindung statt Stub
+
+- Bunker-Datenbank lädt jetzt von **api.wwbota.org** (~26.7k
+  Bunker weltweit). Beim ersten Start kommt ein Snapshot direkt
+  aus der App, danach jederzeit aktualisierbar über
+  *Einstellungen → BOTA-Reference-Datenbank → „Aktualisieren"*.
+- Refs durchgängig im offiziellen `B/XX-NNNN`-Format. Spots aus
+  dem DX-Cluster werden mit + ohne `B/`-Präfix erkannt.
+
+### Logbuch-Polish
+
+- **QRZ-Auto-Fill** in Outdoor-Logs (POTA/SOTA/WWFF/BOTA)
+  übernimmt jetzt nicht nur den Namen, sondern auch QTH,
+  Locator, Country, Continent, CQ-/ITU-Zone. Das ADIF-Export-
+  Ergebnis ist damit deutlich vollständiger und DXCC-tracking-
+  tauglich.
+- Beim **Anlegen eines POTA/SOTA/WWFF/BOTA-Logs** zeigt das
+  Hopping-Feld pro Eintrag den vollständigen Namen + Details
+  des jeweiligen Parks/Summits/Bunkers (vorher nur Häkchen ohne
+  Kontext).
+- **Bandplan** ist jetzt ein eigenes Fenster (Menü *Fenster →
+  Bandplan-Fenster*, ⌘⇧P) statt eines beengten Sub-Tabs.
+- **Export-Bestätigung** zeigt bei Multi-File-Exports alle
+  geschriebenen Dateinamen und einen „Im Finder zeigen"-Button.
+
 ## 1.8.7 — 2026-05-16
 
 **Club-Log-Upload · SOTA-Punkte komplett · Update-System gehärtet**
