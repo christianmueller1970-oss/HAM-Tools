@@ -3,9 +3,12 @@ import Combine
 
 // Orchestrator für die BOTA-Reference-Datenbank.
 //
-// Doppelpfad-Strategie (analog WWFFRefService): File-Import ist primär,
-// URL-Slot ist Platzhalter weil bunkersontheair.com nur ein Stub ist und
-// GMA kein BOTA-Endpoint liefert.
+// Datenquelle: WWBOTA (api.wwbota.org) — globaler Bunker-Datensatz mit
+// weltweit ~26.7k Refs im Format `B/XX-NNNN`. Beim ersten Start (oder
+// nach einem App-Update mit neuerem Bundle-Snapshot) wird die CSV aus
+// dem App-Bundle in die DB übernommen, danach kann der User über
+// `refresh()` jederzeit gegen den Live-Endpoint aktualisieren oder per
+// `importCSV` eine handgepflegte Datei laden.
 @MainActor
 final class BOTARefService: ObservableObject {
 
@@ -22,16 +25,53 @@ final class BOTARefService: ObservableObject {
 
     let db: BOTARefDatabase
 
-    // Platzhalter — keine zentrale öffentliche Quelle gefunden. Falls
-    // sich später ein zuverlässiger Mirror etabliert, hier umbiegen.
-    private let sourceURL = URL(string: "https://bunkersontheair.com/")!
+    // WWBOTA Master Reference List, CSV-Export. ETag-Cache-Headers + 15-min
+    // server-side caching → harmlos für mehrfache refresh()-Aufrufe.
+    private let sourceURL = URL(string: "https://api.wwbota.org/bunkers/?format=CSV")!
 
     static let refreshHintAfterDays: Int = 30
+
+    // Datum des im App-Bundle mitgelieferten CSV-Snapshots. Beim Init
+    // vergleicht der Service diesen Wert mit `bundle_snapshot_date` in
+    // der DB-Meta-Tabelle — ist die Konstante neuer (oder die DB leer),
+    // wird der Bundle-Snapshot ingestet. So bekommen User nach einem
+    // App-Update automatisch eine frische Initial-Liste, ohne den
+    // CSV-Import manuell anstoßen zu müssen.
+    private static let bundleSnapshotDate = "2026-05-17"
+    private static let bundleResourceName = "bota-refs"
 
     init(dataRoot: AppDataRoot) throws {
         let url = dataRoot.cacheDir.appendingPathComponent("bota_refs.sqlite")
         self.db = try BOTARefDatabase(fileURL: url)
         self.refreshStatusFromDB()
+        self.loadBundleSnapshotIfNeeded()
+    }
+
+    /// Lädt die im App-Bundle mitgelieferte CSV, wenn die DB entweder leer
+    /// ist oder ein älterer Snapshot drinsteht. Silent: scheitert der Load
+    /// (Resource fehlt im Dev-Bundle, CSV korrupt), bleibt die DB im
+    /// vorherigen Zustand und `refresh()` ist weiterhin der Weg zur
+    /// frischen Liste.
+    private func loadBundleSnapshotIfNeeded() {
+        let dbSnapshot = db.getMeta("bundle_snapshot_date") ?? ""
+        let dbCount    = db.totalCount()
+        guard dbCount == 0 || dbSnapshot < Self.bundleSnapshotDate else { return }
+        guard let url = Bundle.module.url(forResource: Self.bundleResourceName,
+                                          withExtension: "csv") else { return }
+        do {
+            let data = try Data(contentsOf: url)
+            let refs = try Self.parseCSV(data: data)
+            guard !refs.isEmpty else { return }
+            try db.replaceAll(refs)
+            db.setMeta("last_update",
+                       value: ISO8601DateFormatter().string(from: Date()))
+            db.setMeta("source", value: "Bundle-Snapshot \(Self.bundleSnapshotDate)")
+            db.setMeta("row_count", value: "\(refs.count)")
+            db.setMeta("bundle_snapshot_date", value: Self.bundleSnapshotDate)
+            refreshStatusFromDB()
+        } catch {
+            lastError = "Bundle-Snapshot konnte nicht geladen werden: \(error.localizedDescription)"
+        }
     }
 
     // MARK: - Public API
@@ -48,7 +88,7 @@ final class BOTARefService: ObservableObject {
                !(200...299).contains(http.statusCode) {
                 throw NSError(domain: "BOTA", code: http.statusCode,
                               userInfo: [NSLocalizedDescriptionKey:
-                                "HTTP \(http.statusCode) — keine offene BOTA-API verfügbar, nutze CSV-Import"])
+                                "HTTP \(http.statusCode) vom WWBOTA-Endpoint — versuche es später erneut oder importiere eine CSV manuell."])
             }
             try ingestCSV(data: data, sourceLabel: sourceURL.absoluteString)
         } catch {
@@ -82,13 +122,29 @@ final class BOTARefService: ObservableObject {
                    value: ISO8601DateFormatter().string(from: Date()))
         db.setMeta("source", value: sourceLabel)
         db.setMeta("row_count", value: "\(refs.count)")
+        // Live-Refresh überschreibt mind. den Bundle-Snapshot-Stand — sonst
+        // würde der nächste App-Start den frischen Live-Stand wieder durch
+        // den (älteren) Bundle-Snapshot ersetzen.
+        db.setMeta("bundle_snapshot_date", value: Self.bundleSnapshotDate)
         status = .ready(date: Date(),
                         count: refs.count,
                         activeCount: refs.filter(\.isActive).count)
     }
 
+    /// Lookup-Eintrag für eine Reference. Normalisiert die Eingabe auf das
+    /// WWBOTA-Format (`B/XX-NNNN`) — wenn der User oder ein Cluster-Spot
+    /// den `B/`-Präfix weglässt, wird er für den Lookup ergänzt.
     func ref(forReference reference: String) -> BOTAReference? {
-        db.ref(reference: reference)
+        let key = Self.normalize(reference)
+        return db.ref(reference: key)
+    }
+
+    /// Ergänzt fehlenden `B/`-Präfix. Eingaben ohne Präfix werden trotzdem
+    /// gefunden, die DB hält WWBOTA-konforme Refs.
+    static func normalize(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespaces).uppercased()
+        if trimmed.hasPrefix("B/") { return trimmed }
+        return "B/" + trimmed
     }
 
     func search(_ query: String) -> [BOTAReference] {

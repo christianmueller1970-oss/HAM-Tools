@@ -576,24 +576,25 @@ private struct DatenTab: View {
 
     // MARK: - BOTA Refs DB
 
-    // Primär File-Import (kein zentrales öffentliches API gefunden).
-    // URL-Slot ist Platzhalter und schlägt typischerweise fehl —
-    // CSV-Import-Button daher direkt borderedProminent.
+    // Live-Quelle: WWBOTA (api.wwbota.org). Initial-Snapshot ist im App-
+    // Bundle, der "Aktualisieren"-Button holt die jeweils aktuelle Liste
+    // direkt vom Server. CSV-Import bleibt als Override für handgepflegte
+    // Datenstände.
     private var botaRefsGroup: some View {
         GroupBox("BOTA-Reference-Datenbank") {
             VStack(alignment: .leading, spacing: 8) {
                 botaStatusLine
                 HStack {
-                    Button("CSV importieren …") { pickBOTACSV() }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(botaIsBusy)
-                        .help("BOTA hat keinen offenen Datenfeed — lokale CSV vom Programm-Coordinator einlesen")
-
-                    Button(bota.isLoaded ? "URL erneut versuchen" : "URL versuchen") {
+                    Button(bota.isLoaded ? "Aktualisieren" : "Jetzt laden") {
                         Task { await bota.refresh() }
                     }
+                    .buttonStyle(.borderedProminent)
                     .disabled(botaIsBusy)
-                    .help("Platzhalter — wenn ein zentraler Mirror auftaucht, wird die URL angepasst")
+                    .help("Aktuelle Liste von api.wwbota.org laden")
+
+                    Button("CSV importieren …") { pickBOTACSV() }
+                        .disabled(botaIsBusy)
+                        .help("Lokale CSV-Datei einlesen — Override-Pfad, falls der WWBOTA-Endpoint nicht erreichbar ist oder du eine handgepflegte Liste nutzt.")
 
                     if bota.shouldOfferRefresh && bota.isLoaded {
                         Text("ältere Daten — Update empfohlen")
@@ -608,7 +609,7 @@ private struct DatenTab: View {
                         .foregroundStyle(.red)
                         .textSelection(.enabled)
                 }
-                Text("Bunkers On The Air — kein zentrales API. Lokale CSV (z.B. vom Programm-Coordinator oder GMA-Export) importieren. Wird in \(dataRoot.cacheDir.path)/bota_refs.sqlite gespeichert.")
+                Text("Quelle: WWBOTA Master Reference List (api.wwbota.org, ~26.7k Bunker weltweit, Format B/XX-NNNN). Initial-Snapshot kommt aus dem App-Bundle, »Aktualisieren« lädt direkt vom Server. Gespeichert in \(dataRoot.cacheDir.path)/bota_refs.sqlite.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -653,7 +654,7 @@ private struct DatenTab: View {
 
     private var botaStatusText: String {
         switch bota.status {
-        case .unknown:           return "Noch keine Daten geladen — bitte CSV importieren"
+        case .unknown:           return "Noch keine Daten geladen — klicke »Jetzt laden« oder importiere eine CSV"
         case .downloading:       return "Lade …"
         case .parsing:           return "Verarbeite CSV …"
         case .ready(let date, let count, let activeCount):

@@ -1021,25 +1021,23 @@ final class LogbookManager: ObservableObject {
                     wwffR2R += 1
                 }
 
-                // BOTA-Counts — gleiche Logik wie WWFF.
+                // BOTA-Counts — gleiche Logik wie WWFF, aber Programm-Code
+                // via BOTAReference.programFromRef (strippt den WWBOTA-
+                // `B/`-Präfix bevor der Programm-Code extrahiert wird).
                 let myBotaSet    = potaRefSet(qso.myBotaRef, qso.myBotaRefs)
                 let theirBotaSet = potaRefSet(qso.theirBotaRef, nil)
                 if !myBotaSet.isEmpty {
                     botaActivatorQSOs += 1
                     botaActivatorRefs.formUnion(myBotaSet)
                     for ref in myBotaSet {
-                        if let dash = ref.firstIndex(of: "-") {
-                            botaPrograms.insert(String(ref[..<dash]))
-                        }
+                        botaPrograms.insert(BOTAReference.programFromRef(ref))
                     }
                 }
                 if !theirBotaSet.isEmpty {
                     botaHunterQSOs += 1
                     botaHunterRefs.formUnion(theirBotaSet)
                     for ref in theirBotaSet {
-                        if let dash = ref.firstIndex(of: "-") {
-                            botaPrograms.insert(String(ref[..<dash]))
-                        }
+                        botaPrograms.insert(BOTAReference.programFromRef(ref))
                     }
                 }
                 if !myBotaSet.isEmpty && !theirBotaSet.isEmpty {

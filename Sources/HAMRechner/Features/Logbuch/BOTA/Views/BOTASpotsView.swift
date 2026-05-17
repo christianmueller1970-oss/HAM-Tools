@@ -32,10 +32,13 @@ struct BOTASpotsView: View {
                                  "17m", "15m", "12m", "10m", "6m", "2m", "70cm"]
     private static let modes  = ["Alle", "SSB", "CW", "FT8", "FT4", "RTTY", "AM", "FM", "DATA"]
 
-    // Pattern für mögliche Bunker-Refs im Kommentar. Wir testen jeden Match
-    // zusätzlich gegen die DB — nur tatsächliche bota_refs-Einträge zählen.
+    // Pattern für mögliche Bunker-Refs im Kommentar. WWBOTA-Format ist
+    // `B/XX-NNNN` (Cluster-Spots senden das `B/` mit), ältere Cluster
+    // lassen den Präfix manchmal weg. Programm-Codes können auch Ziffern
+    // enthalten (9A = Kroatien). Wir testen jeden Match zusätzlich gegen
+    // die DB — nur tatsächliche bota_refs-Einträge zählen.
     private static let pattern = try! NSRegularExpression(
-        pattern: #"\b([A-Z]{1,4})-(\d{3,5})\b"#)
+        pattern: #"\b(B/)?([A-Z0-9]{1,4})-(\d{3,5})\b"#)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -66,13 +69,16 @@ struct BOTASpotsView: View {
 
     /// Findet die erste Ref im Comment, die tatsächlich in der bota_refs-DB
     /// existiert. Ohne DB-Lookup wäre das Pattern zu generisch (würde POTA-
-    /// und WWFF-Refs mitfangen).
+    /// und WWFF-Refs mitfangen). DB speichert Refs WWBOTA-konform mit
+    /// `B/`-Präfix; fehlt der Präfix im Cluster-Spot, präfixieren wir ihn
+    /// für den Lookup nachträglich an.
     private static func firstBOTARef(in comment: String, db: BOTARefService) -> String? {
         let range = NSRange(comment.startIndex..., in: comment)
         let matches = pattern.matches(in: comment, range: range)
         for m in matches {
             guard let r = Range(m.range, in: comment) else { continue }
-            let candidate = String(comment[r]).uppercased()
+            let raw = String(comment[r]).uppercased()
+            let candidate = raw.hasPrefix("B/") ? raw : "B/" + raw
             if db.ref(forReference: candidate) != nil {
                 return candidate
             }
