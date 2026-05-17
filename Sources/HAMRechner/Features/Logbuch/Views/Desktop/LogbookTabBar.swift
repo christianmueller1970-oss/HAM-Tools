@@ -19,7 +19,6 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
     case wwffMap     = "WWFF-Map"
     case botaMap     = "BOTA-Map"
     case contestMap  = "Contest-Map"
-    case bandplan    = "Bandplan"
     case labels      = "Labels"
 
     var id: String { rawValue }
@@ -41,7 +40,6 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
         case .wwffMap:    return "leaf.circle"
         case .botaMap:    return "shield.lefthalf.filled"
         case .contestMap: return "globe.europe.africa"
-        case .bandplan:   return "chart.bar.xaxis"
         case .labels:     return "tag"
         }
     }
@@ -50,7 +48,7 @@ enum LogbookBottomTab: String, CaseIterable, Identifiable {
         switch self {
         case .log, .dxClusters, .awards, .stats, .map, .bands,
              .history, .memories, .qsl, .potaMap, .sotaMap, .wwffMap, .botaMap,
-             .contestMap, .bandplan: return true
+             .contestMap: return true
         default:                                                            return false
         }
     }
@@ -70,10 +68,10 @@ struct LogbookTabBar: View {
     }
 
     // Programm-Modus-Filter: im POTA/SOTA/WWFF-Log nur die jeweils
-    // programm-spezifischen Tabs zeigen. Generische Map, Bands, History,
-    // Bandplan und die anderen Programm-Maps werden ausgeblendet — das
-    // räumt die Tab-Bar deutlich auf und macht klar in welchem Programm
-    // man gerade ist.
+    // programm-spezifischen Tabs zeigen. Generische Map, Bands, History
+    // und die anderen Programm-Maps werden ausgeblendet — das räumt die
+    // Tab-Bar deutlich auf und macht klar in welchem Programm man gerade
+    // ist.
     private var visibleTabs: [LogbookBottomTab] {
         LogbookBottomTab.allCases.filter { tab in
             guard tab.isAvailable else { return false }

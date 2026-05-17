@@ -41,6 +41,13 @@ struct WindowCommands: View {
             .keyboardShortcut("g", modifiers: [.command, .shift])
         }
 
+        Section("Referenz") {
+            Button("Bandplan-Fenster") {
+                openWindow(id: "bandplan")
+            }
+            .keyboardShortcut("p", modifiers: [.command, .shift])
+        }
+
         Section("Cluster") {
             Button("DX-Cluster-Fenster") {
                 openWindow(id: "dxcluster")

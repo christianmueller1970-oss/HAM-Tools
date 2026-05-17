@@ -759,8 +759,6 @@ struct LogbuchView: View {
             BOTAMapTab()
         case .contestMap:
             ContestMapTab()
-        case .bandplan:
-            BandplanView()
         default:
             comingSoon(bottomTab)
         }

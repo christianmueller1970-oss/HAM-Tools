@@ -232,6 +232,17 @@ struct HAMRechnerApp: App {
         .windowStyle(.titleBar)
         .defaultSize(width: 900, height: 560)
 
+        // Bandplan-Fenster: war früher Sub-Tab im Logbuch — hatte aber
+        // nach unten zu wenig Platz für die langen Band-Listen. Jetzt
+        // eigenes Pop-up, Single-Instance via fixer Window-ID.
+        WindowGroup("Bandplan", id: "bandplan") {
+            BandplanView()
+                .environmentObject(themeManager)
+                .frame(minWidth: 720, minHeight: 520)
+        }
+        .windowStyle(.titleBar)
+        .defaultSize(width: 980, height: 760)
+
         // DX-Cluster-Pop-up: volle Spot-Liste in eigenem Fenster, ohne
         // Contest-Filter. Praktisch wenn das Logbuch im Log-Tab steht
         // und man parallel Spots beobachten will (Mehrmonitor-Setup).
