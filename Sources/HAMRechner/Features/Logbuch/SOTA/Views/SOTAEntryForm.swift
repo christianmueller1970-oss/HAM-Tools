@@ -28,9 +28,22 @@ struct SOTAEntryForm: View {
     @State private var lastSavedConfirmation: String?
     @State private var timeTicker = Date()
 
-    @State private var lookupName: String?
+    @State private var lookupResult: CallbookResult?
     @State private var lookupInFlight: Bool = false
     @State private var lookupTask: Task<Void, Never>?
+
+    /// Kombinierter Vor-+Nachname aus dem Callbook-Lookup — wird unter
+    /// dem Call-Feld als »QRZ aufgelöst«-Hinweis angezeigt. Der Rest des
+    /// Results (qth, country, locator, cqZone …) wird beim Commit per
+    /// applyFillingEmpty stillschweigend ans QSO gehängt.
+    private var lookupName: String? {
+        guard let r = lookupResult else { return nil }
+        let combined = [r.firstName, r.lastName]
+            .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        return combined.isEmpty ? nil : combined
+    }
 
     // SOTA-Dupe-Regel: gleicher Call+Band+Mode im aktiven Log. (Activator
     // arbeitet typischerweise eine Frequenz/Mode lange durch — Mode-
@@ -346,9 +359,10 @@ struct SOTAEntryForm: View {
             qso.stationCall  = myCall
         }
 
-        if let name = lookupName, !name.isEmpty {
-            qso.name = name
-        }
+        // Callbook-Auto-Fill: NAME, QTH, COUNTRY, GRIDSQUARE, CONTINENT,
+        // CQ/ITU-Zone. applyFillingEmpty überschreibt keine vom User
+        // selbst getippten Felder.
+        lookupResult?.applyFillingEmpty(to: &qso)
 
         // SOTA-Felder. Beim Activator wird mySotaRef aus dem Log getragen,
         // damit jedes QSO der Aktivierung den Summit kennt (auch beim
@@ -426,7 +440,7 @@ struct SOTAEntryForm: View {
         comments = ""
         notes = ""
         timeOn = Date()
-        lookupName = nil
+        lookupResult = nil
         lookupTask?.cancel()
         if !keepLastConfirmation { lastSavedConfirmation = nil }
     }
@@ -435,7 +449,7 @@ struct SOTAEntryForm: View {
         lookupTask?.cancel()
         let target = trimmedCall.trimmingCharacters(in: .whitespaces).uppercased()
         guard target.count >= 3 else {
-            lookupName = nil
+            lookupResult = nil
             lookupInFlight = false
             return
         }
@@ -449,16 +463,7 @@ struct SOTAEntryForm: View {
                 lookupInFlight = false
                 return
             }
-            if let r = result {
-                let combined = [r.firstName, r.lastName]
-                    .compactMap { $0 }
-                    .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty }
-                    .joined(separator: " ")
-                lookupName = combined.isEmpty ? nil : combined
-            } else {
-                lookupName = nil
-            }
+            lookupResult = result
             lookupInFlight = false
         }
     }

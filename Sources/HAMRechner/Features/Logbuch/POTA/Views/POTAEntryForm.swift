@@ -25,9 +25,22 @@ struct POTAEntryForm: View {
 
     // Callbook-Lookup (rein visuell, nicht ins QSO gespeichert — POTA-Upload
     // braucht den Namen nicht, aber während des QSO ist es nett "Hi John!").
-    @State private var lookupName: String?
+    @State private var lookupResult: CallbookResult?
     @State private var lookupInFlight: Bool = false
     @State private var lookupTask: Task<Void, Never>?
+
+    /// Kombinierter Vor-+Nachname aus dem Callbook-Lookup — wird unter
+    /// dem Call-Feld als »QRZ aufgelöst«-Hinweis angezeigt. Der Rest des
+    /// Results (qth, country, locator, cqZone …) wird beim Commit per
+    /// applyFillingEmpty stillschweigend ans QSO gehängt.
+    private var lookupName: String? {
+        guard let r = lookupResult else { return nil }
+        let combined = [r.firstName, r.lastName]
+            .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        return combined.isEmpty ? nil : combined
+    }
 
     // Dupe-Hinweis. POTA-Regel: gleicher Call auf gleichem Band im aktiven
     // Log = Dupe (Mode irrelevant — POTA-Spec zählt pro Band, nicht pro Mode).
@@ -306,11 +319,11 @@ struct POTAEntryForm: View {
             qso.stationCall  = myCall
         }
 
-        // Name aus QRZ-Lookup silently mitspeichern (im Form nicht angezeigt,
-        // aber so kann die Tabelle einen "QRZ aufgelöst"-Haken zeigen).
-        if let name = lookupName, !name.isEmpty {
-            qso.name = name
-        }
+        // Callbook-Auto-Fill silently anwenden (im Form nicht angezeigt,
+        // aber für ADIF-Upload + DXCC-Aggregation wichtig: NAME, QTH,
+        // COUNTRY, GRIDSQUARE, CONTINENT, CQ/ITU-Zone). applyFillingEmpty
+        // überschreibt keine vom User selbst getippten Felder.
+        lookupResult?.applyFillingEmpty(to: &qso)
 
         // POTA-Felder:
         // - myPotaRef:  primärer Park aus dem Log (Activator)
@@ -374,7 +387,7 @@ struct POTAEntryForm: View {
         comments = ""
         notes = ""
         timeOn = Date()
-        lookupName = nil
+        lookupResult = nil
         lookupTask?.cancel()
         if !keepLastConfirmation { lastSavedConfirmation = nil }
     }
@@ -385,7 +398,7 @@ struct POTAEntryForm: View {
         lookupTask?.cancel()
         let target = trimmedCall.trimmingCharacters(in: .whitespaces).uppercased()
         guard target.count >= 3 else {
-            lookupName = nil
+            lookupResult = nil
             lookupInFlight = false
             return
         }
@@ -400,16 +413,7 @@ struct POTAEntryForm: View {
                 lookupInFlight = false
                 return
             }
-            if let r = result {
-                let combined = [r.firstName, r.lastName]
-                    .compactMap { $0 }
-                    .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty }
-                    .joined(separator: " ")
-                lookupName = combined.isEmpty ? nil : combined
-            } else {
-                lookupName = nil
-            }
+            lookupResult = result
             lookupInFlight = false
         }
     }

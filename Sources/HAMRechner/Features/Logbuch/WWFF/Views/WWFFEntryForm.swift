@@ -28,9 +28,22 @@ struct WWFFEntryForm: View {
     @State private var lastSavedConfirmation: String?
     @State private var timeTicker = Date()
 
-    @State private var lookupName: String?
+    @State private var lookupResult: CallbookResult?
     @State private var lookupInFlight: Bool = false
     @State private var lookupTask: Task<Void, Never>?
+
+    /// Kombinierter Vor-+Nachname aus dem Callbook-Lookup — wird unter
+    /// dem Call-Feld als »QRZ aufgelöst«-Hinweis angezeigt. Der Rest des
+    /// Results (qth, country, locator, cqZone …) wird beim Commit per
+    /// applyFillingEmpty stillschweigend ans QSO gehängt.
+    private var lookupName: String? {
+        guard let r = lookupResult else { return nil }
+        let combined = [r.firstName, r.lastName]
+            .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        return combined.isEmpty ? nil : combined
+    }
 
     // WWFF-Dupe-Regel: gleicher Call+Band+Mode im aktiven Log. WWFF zählt
     // QSOs pro Band/Mode getrennt — mehrfach mit dem gleichen Call ist OK
@@ -342,9 +355,10 @@ struct WWFFEntryForm: View {
             qso.stationCall  = myCall
         }
 
-        if let name = lookupName, !name.isEmpty {
-            qso.name = name
-        }
+        // Callbook-Auto-Fill: NAME, QTH, COUNTRY, GRIDSQUARE, CONTINENT,
+        // CQ/ITU-Zone. applyFillingEmpty überschreibt keine vom User
+        // selbst getippten Felder.
+        lookupResult?.applyFillingEmpty(to: &qso)
 
         // WWFF-Felder. Beim Activator wird myWwffRef aus dem Log getragen;
         // bei Multi-Ref-Hopping zusätzlich myWwffRefs (Komma-Liste).
@@ -414,7 +428,7 @@ struct WWFFEntryForm: View {
         comments = ""
         notes = ""
         timeOn = Date()
-        lookupName = nil
+        lookupResult = nil
         lookupTask?.cancel()
         if !keepLastConfirmation { lastSavedConfirmation = nil }
     }
@@ -423,7 +437,7 @@ struct WWFFEntryForm: View {
         lookupTask?.cancel()
         let target = trimmedCall.trimmingCharacters(in: .whitespaces).uppercased()
         guard target.count >= 3 else {
-            lookupName = nil
+            lookupResult = nil
             lookupInFlight = false
             return
         }
@@ -437,16 +451,7 @@ struct WWFFEntryForm: View {
                 lookupInFlight = false
                 return
             }
-            if let r = result {
-                let combined = [r.firstName, r.lastName]
-                    .compactMap { $0 }
-                    .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty }
-                    .joined(separator: " ")
-                lookupName = combined.isEmpty ? nil : combined
-            } else {
-                lookupName = nil
-            }
+            lookupResult = result
             lookupInFlight = false
         }
     }

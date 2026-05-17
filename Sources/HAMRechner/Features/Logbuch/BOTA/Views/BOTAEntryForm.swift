@@ -23,9 +23,22 @@ struct BOTAEntryForm: View {
     @State private var lastSavedConfirmation: String?
     @State private var timeTicker = Date()
 
-    @State private var lookupName: String?
+    @State private var lookupResult: CallbookResult?
     @State private var lookupInFlight: Bool = false
     @State private var lookupTask: Task<Void, Never>?
+
+    /// Kombinierter Vor-+Nachname aus dem Callbook-Lookup — wird unter
+    /// dem Call-Feld als »QRZ aufgelöst«-Hinweis angezeigt. Der Rest des
+    /// Results (qth, country, locator, cqZone …) wird beim Commit per
+    /// applyFillingEmpty stillschweigend ans QSO gehängt.
+    private var lookupName: String? {
+        guard let r = lookupResult else { return nil }
+        let combined = [r.firstName, r.lastName]
+            .compactMap { $0?.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        return combined.isEmpty ? nil : combined
+    }
 
     @State private var lastSaveWasDupe: Bool = false
 
@@ -310,9 +323,10 @@ struct BOTAEntryForm: View {
             qso.stationCall  = myCall
         }
 
-        if let name = lookupName, !name.isEmpty {
-            qso.name = name
-        }
+        // Callbook-Auto-Fill: NAME, QTH, COUNTRY, GRIDSQUARE, CONTINENT,
+        // CQ/ITU-Zone. applyFillingEmpty überschreibt keine vom User
+        // selbst getippten Felder.
+        lookupResult?.applyFillingEmpty(to: &qso)
 
         if isActivator {
             qso.myBotaRef  = log.botaRef
@@ -373,7 +387,7 @@ struct BOTAEntryForm: View {
         comments = ""
         notes = ""
         timeOn = Date()
-        lookupName = nil
+        lookupResult = nil
         lookupTask?.cancel()
         if !keepLastConfirmation { lastSavedConfirmation = nil }
     }
@@ -382,7 +396,7 @@ struct BOTAEntryForm: View {
         lookupTask?.cancel()
         let target = trimmedCall.trimmingCharacters(in: .whitespaces).uppercased()
         guard target.count >= 3 else {
-            lookupName = nil
+            lookupResult = nil
             lookupInFlight = false
             return
         }
@@ -396,16 +410,7 @@ struct BOTAEntryForm: View {
                 lookupInFlight = false
                 return
             }
-            if let r = result {
-                let combined = [r.firstName, r.lastName]
-                    .compactMap { $0 }
-                    .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty }
-                    .joined(separator: " ")
-                lookupName = combined.isEmpty ? nil : combined
-            } else {
-                lookupName = nil
-            }
+            lookupResult = result
             lookupInFlight = false
         }
     }

@@ -141,7 +141,11 @@ struct LogContextBar: View {
                              icon: importInFlight ? "hourglass" : "square.and.arrow.down",
                              enabled: !importInFlight,
                              action: openADIFImport)
-                actionButton("Export ADIF", icon: "square.and.arrow.up", action: exportADIF)
+                actionButton("Export ADIF", icon: "square.and.arrow.up",
+                             action: exportADIF)
+                // Programm-Exporter nur für Format-Sonderfälle (heute SOTA
+                // mit CSV V2). POTA/WWFF/WWBOTA sind durch den ADIF-Export
+                // oben abgedeckt.
                 if let logType = currentLogType,
                    let exporter = ProgramExporterFactory.exporter(for: logType) {
                     actionButton(exporter.menuTitle,

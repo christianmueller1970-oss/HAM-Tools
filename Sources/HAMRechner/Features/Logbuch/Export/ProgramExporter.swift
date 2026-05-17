@@ -1,14 +1,14 @@
 import Foundation
 
-// Programm-spezifischer Log-Exporter. Jedes Outdoor-Programm (POTA, SOTA,
-// WWFF, WWBOTA) hat seine eigenen Tag-/Format-/Filename-Anforderungen für
-// den Upload zur jeweiligen Plattform. Ein generisches "Export ADIF"
-// reicht nicht — pota.app z.B. verlangt pro Park ein eigenes File mit
-// Filename-Pattern `{call}@{ref} YYYYMMDD.adi`.
+// Programm-spezifischer Log-Exporter für Outdoor-Programme, deren
+// Upload-Format strukturell vom generischen ADIF-Export abweicht.
+// Aktuell genutzt für SOTA (sotadata.org.uk CSV V2, kein ADIF).
+// POTA/WWFF/WWBOTA brauchen keinen eigenen Exporter mehr — der
+// generische ADIFCodec ist seit Phase 1+1b plattform-konform.
 //
-// Ein Exporter darf MEHRERE Files schreiben (Multi-Park-Hopping bei POTA),
-// gibt aber genau eine repräsentative URL zurück, die im UI angezeigt
-// wird — bei Mehrfach-Output ist das der Exports-Ordner selbst.
+// Ein Exporter darf MEHRERE Files schreiben (z.B. künftiger POTA-
+// Multi-Park-Split), gibt aber alle URLs zurück, damit das UI sie
+// im Finder revealen kann.
 protocol ProgramExporter {
     /// Anzeige-Titel im UI-Button bzw. Menü, z.B. "Für pota.app exportieren".
     var menuTitle: String { get }
@@ -68,12 +68,13 @@ enum ProgramExportCallsign {
 
 enum ProgramExporterFactory {
     /// Liefert den passenden Exporter für einen Log-Typ — oder nil, wenn
-    /// das Programm keinen eigenen Export-Pfad hat (Standard/Contest).
+    /// das Programm bereits durch den generischen ADIF-Export abgedeckt
+    /// ist. Aktuell nur SOTA, weil sotadata.org.uk kein ADIF frisst und
+    /// das CSV-V2-Format strukturell anders ist. Für POTA/WWFF/WWBOTA
+    /// reicht der generische ADIFCodec-Export (seit Phase 1+1b plattform-
+    /// konform).
     static func exporter(for logType: LogType) -> ProgramExporter? {
-        if POTAExporter.applies(to: logType)    { return POTAExporter() }
         if SOTACSVExporter.applies(to: logType) { return SOTACSVExporter() }
-        if WWFFExporter.applies(to: logType)    { return WWFFExporter() }
-        if WWBOTAExporter.applies(to: logType)  { return WWBOTAExporter() }
         return nil
     }
 }
