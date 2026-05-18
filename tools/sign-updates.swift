@@ -21,31 +21,40 @@ import CryptoKit
 
 // MARK: - RELEASE-DATEN (für jeden Release anpassen)
 
-let RELEASE_VERSION   = "1.8.13"
+let RELEASE_VERSION   = "1.8.14"
 let RELEASE_BUILDDATE = "2026-05-18"          // ISO 8601, YYYY-MM-DD
 let RELEASE_MIN_MACOS = "14.0"                 // oder nil
-let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.13.dmg"
+let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.14.dmg"
 let RELEASE_CRITICAL  = false
 let RELEASE_NOTES = """
-Auto-Update wieder funktional + Multi-Cluster Polish + ATNO-Spalte.
+Local Time, Akku-Anzeige, CAT-Power, DX-Spot-Polish, Help-Doku.
 
-Auto-Update-Check repariert:
-- Der eingebaute Update-Check (Cmd+Opt+U) verglich bisher nur das \
-Build-Datum als String — Hotfix-Releases vom selben Tag wurden nie \
-als neuer erkannt. Jetzt numerischer Semver-Vergleich, Build-Datum \
-nur als Tiebreaker. Auto-Update läuft ab 1.8.13 wieder verlässlich.
+Tester-Wunschliste komplett umgesetzt:
 
-Multi-Cluster Polish:
-- Live-Status-Pille pro Zeile in Einstellungen → Cluster (grün/gelb/\
-rot/grau).
-- »N/M verbunden«-Counter in allen Top-Bars statt nur »N aktiv«.
-- Host/Port-Edits aktiver Cluster wirken sofort, ohne Aktiv-Toggle-\
-Workaround.
+Top-Bar:
+- Local Time neben UTC (HH:mm:ss LT) mit Zeitzone-Tooltip.
+- Akkustatus-Pille mit Symbol + Prozent + Restzeit (z.B. 🔋 85% · \
+4h 12min). Bei Netz angeschlossen 🔌, beim Laden ⚡. Auf Desktops \
+ohne Akku unsichtbar.
 
-ATNO-Spalte:
-- ATNO/NEW-BAND/NEW-MODE-Pille jetzt eigene Tabellenspalte im DX-\
-Cluster (reorderbar, ausblendbar) statt am Call zu kleben. Kontinent \
-wurde mit »Land« zusammengelegt (»Germany (EU)«).
+Radio/CAT:
+- Echte RFPOWER-Anzeige im PWR-Badge (»PWR 80%«) statt grauer Stub.
+- Spot-Klick aktualisiert Frequenz + Mode jetzt auch ohne aktive \
+CAT — Status-Anzeigen, Bandplan-Pille und DX-Spot-Sender ziehen mit.
+
+DX-Spot-Sender:
+- Mode kommt automatisch aus dem Radio/CAT-Panel (nicht mehr fix \
+auf FT8). Mode-Picker im Spot-Block entfällt — Wert ist zuverlässig \
+aus dem Radio-Panel verfügbar. Mode-Liste um FM/AM/DATA erweitert.
+- Band-Schnellwahl-Buttons (160m/80m/40m/…) entfallen — Frequenz \
+wird ohnehin aus der CAT prefillt.
+
+Help-Site:
+- Bandplan-Seite ausgebaut: alle drei Zugriffswege (Sub-Tab, \
+Cmd+Shift+P-Fenster, Live-Awareness-Pille in jedem QSO-Form) + \
+vollständige Band-Übersicht 2200m – 1,25cm.
+- Rechner-Seite ausgebaut: Liste der 25+ Rechner gruppiert nach \
+Funktion (Drahtantennen, Richtstrahler, Spulen, Anpassung, Signale).
 """
 
 // MARK: - Implementation (sollte stabil bleiben)

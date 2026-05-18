@@ -2,6 +2,49 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.14 — 2026-05-18
+
+**Local Time + Akku + RFPOWER + DX-Spot-Polish + Doku-Ausbau**
+
+Sammel-Release mit allen Tester-Wünschen von HB9HJL plus Help-Site-
+Stubs ausgebaut. Inhaltlich:
+
+### Top-Bar 🆕
+
+- **Local Time** neben UTC (`HH:mm:ss LT`), Tooltip mit Zeitzone-ID.
+- **Akkustatus-Pille**: Symbol + Prozent + Restzeit (z.B. `🔋 85% · 4h 12min`),
+  bei Netzbetrieb 🔌, beim Laden ⚡. Auf Desktop-Macs ohne Akku
+  unsichtbar. Farbe wechselt bei ≤20 % auf rot.
+
+### Radio/CAT
+
+- **RFPOWER-Anzeige** im PWR-Badge: »PWR 80 %« live aus Hamlib, sobald
+  das TRX-Backend einen Wert liefert (Yaesu/Icom/Kenwood ja). Sonst
+  bleibt's beim grauen Platzhalter.
+- **Spot-Klick** aktualisiert Frequenz + Mode auch **ohne aktive CAT**.
+  Bisher zog ein Klick auf einen LSB-40m-Spot die Status-Anzeigen
+  nicht mit — jetzt überall konsistent.
+
+### DX-Spot-Sender
+
+- **Mode kommt aus Radio/CAT** (nicht mehr hardcoded »FT8«). Mode-Liste
+  um FM/AM/DATA erweitert.
+- **Mode-Picker entfällt** im DX-Spot-Block — Wert ist zuverlässig
+  aus dem Radio-Panel verfügbar.
+- **Band-Schnellwahl-Buttons entfallen** — Frequenz wird ohnehin aus
+  der CAT prefillt.
+
+### Help-Site: Bandplan + Rechner ausgebaut
+
+Beide bisher als »im Aufbau« markierten Seiten haben jetzt
+substantiellen Inhalt:
+- **Bandplan**: alle drei Zugriffswege (Sub-Tab im Logbuch, eigenes
+  Fenster via `⌘⇧P`, Live-Awareness-Pille in jedem QSO-Form) +
+  vollständige Band-Übersicht 2200 m – 1,25 cm.
+- **Rechner**: Liste der 25+ Rechner gruppiert nach Funktion
+  (Drahtantennen, Richtstrahler, Spezialantennen, Spulen,
+  Anpassung, Signale).
+
 ## 1.8.13 — 2026-05-18
 
 **Update-Check repariert · Multi-Cluster Polish · ATNO-Spalte**

@@ -5,6 +5,75 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.8.14] — 2026-05-18
+
+### Top-Bar: Local-Time + Akkustatus
+
+Neben der UTC-Zeit (Format `yyyy-MM-dd HH:mm:ss UTC`) zeigt die
+Logbuch-Top-Bar jetzt die lokale Uhrzeit (`HH:mm:ss LT`), getrennt
+durch einen Mittelpunkt — Tooltip blendet die Zeitzone-ID ein.
+
+Neue Akkustatus-Pille rechts daneben: liest alle 30 s den macOS-
+Akkustand aus `IOPowerSources` und rendert eine kompakte Pille mit
+Icon + Prozent + Restzeit:
+- 🔋 `85% · 4h 12min` (Akku-Betrieb)
+- ⚡ `65%` (lädt)
+- 🔌 `100%` (Netz, voll)
+- Desktop ohne Akku: Pille bleibt komplett ausgeblendet
+
+Farbe wechselt bei ≤20 % auf rot, ≤40 % auf orange.
+
+### CAT: RF-Output-Power-Anzeige
+
+Der bisher hardcoded `PWR`-Stub im Radio/CAT-Panel zeigt jetzt den
+echten Hamlib-RFPOWER-Wert: »PWR XX %« als Anteil der TRX-Maximal-
+power (vom Hamlib-Backend pro Modell normalisiert). Solange kein
+Wert verfügbar ist (Hamlib-Dummy, einige ältere Modelle), bleibt's
+beim grauen `PWR`-Platzhalter — Anzeige springt sauber rein, sobald
+der erste gültige Wert reinkommt. Wird jeden vierten Poll-Tick
+gelesen (Sendeleistung ändert sich praktisch nie schnell, spart
+Round-Trips auf langsamen Bauds).
+
+### DX-Spot-Sender: Mode automatisch aus Radio/CAT
+
+Der DX-Spot-Block in der rechten Sidebar zog den Mode bisher aus
+einem hardcoded `@State`-Default (`FT8`). Jetzt kommt er via neuem
+`prefillMode`-Parameter direkt aus `radio.mode` (CAT oder manueller
+Picker im Radio-Panel) und folgt jeder Änderung live.
+
+Daraus folgten zwei UI-Vereinfachungen:
+- **Mode-Picker im DX-Spot-Block entfällt** — der Wert ist zuverlässig
+  aus dem Radio/CAT-Panel verfügbar, redundanter zweiter Picker raus.
+- **Band-Schnellwahl-Buttons (160m/80m/40m/…) entfallen** — Frequenz
+  wird ebenfalls aus `radio.frequencyMHz` prefillt, manuelle Band-
+  Sprung-Buttons sind redundant.
+
+Mode-Liste um `FM`, `AM` und `DATA` erweitert (DATA aus PKTUSB-
+Mapping), damit der Prefill auch für diese Modes nicht stillschweigend
+durchfällt.
+
+### Spot-Klick aktualisiert RadioState auch ohne CAT
+
+Spot-Klick auf einen LSB-Spot ließ die UI bisher auf USB stehen
+(Bandplan-Pille, DX-Spot-Sender-Mode, alle Status-Anzeigen), wenn
+keine CAT verbunden war — der `onRequestQSY`-Hook ging nur an den
+CATController.
+
+Jetzt wird der `RadioState` (Frequenz, Mode, Hamlib-Mode) **immer**
+aktualisiert, unabhängig von der CAT-Verbindung. Der zusätzliche
+`setMode`/`setFrequency` am Hamlib-Subprocess greift weiter nur,
+wenn `case .connected`.
+
+### Help-Site: bandplan + rechner Stub-Seiten ausgebaut
+
+Beide bisher als »im Aufbau« markierten Seiten haben jetzt
+substantiellen Inhalt: Bandplan mit allen drei Zugriffswegen
+(Sub-Tab, Fenster `⌘⇧P`, Live-Awareness-Pille) + voller
+Band-Übersicht; Rechner mit Liste aller 25+ Tools gruppiert nach
+Funktion (Drahtantennen, Richtstrahler, Spulen, Anpassung, Signale).
+
+---
+
 ## [1.8.13] — 2026-05-18
 
 ### Update-Check: Semver-Version statt nur Build-Datum
