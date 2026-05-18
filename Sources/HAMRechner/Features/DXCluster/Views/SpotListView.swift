@@ -56,6 +56,11 @@ struct SpotListView: View {
     // MARK: - Table
 
     private var spotTable: some View {
+        // @TableColumnBuilder unterstützt nur 10 Spalten — mit der neuen
+        // ATNO-Spalte haben wir die Grenze erreicht. Kontinent wurde
+        // deshalb mit »Land« zusammengeführt (»Germany (EU)«); für
+        // continent-spezifische Sortierung gibt's den Filter in der
+        // Top-Bar.
         Table(sortedSpots,
               selection: $selection,
               sortOrder: $sortOrder,
@@ -98,45 +103,48 @@ struct SpotListView: View {
             .width(min: 45, ideal: 55)
             .customizationID("mode")
 
-            TableColumn("DX-Rufz.", value: \.dxCall) { s in
-                let watched = watchList?.matches(s.dxCall) == true
-                let accent = rowAccent?(s)
-                let color: Color = accent
-                    ?? (watched ? Color(red: 1, green: 0.8, blue: 0) : bandColor(for: s.band))
+            TableColumn("ATNO") { s in
                 let status: ATNOStatus = showATNO
                     ? manager.atnoStatus(country: s.country,
                                           band: s.band,
                                           mode: s.displayMode)
                     : .worked
-                HStack(spacing: 4) {
-                    if status.isHighlight {
-                        Text(status.label)
-                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                            .foregroundStyle(status.textColor)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(status.color)
-                            .clipShape(RoundedRectangle(cornerRadius: 3))
-                    }
-                    Text(s.dxCall)
-                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(color)
+                if status.isHighlight {
+                    Text(status.label)
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundStyle(status.textColor)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(status.color)
+                        .clipShape(RoundedRectangle(cornerRadius: 3))
                 }
+            }
+            .width(min: 60, ideal: 78)
+            .customizationID("atno")
+
+            TableColumn("DX-Rufz.", value: \.dxCall) { s in
+                let watched = watchList?.matches(s.dxCall) == true
+                let accent = rowAccent?(s)
+                let color: Color = accent
+                    ?? (watched ? Color(red: 1, green: 0.8, blue: 0) : bandColor(for: s.band))
+                Text(s.dxCall)
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(color)
             }
             .width(min: 80, ideal: 130)
             .customizationID("call")
 
+            // Kontinent früher eigene Spalte — wegen Builder-Limit (10) jetzt
+            // angeflanscht in Klammern, z.B. »Germany (EU)«. Continent-Filter
+            // im Top-Bar bleibt davon unberührt.
             TableColumn("Land", value: \.country) { s in
-                cell(s.country, s)
+                let label = s.continent.isEmpty
+                    ? s.country
+                    : "\(s.country) (\(s.continent))"
+                cell(label, s)
             }
-            .width(min: 90, ideal: 120)
+            .width(min: 110, ideal: 150)
             .customizationID("country")
-
-            TableColumn("Kont.", value: \.continent) { s in
-                cell(s.continent, s).frame(maxWidth: .infinity, alignment: .center)
-            }
-            .width(min: 40, ideal: 50)
-            .customizationID("continent")
 
             TableColumn("Kommentar", value: \.comment) { s in
                 cell(String(s.comment.prefix(40)), s)
