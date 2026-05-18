@@ -107,6 +107,7 @@ final class ClusterSettingsStore: ObservableObject {
         // Ship with a useful default list
         nodes = [
             ClusterNode(name: "DXSpider Funkwelt", host: "dxspider.funkwelt.net", port: 7300, isActive: true),
+            ClusterNode(name: "HB9ON-8",           host: "spider.hb9on.net",      port: 8000),
             ClusterNode(name: "HB9W DX-Cluster",   host: "cluster.hb9w.ch",       port: 7300),
             ClusterNode(name: "DB0ERF Erlangen",   host: "db0erf.db0erft.de",     port: 7300),
             ClusterNode(name: "DX.OE5TXF",         host: "dx.oe5txf.at",          port: 7300),
