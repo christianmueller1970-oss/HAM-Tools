@@ -176,31 +176,37 @@ final class CATController: ObservableObject {
                 // getSignal, getVFO, getSplit — alle auf demselben TCP-Socket,
                 // dürfen nicht von einer Write-Operation unterbrochen werden.
                 await self.acquireClientLock()
-                let pollResult: Result<(Int64, (mode: String, passbandHz: Int), Int, String?, (Bool, String)?), Error>
+                let pollResult: Result<(Int64, (mode: String, passbandHz: Int), Int, String?, (Bool, String)?, Float?), Error>
                 do {
                     let hz = try await self.client.getFrequencyHz()
                     let mode = try await self.client.getMode()
                     let signal = (try? await self.client.getSignalStrengthRelDB()) ?? self.radioState.signalStrengthRelDB
                     var newVfo: String? = nil
                     var newSplit: (Bool, String)? = nil
+                    var newPower: Float? = nil
                     if tick % 4 == 0 {
                         newVfo = try? await self.client.getVFO()
                         newSplit = try? await self.client.getSplit()
+                        // RFPOWER seltener pollen — vier Pollticks reichen,
+                        // weil die Sendeleistung sich praktisch nie schnell
+                        // ändert. Spart Round-Trips auf langsamen Bauds.
+                        newPower = try? await self.client.getRFPowerLevel()
                     }
-                    pollResult = .success((hz, mode, signal, newVfo, newSplit))
+                    pollResult = .success((hz, mode, signal, newVfo, newSplit, newPower))
                 } catch {
                     pollResult = .failure(error)
                 }
                 self.releaseClientLock()
 
                 switch pollResult {
-                case .success(let (hz, mode, signal, newVfo, newSplit)):
+                case .success(let (hz, mode, signal, newVfo, newSplit, newPower)):
                     self.applyPoll(hz: hz,
                                    hamlibMode: mode.mode,
                                    passbandHz: mode.passbandHz,
                                    signalRelDB: signal,
                                    vfo: newVfo,
-                                   split: newSplit)
+                                   split: newSplit,
+                                   rfPower: newPower)
                 case .failure(let error):
                     self.setError(error)
                     self.stopInternal()
@@ -219,7 +225,8 @@ final class CATController: ObservableObject {
                            passbandHz: Int,
                            signalRelDB: Int,
                            vfo: String?,
-                           split: (Bool, String)?) {
+                           split: (Bool, String)?,
+                           rfPower: Float?) {
         lastPolledHz = hz
         lastPolledMode = hamlibMode
 
@@ -246,6 +253,10 @@ final class CATController: ObservableObject {
         if let s = split {
             if radioState.splitOn != s.0 { radioState.splitOn = s.0 }
             if radioState.splitTxVfo != s.1 { radioState.splitTxVfo = s.1 }
+        }
+        if let p = rfPower, abs(p - radioState.rfPowerLevel) > 0.005 {
+            radioState.rfPowerLevel = p
+            radioState.rfPowerAvailable = true
         }
     }
 

@@ -58,6 +58,20 @@ final class RigctldClient: @unchecked Sendable {
         throw CATError.protocolError(message: "Signal-Stärke nicht parsebar: '\(raw)'")
     }
 
+    // RF-Output-Power als Hamlib-RFPOWER-Level: Float 0.0 – 1.0 als Anteil
+    // der TRX-Maximalpower. Hamlib normalisiert das pro Modell selbst —
+    // wir bekommen direkt den Prozentwert.
+    //
+    // Hinweis: Einige Hamlib-Backends antworten mit "RPRT -11" (Funktion
+    // nicht unterstützt), wenn das Radio kein Power-Reading liefert. Der
+    // Aufrufer behandelt das als »kein Wert« und blendet die Anzeige aus.
+    func getRFPowerLevel() async throws -> Float {
+        let lines = try await sendCommand("l RFPOWER", expectingLines: 1)
+        let raw = lines[0].trimmingCharacters(in: .whitespaces)
+        if let f = Float(raw) { return max(0, min(1, f)) }
+        throw CATError.protocolError(message: "RFPOWER nicht parsebar: '\(raw)'")
+    }
+
     // Aktiver VFO: "VFOA" / "VFOB" / "MEM" / ... — Hamlib-Konvention.
     func getVFO() async throws -> String {
         let lines = try await sendCommand("v", expectingLines: 1)

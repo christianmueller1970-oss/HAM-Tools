@@ -36,6 +36,13 @@ final class RadioState: ObservableObject {
     @Published var hamlibMode: String = "USB"
     @Published var passbandHz: Int = 0
 
+    // RF-Output-Power als Hamlib-Anteil (0.0–1.0 vom TRX-Maximum). Nicht
+    // alle Hamlib-Backends liefern das — `rfPowerAvailable` schaltet die
+    // UI-Anzeige ab, solange wir noch keinen brauchbaren Wert gesehen
+    // haben.
+    @Published var rfPowerLevel: Float = 0
+    @Published var rfPowerAvailable: Bool = false
+
     // Persistierung der letzten Frequenz, damit Restart einen sinnvollen
     // Wert bringt statt 14.200 Default.
     private let lastFreqKey = "radio.lastFrequencyMHz"

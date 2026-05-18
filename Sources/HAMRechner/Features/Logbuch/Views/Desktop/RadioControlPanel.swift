@@ -403,8 +403,30 @@ struct RadioControlPanel: View {
         HStack(spacing: 4) {
             statusBadge("RX", on: false, color: theme.accentGreen)
             statusBadge("TX", on: false, color: theme.accentRed)
-            statusBadge("PWR", on: false, color: theme.accentYellow)
+            powerBadge
         }
+    }
+
+    /// TX-Power-Badge — zeigt »PWR XX%« aus Hamlib-RFPOWER, sofern das
+    /// TRX-Backend den Level liefert (Yaesu/Icom/Kenwood ja, Hamlib-Dummy
+    /// und einige ältere Modelle nein → dann fällt's auf den »PWR«-Stub
+    /// zurück, damit die Reihe optisch nicht springt).
+    private var powerBadge: some View {
+        let pct = Int((radio.rfPowerLevel * 100).rounded())
+        let label = radio.rfPowerAvailable ? "PWR \(pct)%" : "PWR"
+        return Text(label)
+            .font(.caption2.bold())
+            .foregroundStyle(radio.rfPowerAvailable
+                             ? theme.accentYellow : theme.textDim)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 3)
+            .background(radio.rfPowerAvailable
+                        ? theme.accentYellow.opacity(0.2) : theme.bgCard2)
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+            .opacity(radio.rfPowerAvailable ? 1.0 : 0.6)
+            .help(radio.rfPowerAvailable
+                  ? "RF-Output-Leistung in % vom TRX-Maximum (Hamlib RFPOWER)"
+                  : "Sendeleistung — Hamlib liefert für dieses Modell keinen Wert")
     }
 
     private func statusBadge(_ label: String, on: Bool, color: Color) -> some View {
