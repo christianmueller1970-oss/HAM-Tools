@@ -230,24 +230,34 @@ final class DXClusterViewModel: ObservableObject {
     }
 
     /// Bringt den Pool in Einklang mit `clusterStore.activeNodes` — schließt
-    /// Clients, deren Node nicht mehr aktiv ist, und öffnet Clients für
-    /// neu hinzugekommene Nodes. Idempotent.
-    ///
-    /// Host/Port-Änderungen an einem **bereits aktiven** Node werden hier
-    /// (noch) nicht erkannt — der User muss in dem Fall den Toggle einmal
-    /// aus/ein klicken oder die App neu starten. Reicht für Schritt 2; ein
-    /// Field-Diff kommt mit Schritt 3.
+    /// Clients, deren Node nicht mehr aktiv ist, öffnet Clients für neu
+    /// hinzugekommene und startet Clients neu, deren Host/Port sich
+    /// geändert hat. Idempotent.
     func applyActiveNodes() {
         guard let store = clusterStore else { return }
         let desired = Set(store.activeNodes.map { $0.id })
-        let current = Set(clients.keys)
 
-        for id in current.subtracting(desired) {
+        // (1) Trenne, was nicht mehr aktiv ist
+        for id in Set(clients.keys).subtracting(desired) {
             clients[id]?.disconnect()
             clients.removeValue(forKey: id)
             statusByNode.removeValue(forKey: id)
         }
 
+        // (2) Field-Diff für bereits offene Clients: bei Host- oder Port-
+        // Änderung den alten Client schließen, damit Step (3) ihn mit den
+        // neuen Werten neu öffnet. Name-Only-Edits triggern keinen
+        // Reconnect (sonst kickt der Cluster bei jeder Umbenennung).
+        for node in store.activeNodes {
+            guard let existing = clients[node.id] else { continue }
+            if existing.host != node.host || existing.port != UInt16(node.port) {
+                existing.disconnect()
+                clients.removeValue(forKey: node.id)
+                statusByNode.removeValue(forKey: node.id)
+            }
+        }
+
+        // (3) Öffne, was neu oder gerade neu zu öffnen ist
         for node in store.activeNodes where !clients.keys.contains(node.id) {
             let id = node.id
             let client = ClusterClient(host: node.host,
