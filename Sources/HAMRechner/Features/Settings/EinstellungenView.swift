@@ -790,24 +790,27 @@ private struct ClusterTab: View {
     var body: some View {
         VStack(spacing: 0) {
             Table(store.nodes, selection: $selectedID) {
-                TableColumn("") { node in
-                    Image(systemName: store.activeNodeID == node.id
-                          ? "circle.fill" : "circle")
-                        .foregroundStyle(store.activeNodeID == node.id
-                                         ? Color.green : Color.secondary)
-                        .font(.system(size: 9))
+                TableColumn("Aktiv") { node in
+                    Toggle("", isOn: Binding(
+                        get: { node.isActive },
+                        set: { newVal in
+                            // Limit-Check: nur wenn unter Maximum oder beim
+                            // Deaktivieren erlaubt. setActive() lehnt bei
+                            // Überschreitung still ab → Toggle springt zurück.
+                            _ = store.setActive(nodeID: node.id, active: newVal)
+                        }
+                    ))
+                    .toggleStyle(.checkbox)
+                    .labelsHidden()
+                    .disabled(!node.isActive && !store.canActivateMore)
+                    .help(!node.isActive && !store.canActivateMore
+                          ? "Maximal \(ClusterSettingsStore.maxActiveNodes) Cluster gleichzeitig aktiv"
+                          : "")
                 }
-                .width(18)
+                .width(46)
 
                 TableColumn("Name") { node in
-                    HStack(spacing: 4) {
-                        if node.autoConnect {
-                            Image(systemName: "bolt.fill")
-                                .foregroundStyle(.yellow)
-                                .font(.system(size: 9))
-                        }
-                        Text(node.name)
-                    }
+                    Text(node.name)
                 }
 
                 TableColumn("Host") { node in
@@ -849,19 +852,10 @@ private struct ClusterTab: View {
 
                 Spacer()
 
-                if let id = selectedID {
-                    if store.activeNodeID == id {
-                        Label("Aktiv", systemImage: "checkmark.circle.fill")
-                            .font(.caption.bold())
-                            .foregroundStyle(.green)
-                    } else {
-                        Button("Als aktiv") {
-                            store.activeNodeID = id
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                    }
-                }
+                Text("\(store.activeCount)/\(ClusterSettingsStore.maxActiveNodes) aktiv")
+                    .font(.caption)
+                    .foregroundStyle(store.activeCount == 0 ? .orange : .secondary)
+                    .help("Max. \(ClusterSettingsStore.maxActiveNodes) Cluster werden parallel verbunden — Spots aus allen aktiven Quellen werden in einer Liste zusammengeführt (Backend folgt).")
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -940,7 +934,11 @@ private struct NodeEditSheet: View {
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 80)
                     }
-                    Toggle("Automatisch verbinden beim Start", isOn: $node.autoConnect)
+                }
+                Section {
+                    Text("Aktivieren passiert über die »Aktiv«-Spalte in der Cluster-Liste (max. \(ClusterSettingsStore.maxActiveNodes) gleichzeitig).")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
             .formStyle(.grouped)
