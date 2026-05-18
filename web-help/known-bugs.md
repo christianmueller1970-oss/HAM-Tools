@@ -8,6 +8,10 @@ Aktive Issues + Workarounds. Wird händisch gepflegt; gemeldete Bugs landen im P
 Aktuell sind keine kritischen Bugs offen.
 :::
 
+## Behoben in v1.8.11
+
+- App-Startcrash auf macOS 26.5: SwiftPM-Resource-Bundles im »flat«-Format wurden vom neuen Bundle-Loader als »bundle format unrecognized« abgelehnt, `Bundle.module` schlug fehl und die App stürzte im `BOTARefService`-Init ab. Der Release-Build konvertiert das Bundle jetzt zur kanonischen `Contents/Info.plist`-Struktur und signiert es eigenständig. Wirkt rückwirkend für alle macOS-Versionen.
+
 ## Behoben in v1.8.10
 
 - POTA-ADIF-Upload abgelehnt mit „Only a single STATION_CALLSIGN value is supported per log file" — beim FT8-Loggen über WSJT-X-Spots konnte mid-session der `my_call` von Home- auf Portable-Call wechseln (z.B. `HB9HJI` ↔ `IT/HB9HJI/P`). Jetzt zwei Sicherungen: WSJT-X-Importer nimmt für Outdoor-Logs immer das im Log-Wizard gewählte Aktivierungs-Rufzeichen; zusätzlich vereinheitlicht der POTA-Export auch alte gemischte Logs.

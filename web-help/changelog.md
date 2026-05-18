@@ -2,6 +2,38 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.11 — 2026-05-18
+
+**Hotfix: App-Startcrash auf macOS 26.5 · Multi-Cluster Confidence-Badge**
+
+### macOS 26.5 — Bundle-Loader-Crash behoben 🚑
+
+1.8.10 ließ sich auf macOS 26.5 nicht starten und crashte beim ersten
+Zugriff auf eingebettete Resources (BOTA-Bunker-DB-Snapshot). Ursache:
+Apple verschärft in macOS 26.5 die Anforderungen an eingebettete
+Resource-Bundles — das von SwiftPM erzeugte »flat« Bundle (Files direkt
+im `.bundle/`-Folder) wird als invalides Format abgelehnt.
+
+Der Release-Build konvertiert das Resource-Bundle jetzt vor dem
+Code-Signing in die kanonische `Contents/Info.plist`-Struktur und
+signiert es eigenständig. Wirkt rückwirkend für alle macOS-Versionen
+(älteres macOS toleriert beide Bundle-Formate, neueres verlangt das
+kanonische).
+
+**Wenn du 1.8.10 nicht starten konntest:** DMG manuell von
+[toolbox.funkwelt.net/app/dmg/latest.dmg](https://toolbox.funkwelt.net/app/dmg/latest.dmg)
+herunterladen und installieren. Der eingebaute Update-Check kann dich
+nicht erreichen, solange die alte App nicht startet.
+
+### Multi-Cluster-Pool: »+N«-Confidence-Badge
+
+Du kannst seit 1.8.10 bis zu drei DX-Cluster gleichzeitig im Pool
+verbinden (Einstellungen → Cluster, »Aktiv«-Checkbox). Jetzt zeigt die
+Spot-Tabelle in der »Spotter / Quelle«-Spalte ein grünes »+N«-Badge,
+sobald derselbe Spot innerhalb des Dedup-Fensters von mehreren
+Cluster-Quellen kam. Mehr Quellen → höhere Sicherheit, dass es kein
+False-Positive ist. Tooltip listet die zusätzlichen Cluster auf.
+
 ## 1.8.10 — 2026-05-18
 
 **POTA-Upload-Fix · Mode-Picker ohne CAT nutzbar mit FT8/FT4**

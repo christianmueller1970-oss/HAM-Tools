@@ -5,6 +5,35 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.8.11] — 2026-05-18
+
+### Hotfix: App-Startcrash auf macOS 26.5
+
+1.8.10 crashed beim Start auf macOS 26.5 mit `EXC_BREAKPOINT` im
+`Bundle.module`-Init aus `BOTARefService`. Ursache: SwiftPM erzeugt
+für Resource-Targets ein **flat Bundle** (`HAMRechner_HAMRechner.bundle/`
+mit Resources direkt drin, ohne `Contents/Info.plist`). macOS bis ~26.4
+hat das toleriert; ab 26.5 lehnt der Bundle-Loader das mit *»bundle
+format unrecognized, invalid, or unsuitable«* ab — `Bundle.init(url:)`
+liefert nil, die SwiftPM-generierte assertionFailure feuert.
+
+`build-dmg.sh` konvertiert das Bundle jetzt vor dem Code-Signing in die
+kanonische `Contents/Info.plist` + `Contents/Resources/`-Struktur und
+signiert es eigenständig (vor dem Top-Level-`--deep`-Pass, weil
+`--deep` eingebettete Sub-Bundles nicht zuverlässig erfasst). Wirkt
+für alle macOS-Versionen rückwirkend — wer 1.8.10 nicht starten konnte,
+installiert 1.8.11 manuell aus dem DMG.
+
+### Multi-Cluster-Pool: »+N«-Confidence-Badge
+
+Pro DX-Spot zählt jetzt sichtbar, wie viele Cluster aus dem Pool denselben
+Spot innerhalb des Dedup-Fensters gepusht haben — höhere Zahl =
+verlässlichere Sichtung (RBN-Bot vs. einzelner Spotter). Tooltip listet
+die zusätzlichen Quellen. Backend speichert die Provenienz in
+`DXSpot.alsoSeenBy`, der bestehende Mini-Dedup bleibt rückwärtskompatibel.
+
+---
+
 ## [1.8.10] — 2026-05-18
 
 ### POTA-ADIF: STATION_CALLSIGN immer einheitlich
