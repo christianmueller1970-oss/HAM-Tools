@@ -62,6 +62,23 @@ enum ProgramExportCallsign {
         }
         return "UNKNOWN"
     }
+
+    /// Erzwingt einen einheitlichen OPERATOR/STATION_CALLSIGN über alle
+    /// QSOs. pota.app lehnt Logs mit gemischten STATION_CALLSIGN-Werten ab
+    /// ("Only a single STATION_CALLSIGN value is supported per log file"),
+    /// und WSJT-X-Spots können je nach my_call-Konfiguration mid-session
+    /// wechseln (Home-Call vs. Portable-Call). Wir biegen darum vor dem
+    /// Export alles auf den resolved Activator-Call um.
+    static func unified(qsos: [QSO], log: Log) -> [QSO] {
+        let activator = resolve(log: log, qsos: qsos)
+        guard activator != "UNKNOWN" else { return qsos }
+        return qsos.map { q in
+            var copy = q
+            copy.operatorCall = activator
+            copy.stationCall  = activator
+            return copy
+        }
+    }
 }
 
 // MARK: - Factory

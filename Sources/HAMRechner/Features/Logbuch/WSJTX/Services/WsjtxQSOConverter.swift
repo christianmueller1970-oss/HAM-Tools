@@ -22,6 +22,28 @@ enum WsjtxQSOConverter {
         // Double, übernehmen — sonst leer lassen.
         let power: Double? = Double(msg.txPower.trimmingCharacters(in: .whitespaces))
 
+        // Bei Outdoor-Aktivierungen ist Log.usedCallsign der authoritative
+        // Activator-Call. WSJT-X kann mid-session umkonfiguriert werden
+        // (Home-Call vs. /P) und schickt dann gemischte my_call-Werte, was
+        // pota.app & Co. als "Only a single STATION_CALLSIGN" ablehnen.
+        // Outdoor-Logs sehen den Log-Override darum vor — Standard/Contest
+        // benutzen weiter den WSJT-X-Originalwert.
+        let activatorOverride: String? = {
+            switch log.type {
+            case .pota, .sota, .wwff, .bota:
+                if let c = log.usedCallsign?.trimmingCharacters(in: .whitespaces),
+                   !c.isEmpty {
+                    return c.uppercased()
+                }
+                return nil
+            case .standard, .contest:
+                return nil
+            }
+        }()
+        let resolvedOperator = activatorOverride
+            ?? msg.operatorCall.nilIfEmpty ?? msg.myCall.nilIfEmpty
+        let resolvedStation = activatorOverride ?? msg.myCall.nilIfEmpty
+
         var qso = QSO(
             logID: log.id,
             call: msg.dxCall,
@@ -34,8 +56,8 @@ enum WsjtxQSOConverter {
             name: msg.name.nilIfEmpty,
             locator: msg.dxGrid.nilIfEmpty,
             comment: msg.comments.nilIfEmpty,
-            operatorCall: msg.operatorCall.nilIfEmpty ?? msg.myCall.nilIfEmpty,
-            stationCall: msg.myCall.nilIfEmpty,
+            operatorCall: resolvedOperator,
+            stationCall: resolvedStation,
             powerW: power
         )
 

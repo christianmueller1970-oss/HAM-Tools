@@ -200,6 +200,14 @@ struct RadioControlPanel: View {
         "USB", "LSB", "CW", "CWR", "AM", "FM", "RTTY", "RTTYR", "PKTUSB", "PKTLSB"
     ]
 
+    // ADIF-Digital-Modes für manuelles Loggen ohne CAT. Hamlib kennt FT8/FT4
+    // & Co. nicht — die laufen auf dem TRX über PKTUSB-Modulation. Bei
+    // aktiver CAT würde ein setMode("FT8") fehlschlagen, deshalb tauchen die
+    // im Menü nur auf, wenn keine CAT verbunden ist.
+    private static let manualDigitalModes = [
+        "FT8", "FT4", "JT65", "JT9", "PSK31", "JS8", "Q65", "MSK144"
+    ]
+
     private var controlGrid: some View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
@@ -235,7 +243,13 @@ struct RadioControlPanel: View {
         let current = radio.hamlibMode.isEmpty ? "—" : radio.hamlibMode
         return Menu {
             ForEach(Self.availableModes, id: \.self) { m in
-                Button(m) { Task { await cat.setHamlibMode(m) } }
+                Button(m) { selectMode(m) }
+            }
+            if !radio.catConnected {
+                Divider()
+                ForEach(Self.manualDigitalModes, id: \.self) { m in
+                    Button(m) { selectMode(m) }
+                }
             }
         } label: {
             HStack(spacing: 3) {
@@ -254,11 +268,20 @@ struct RadioControlPanel: View {
                 RoundedRectangle(cornerRadius: 4)
                     .stroke(theme.separator, lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .opacity(radio.catConnected ? 1.0 : 0.55)
         }
         .menuStyle(.borderlessButton)
-        .disabled(!radio.catConnected)
+    }
+
+    private func selectMode(_ m: String) {
+        if radio.catConnected {
+            Task { await cat.setHamlibMode(m) }
+        } else {
+            // Manueller Modus (kein CAT): direkt im RadioState setzen,
+            // damit Loggen ohne TRX-Anschluss möglich ist. mapMode spiegelt
+            // USB/LSB→SSB etc.; FT8/FT4/… reichen 1:1 durch.
+            radio.hamlibMode = m
+            radio.mode = CATController.mapMode(hamlib: m)
+        }
     }
 
     // Klickbarer Button mit Active-State (Akzentfarbe wenn aktiv).

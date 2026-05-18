@@ -832,11 +832,19 @@ final class LogbookManager: ObservableObject {
         guard let logID = currentLogID,
               let log = logs.first(where: { $0.id == logID }) else { return [] }
 
-        let parks = potaParksForSplit(log: log, qsos: currentQSOs)
+        // pota.app: "Only a single STATION_CALLSIGN value is supported per
+        // log file". Beim Spot-basierten Loggen (WSJT-X) können bestehende
+        // QSOs aber gemischte Operator/Station-Calls haben — daher vor dem
+        // Export auf den Log-Activator-Call vereinheitlichen.
+        let qsosToExport = (log.type == .pota)
+            ? ProgramExportCallsign.unified(qsos: currentQSOs, log: log)
+            : currentQSOs
+
+        let parks = potaParksForSplit(log: log, qsos: qsosToExport)
         if parks.count >= 2 {
-            return exportPotaSplitPerPark(log: log, qsos: currentQSOs, parks: parks)
+            return exportPotaSplitPerPark(log: log, qsos: qsosToExport, parks: parks)
         }
-        return exportSingleADIF(log: log, qsos: currentQSOs)
+        return exportSingleADIF(log: log, qsos: qsosToExport)
     }
 
     /// Findet alle eigenen POTA-Parks im aktiven Log (Log-Setup + QSO-
