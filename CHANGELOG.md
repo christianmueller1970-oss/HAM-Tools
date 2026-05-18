@@ -5,6 +5,42 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.8.10] — 2026-05-18
+
+### POTA-ADIF: STATION_CALLSIGN immer einheitlich
+
+`pota.app` lehnte Uploads mit der Meldung *»Only a single
+STATION_CALLSIGN value is supported per log file«* ab, wenn ein
+POTA-Log über den WSJT-X-Spot-Stream gefüttert wurde und mid-session
+das `my_call` in WSJT-X gewechselt hatte (z.B. Home-Call `HB9HJI` →
+Portable `IT/HB9HJI/P`). Zwei Stellen sind angepasst:
+
+- **Wurzelfix** in `WsjtxQSOConverter`: bei Outdoor-Logs (POTA/SOTA/
+  WWFF/BOTA) wird `Log.usedCallsign` als Override für `OPERATOR` und
+  `STATION_CALLSIGN` verwendet — der WSJT-X-`my_call` wird ignoriert,
+  weil der Log-Wizard die autoritative Quelle für den
+  Aktivierungs-Call ist.
+- **Export-Safety-Net** in `LogbookManager.exportActiveLogAsADIF`:
+  POTA-Logs werden vor dem Encode durch
+  `ProgramExportCallsign.unified(qsos:log:)` vereinheitlicht — gilt
+  auch für bereits gespeicherte inkonsistente QSOs (sonst hilft kein
+  Re-Export). Wirkt für Single- und Multi-Park-Split-Export.
+
+### Mode-Picker ohne CAT-Verbindung nutzbar
+
+Im Radio/CAT-Panel war das Mode-Menü `.disabled(!radio.catConnected)`
+— bei nicht verbundenem Funkgerät war Loggen mit einem bestimmten
+Mode (z.B. FT8 ohne WSJT-X-Anbindung) nicht möglich. Jetzt:
+
+- Mode-Menü immer klickbar; ohne CAT schreibt es direkt in den
+  `RadioState` (`hamlibMode` + UI-Mode via `CATController.mapMode`).
+- Zusätzliche Digi-Modes nur ohne CAT sichtbar: **FT8, FT4, JT65, JT9,
+  PSK31, JS8, Q65, MSK144**. Bei aktiver CAT-Verbindung bleibt die
+  Liste auf Hamlib-konforme Modes beschränkt, weil das Radio FT8 &
+  Co. nicht direkt kennt (laufen am TRX über PKTUSB-Modulation).
+
+---
+
 ## [1.8.9] — 2026-05-17
 
 ### Live-ATNO-Markierung im DX-Cluster

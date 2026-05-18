@@ -8,6 +8,11 @@ Aktive Issues + Workarounds. Wird händisch gepflegt; gemeldete Bugs landen im P
 Aktuell sind keine kritischen Bugs offen.
 :::
 
+## Behoben in v1.8.10
+
+- POTA-ADIF-Upload abgelehnt mit „Only a single STATION_CALLSIGN value is supported per log file" — beim FT8-Loggen über WSJT-X-Spots konnte mid-session der `my_call` von Home- auf Portable-Call wechseln (z.B. `HB9HJI` ↔ `IT/HB9HJI/P`). Jetzt zwei Sicherungen: WSJT-X-Importer nimmt für Outdoor-Logs immer das im Log-Wizard gewählte Aktivierungs-Rufzeichen; zusätzlich vereinheitlicht der POTA-Export auch alte gemischte Logs.
+- Mode-Picker im Radio/CAT-Panel war ohne CAT-Verbindung gedimmt und nicht klickbar — Loggen ohne Funkgerät (z.B. Remote/Reise-Setup) war damit auf den zuletzt aktiven Mode festgenagelt. Jetzt immer klickbar; ohne CAT zusätzlich FT8/FT4/JT65/JT9/PSK31/JS8/Q65/MSK144 wählbar (Hamlib kennt diese nicht direkt — laufen am TRX über PKTUSB).
+
 ## Behoben in v1.8.9
 
 - Club-Log-Upload: 403 Forbidden bei Email-Adressen mit `@` und anderen Sonderzeichen — Form-Encoding war nicht RFC-3986-konform und wurde von Club Logs nginx-WAF blockiert. Jetzt strikt RFC-3986-kodiert.

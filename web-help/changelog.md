@@ -2,6 +2,42 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.10 — 2026-05-18
+
+**POTA-Upload-Fix · Mode-Picker ohne CAT nutzbar mit FT8/FT4**
+
+### POTA-ADIF-Upload jetzt verlässlich
+
+`pota.app` lehnte Uploads mit *»Only a single STATION_CALLSIGN value
+is supported per log file«* ab, wenn das POTA-Log über den
+WSJT-X-Spot-Stream gefüttert wurde und in WSJT-X mid-session zwischen
+Home- und Portable-Call gewechselt worden war (z.B. `HB9HJI` ↔
+`IT/HB9HJI/P`). Behoben an zwei Stellen:
+
+- **Wurzelfix**: Bei POTA/SOTA/WWFF/BOTA-Logs übernimmt der
+  WSJT-X-Importer jetzt **immer** den im Log-Wizard gewählten
+  Aktivierungs-Call (Feld »Verwendetes Rufzeichen«) — egal was WSJT-X
+  als `my_call` mitschickt.
+- **Export-Schutz**: Beim ADIF-Export eines POTA-Logs werden
+  `OPERATOR` + `STATION_CALLSIGN` über alle QSOs vereinheitlicht.
+  Damit lassen sich auch ältere Logs mit gemischten Calls problemlos
+  hochladen — einfach erneut exportieren.
+
+### Mode-Picker ohne CAT-Verbindung nutzbar 🆕
+
+Im Radio/CAT-Panel war das Mode-Menü grau und nicht klickbar, solange
+kein Funkgerät verbunden war. Loggen ganz ohne CAT (oder bei
+Remote-/Reise-Setup ohne TRX in Reichweite) war damit auf den
+zuletzt aktiven Mode festgenagelt.
+
+- Mode-Menü ist jetzt **immer klickbar**. Ohne CAT wird die Auswahl
+  direkt in den Radio-State geschrieben (USB→SSB, LSB→SSB, CW→CW,
+  PKTUSB→DATA etc.).
+- Zusätzliche Digi-Modes erscheinen nur ohne CAT: **FT8, FT4, JT65,
+  JT9, PSK31, JS8, Q65, MSK144**. Bei aktiver CAT-Verbindung bleibt
+  die Liste auf Hamlib-Modes (USB/LSB/CW/PKTUSB/…), weil das Radio
+  FT8 & Co. nicht direkt kennt — die laufen am TRX über PKTUSB.
+
 ## 1.8.9 — 2026-05-17
 
 **ATNO-Markierung im DX-Cluster · Bandplan-Awareness in QSO-Forms · Club Log live · DX-Log ohne Dupe-Warnung**
