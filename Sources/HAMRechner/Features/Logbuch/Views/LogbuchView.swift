@@ -541,7 +541,7 @@ struct LogbuchView: View {
                         .fill(clusterVM.clusterStatus == .connected
                               ? theme.accentGreen : theme.textDim)
                         .frame(width: 7, height: 7)
-                    Text(clusterVM.clusterStatus.rawValue)
+                    Text(clusterVM.poolStatusLabel)
                         .font(.caption2.bold())
                         .foregroundStyle(theme.textSecondary)
                     Text("·")

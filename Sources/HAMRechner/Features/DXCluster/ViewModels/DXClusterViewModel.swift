@@ -25,6 +25,17 @@ final class DXClusterViewModel: ObservableObject {
         return .disconnected
     }
 
+    /// Top-Bar-Label aus aggregiertem Status + Pool-Counter. Bei genau
+    /// einem aktiven Cluster nur der Status-Text (z.B. »Verbunden«), bei
+    /// mehreren mit zusätzlichem »N/M«-Suffix (z.B. »Verbunden 2/3«).
+    var poolStatusLabel: String {
+        guard let store = clusterStore else { return clusterStatus.rawValue }
+        let active = store.activeNodes
+        guard active.count > 1 else { return clusterStatus.rawValue }
+        let connected = active.filter { statusByNode[$0.id] == .connected }.count
+        return "\(clusterStatus.rawValue) \(connected)/\(active.count)"
+    }
+
     // MARK: - API status (true = reached at least once)
     @Published var sotaActive = false
     @Published var potaActive = false

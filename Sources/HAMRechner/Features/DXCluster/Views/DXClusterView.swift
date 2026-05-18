@@ -140,13 +140,18 @@ struct DXClusterView: View {
     }
 
     /// Kurzlabel für die Top-Bar: »DXSpider Funkwelt« bei genau einem
-    /// Cluster, sonst »N/3 Cluster aktiv«.
+    /// Cluster, sonst »N/M verbunden« (mit Live-Zählung aus dem Pool-Status).
+    /// Die Farbe des Punkts links nebenan zeigt den aggregierten Status.
     private var clusterPoolLabel: String {
         let active = clusterStore.activeNodes
         switch active.count {
         case 0:  return "kein Cluster"
         case 1:  return active[0].name
-        default: return "\(active.count) Cluster aktiv"
+        default:
+            let connected = active.filter {
+                vm.statusByNode[$0.id] == .connected
+            }.count
+            return "\(connected)/\(active.count) verbunden"
         }
     }
 
