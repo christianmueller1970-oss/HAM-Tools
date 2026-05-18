@@ -2,6 +2,35 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.15 — 2026-05-18
+
+**Hotfix: History-Tab überlebt riesige Logs**
+
+Beim Klick auf den History-Tab im Logbuch konnte die App komplett
+„verschwinden" — der Prozess lief weiter, aber kein Fenster wurde
+mehr sichtbar (auch nach Neustart nicht). Ursache: bei
+`Zeitraum = Alle` und einem großen Standard-Log zeichnete der
+History-Tab pro QSO eine Annotation **plus** eine Polyline von QTH
+zur Gegenstation. Bei mehreren tausend QSOs hat MapKit den
+initialen Render-Pass nicht mehr durchgebracht.
+
+Drei Schutzschichten in 1.8.15:
+
+- **Hard-Cap auf 1500 Annotations** — bei mehr Treffern zeigt der
+  Tab die *neuesten* 1500 QSOs und blendet oben einen Banner ein
+  („N Treffer — Karte zeigt nur die neuesten 1500. Zeitraum/Band/
+  Mode enger setzen.")
+- **Linien-Limit 500** — Polylines sind in MapKit deutlich teurer
+  als Annotations; bei mehr als 500 sichtbaren QSOs werden die
+  QTH→DX-Linien automatisch unterdrückt.
+- **„Alle"-Option im Zeitraum-Picker entfernt** — statt unbegrenzt
+  steht jetzt „2 Jahre" als Maximum. Altbestand-Werte (`days = 0`
+  oder >5 Jahre) werden im Tab automatisch auf 1 Jahr geclamped,
+  damit Bestands-User nicht mehr in den alten Crash laufen.
+
+Default für den „Linien zeigen"-Toggle ist jetzt **aus** — wer
+seine Linien will, schaltet sie bewusst ein.
+
 ## 1.8.14 — 2026-05-18
 
 **Local Time + Akku + RFPOWER + DX-Spot-Polish + Doku-Ausbau**

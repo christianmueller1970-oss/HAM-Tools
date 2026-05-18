@@ -9,7 +9,7 @@ struct HistoryTab: View {
     @EnvironmentObject var manager: LogbookManager
 
     @AppStorage("qthLocator")            private var qthLocator       = ""
-    @AppStorage("logbook.history.lines") private var showLines: Bool  = true
+    @AppStorage("logbook.history.lines") private var showLines: Bool  = false
     @AppStorage("logbook.history.mode")  private var modeFilter       = "Alle"
     @AppStorage("logbook.history.band")  private var bandFilter       = "Alle"
     @AppStorage("logbook.history.days")  private var daysFilter: Int  = 365
@@ -19,6 +19,16 @@ struct HistoryTab: View {
     @State private var cameraPosition: MapCameraPosition = HistoryTab.initialCameraPosition()
 
     private var theme: AppTheme { themeManager.theme }
+
+    // Schutz-Limits gegen MapKit-Overload (Bug 1.8.14 → 1.8.15): bei sehr
+    // großen Logs + "Alle"-Filter zeichnete der Tab zigtausende Annotations
+    // + Polylines und brachte den Renderer komplett zum Erliegen — Fenster
+    // wurde nie sichtbar, App-Prozess lebte ohne UI weiter.
+    private static let maxAnnotations = 1500
+    private static let maxLines       = 500
+    // Tages-Cap: stale »Alle« (= 0) aus älteren Defaults wird hier auf 1 Jahr
+    // geclamped, damit Bestands-User nicht mehr in den alten Crash laufen.
+    private static let maxDaysClamp   = 1825   // 5 Jahre
 
     // QTH-Koordinaten (aus dem Locator) für Linien-Start
     private var qthCoord: CLLocationCoordinate2D? {
@@ -33,10 +43,13 @@ struct HistoryTab: View {
         let coord: CLLocationCoordinate2D
     }
 
-    private var mappedQSOs: [MappedQSO] {
-        let cutoff = daysFilter > 0
-            ? Date().addingTimeInterval(-Double(daysFilter) * 86400)
-            : Date.distantPast
+    // Roh-Match: alle QSOs die ins Zeit-/Mode-/Band-Filter passen UND einen
+    // gültigen Locator haben — ohne Cap. Wird unten für mappedQSOs (gecapped)
+    // und totalMatchedCount (für die Overflow-Warnung) verwendet.
+    private var matchedQSOs: [MappedQSO] {
+        let clampedDays = (daysFilter <= 0 || daysFilter > Self.maxDaysClamp)
+            ? 365 : daysFilter
+        let cutoff = Date().addingTimeInterval(-Double(clampedDays) * 86400)
         return manager.currentQSOs.compactMap { qso in
             guard let loc = qso.locator,
                   let (lat, lon) = locatorToLatLon(loc) else { return nil }
@@ -48,16 +61,52 @@ struct HistoryTab: View {
         }
     }
 
+    private var mappedQSOs: [MappedQSO] {
+        let all = matchedQSOs
+        guard all.count > Self.maxAnnotations else { return all }
+        // Bei Overflow: neueste maxAnnotations QSOs nehmen, ältere werden
+        // ausgeblendet (mit Banner-Hinweis, siehe overflowBanner).
+        return Array(all.sorted { $0.qso.datetime > $1.qso.datetime }
+                        .prefix(Self.maxAnnotations))
+    }
+
+    private var totalMatchedCount: Int { matchedQSOs.count }
+    private var isOverflow: Bool { totalMatchedCount > Self.maxAnnotations }
+    private var linesAllowed: Bool { showLines && mappedQSOs.count <= Self.maxLines }
+
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             mapContent
-            if let q = selectedQSO {
-                infoPopup(for: q)
-                    .padding(12)
+            VStack(alignment: .leading, spacing: 8) {
+                if isOverflow {
+                    overflowBanner
+                }
+                if let q = selectedQSO {
+                    infoPopup(for: q)
+                }
             }
+            .padding(12)
         }
         .background(theme.bgApp)
         .onChange(of: qthLocator) { centerOnQTH() }
+    }
+
+    private var overflowBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text("\(totalMatchedCount) Treffer — Karte zeigt nur die neuesten \(Self.maxAnnotations). Zeitraum/Band/Mode enger setzen.")
+                .font(.caption)
+                .foregroundStyle(theme.textPrimary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(theme.bgCard.opacity(0.95))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(.orange.opacity(0.6), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
     // MARK: - Map
@@ -73,8 +122,8 @@ struct HistoryTab: View {
                         .font(.title2)
                 }
             }
-            // Linien Home → DX (wenn aktiv)
-            if showLines, let home = qthCoord {
+            // Linien Home → DX (wenn aktiv UND unter Polyline-Limit, siehe linesAllowed)
+            if linesAllowed, let home = qthCoord {
                 ForEach(mappedQSOs) { m in
                     MapPolyline(coordinates: [home, m.coord])
                         .stroke(modeColor(m.qso.mode).opacity(0.55), lineWidth: 1)

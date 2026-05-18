@@ -341,7 +341,7 @@ struct LogbuchView: View {
     }
 
     // History-Tab: Filter über Mode/Band/Zeitraum + Linien-Toggle
-    @AppStorage("logbook.history.lines") private var historyShowLines: Bool = true
+    @AppStorage("logbook.history.lines") private var historyShowLines: Bool = false
     @AppStorage("logbook.history.mode")  private var historyModeFilter   = "Alle"
     @AppStorage("logbook.history.band")  private var historyBandFilter   = "Alle"
     @AppStorage("logbook.history.days")  private var historyDaysFilter   = 365
@@ -386,11 +386,15 @@ struct LogbuchView: View {
                 }
                 HStack(spacing: 3) {
                     Text("Zeitraum").font(.caption2).foregroundStyle(theme.textDim)
+                    // "Alle" (= 0) entfernt: bei riesigen Logs hat MapKit den
+                    // initialen Render nicht überlebt (Bug 1.8.14 → 1.8.15).
+                    // 2 Jahre als sicherer Maximalwert; der HistoryTab clamped
+                    // alte/ungültige Werte (0, >5 J.) zusätzlich auf 365.
                     Picker("", selection: $historyDaysFilter) {
                         Text("30 Tage").tag(30)
                         Text("3 Monate").tag(90)
                         Text("1 Jahr").tag(365)
-                        Text("Alle").tag(0)
+                        Text("2 Jahre").tag(730)
                     }
                     .labelsHidden()
                     .controlSize(.mini)
