@@ -161,7 +161,8 @@ struct LogbuchView: View {
                             clusterVM.sendSpot(freq: freq, call: call, comment: comment)
                         },
                         prefillCall:    logBridge.draftCallLive,
-                        prefillFreqMHz: radioState.frequencyMHz
+                        prefillFreqMHz: radioState.frequencyMHz,
+                        prefillMode:    radioState.mode
                     )
                     .frame(minWidth: 220, idealWidth: 260, maxWidth: 340, maxHeight: .infinity)
                 }

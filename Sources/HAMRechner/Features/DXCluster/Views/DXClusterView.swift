@@ -5,6 +5,7 @@ struct DXClusterView: View {
     @EnvironmentObject var themeManager: ThemeManager
     @EnvironmentObject var clusterStore: ClusterSettingsStore
     @EnvironmentObject var watchList:    WatchListStore
+    @EnvironmentObject var radioState:   RadioState
 
     @AppStorage("qthLocator") private var qthLocator = "JN47PN"
 
@@ -31,7 +32,9 @@ struct DXClusterView: View {
                     callsign:    vm.myCallsign,
                     connected:   vm.clusterStatus == .connected,
                     spots:       vm.spots,
-                    onSend:      { freq, call, comment in vm.sendSpot(freq: freq, call: call, comment: comment) }
+                    onSend:      { freq, call, comment in vm.sendSpot(freq: freq, call: call, comment: comment) },
+                    prefillFreqMHz: radioState.frequencyMHz,
+                    prefillMode:    radioState.mode
                 )
                 .frame(minWidth: 220, idealWidth: 280, maxWidth: 360, maxHeight: .infinity)
             }

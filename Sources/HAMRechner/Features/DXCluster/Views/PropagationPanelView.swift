@@ -17,6 +17,9 @@ struct PropagationPanelView: View {
     // überschreiben, bevor er auf "Senden" klickt).
     var prefillCall:    String = ""
     var prefillFreqMHz: Double = 0
+    /// Mode-Vorbelegung aus dem Radio/CAT (z.B. "SSB", "CW", "FT8"). Wird
+    /// in den Mode-Picker übernommen, sofern in der erlaubten Liste.
+    var prefillMode:    String = ""
 
     @State private var heatmapMinutes = 60
     @State private var dxCall    = ""
@@ -25,11 +28,12 @@ struct PropagationPanelView: View {
     @State private var comment   = ""
 
     private let gold  = Color(red: 1.0, green: 0.82, blue: 0.2)
-    private let modes = ["FT8","FT4","CW","SSB","RTTY","PSK31","JS8","WSPR","DIGI"]
-    private let quickBands: [(label: String, freq: Double)] = [
-        ("160m", 1840.0), ("80m", 3573.0), ("40m", 7074.0),
-        ("20m", 14074.0), ("15m", 21074.0), ("10m", 28074.0)
-    ]
+    // Mode-Liste für den DX-Spot-Sender. Enthält alle Werte, die der
+    // Radio/CAT-Mode-Picker liefern kann (inkl. FM/AM und DATA für
+    // PKTUSB), damit der Prefill-Wert nicht durchfällt und auf dem alten
+    // Default sitzen bleibt.
+    private let modes = ["FT8","FT4","CW","SSB","RTTY","PSK31","JS8","WSPR","DIGI",
+                         "FM","AM","DATA"]
 
     private var isValid: Bool {
         !dxCall.trimmingCharacters(in: .whitespaces).isEmpty &&
@@ -60,6 +64,9 @@ struct PropagationPanelView: View {
         .onChange(of: prefillFreqMHz) { _, _ in
             applyPrefillIfNeeded()
         }
+        .onChange(of: prefillMode) { _, _ in
+            applyPrefillIfNeeded()
+        }
     }
 
     // Übernimmt aktuellen QSO-Form-Call und Radio-Frequenz ins DX-Spot-Feld,
@@ -76,6 +83,14 @@ struct PropagationPanelView: View {
             // Placeholder "z.B. 14074.0"). Komma-Format umgangen — sendSpot()
             // parst beides.
             frequency = String(format: "%.1f", prefillFreqMHz * 1000)
+        }
+        // Mode aus dem Radio/CAT übernehmen, sofern in der erlaubten
+        // Spot-Mode-Liste (sonst Mode unverändert lassen — DIGI/PKTUSB
+        // aus dem TRX-Mode-Picker fallen z.B. nicht direkt auf einen
+        // Spot-Mode wie FT8 vs. RTTY).
+        let m = prefillMode.uppercased()
+        if !m.isEmpty, modes.contains(m) {
+            mode = m
         }
     }
 
@@ -280,30 +295,11 @@ struct PropagationPanelView: View {
                     .font(.system(.body, design: .monospaced))
             }
 
-            // Band-Schnellwahl
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 4) {
-                    ForEach(quickBands, id: \.label) { b in
-                        Button(b.label) { frequency = String(b.freq) }
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
-                            .tint(.blue)
-                    }
-                }
-            }
-
-            // Mode + Kommentar
-            HStack {
-                Text("Mode")
-                    .font(.caption)
-                    .foregroundStyle(theme.textSecondary)
-                    .frame(width: 56, alignment: .trailing)
-                Picker("", selection: $mode) {
-                    ForEach(modes, id: \.self) { Text($0).tag($0) }
-                }
-                .pickerStyle(.menu)
-                .frame(maxWidth: .infinity)
-            }
+            // Mode-Picker entfällt seit 1.8.13 — Mode kommt automatisch
+            // aus dem Radio/CAT-Panel via `prefillMode` und wird beim
+            // Senden in den DX-Spot-Kommentar geschrieben. Wer einen
+            // anderen Mode spotten will, ändert ihn im Radio/CAT-Panel
+            // (auch ohne aktive CAT-Verbindung möglich).
 
             HStack {
                 Text("Komm.")
