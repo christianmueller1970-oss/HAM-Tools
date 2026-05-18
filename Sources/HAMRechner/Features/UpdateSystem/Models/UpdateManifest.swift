@@ -42,9 +42,32 @@ struct UpdateManifestPayload: Codable, Hashable, Identifiable {
     var critical: Bool
 }
 
-// Vergleich: ist `latest` neuer als `current`? Wir vergleichen das
-// Build-Datum (yyyy-MM-dd lässt sich String-Vergleich nutzen, lexikographisch
-// === chronologisch).
-func isNewerBuild(latest: String, than current: String) -> Bool {
-    latest > current
+// Vergleich: ist `latestVersion`/`latestBuildDate` neuer als
+// `currentVersion`/`currentBuildDate`? Primär nach Semver-Version (Punkt-
+// getrennt, numerisch pro Segment), Build-Datum nur als Tiebreaker bei
+// gleicher Version. Bis 1.8.12 wurde nur das Datum verglichen — Hotfix-
+// Releases vom selben Tag (1.8.11 → 1.8.12) wurden dadurch nicht erkannt.
+func isNewerBuild(latestVersion: String, latestBuildDate: String,
+                  currentVersion: String, currentBuildDate: String) -> Bool {
+    switch compareVersions(latestVersion, currentVersion) {
+    case .orderedDescending: return true
+    case .orderedAscending:  return false
+    case .orderedSame:       return latestBuildDate > currentBuildDate
+    }
+}
+
+/// Semver-konformer Punkt-Segment-Vergleich: 1.8.12 > 1.8.11, 1.10.0 > 1.9.9.
+/// Nicht-numerische Segmente werden als 0 behandelt (defensiv, sollte in
+/// der Praxis nie vorkommen).
+func compareVersions(_ a: String, _ b: String) -> ComparisonResult {
+    let aParts = a.split(separator: ".").map { Int($0) ?? 0 }
+    let bParts = b.split(separator: ".").map { Int($0) ?? 0 }
+    let n = max(aParts.count, bParts.count)
+    for i in 0..<n {
+        let ai = i < aParts.count ? aParts[i] : 0
+        let bi = i < bParts.count ? bParts[i] : 0
+        if ai < bi { return .orderedAscending }
+        if ai > bi { return .orderedDescending }
+    }
+    return .orderedSame
 }

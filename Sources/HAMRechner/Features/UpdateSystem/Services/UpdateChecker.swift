@@ -122,7 +122,10 @@ final class UpdateChecker: ObservableObject {
     private func decideState(payload: UpdateManifestPayload, force: Bool) -> State {
         // Wenn der Server eine Version ankündigt, die wir bereits haben oder
         // älter ist als unser eigener Build: keine Aktion.
-        if !isNewerBuild(latest: payload.buildDate, than: BuildInfo.appBuildDate) {
+        if !isNewerBuild(latestVersion:   payload.version,
+                         latestBuildDate: payload.buildDate,
+                         currentVersion:  BuildInfo.appVersion,
+                         currentBuildDate: BuildInfo.appBuildDate) {
             return .upToDate(latestBuildDate: payload.buildDate)
         }
         // Skip-Logik: User hat diese Version aktiv übersprungen → nicht erneut nerven,
