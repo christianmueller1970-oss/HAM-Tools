@@ -19,6 +19,12 @@ struct DXSpot: Identifiable, Equatable, Codable {
     var spotterLon:  Double = 0
     var timestamp:   Date   = Date()
 
+    /// Multi-Cluster-Provenienz: zusätzliche Cluster-Quellen, die denselben
+    /// Spot innerhalb des Dedup-Fensters gepusht haben. Primary steht in
+    /// `source`; `alsoSeenBy` enthält die übrigen, in Reihenfolge der
+    /// Eintreffzeit. Mehr Quellen → höhere Confidence (Badge „+N" in der UI).
+    var alsoSeenBy: [String] = []
+
     // Which logical source type (for filter checkboxes)
     var sourceType: String {
         if source.contains("SOTAwatch") || source == "SOTAwatch3" { return "SOTAwatch3" }

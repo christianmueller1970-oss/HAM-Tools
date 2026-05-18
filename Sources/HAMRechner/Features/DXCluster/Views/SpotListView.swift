@@ -156,6 +156,19 @@ struct SpotListView: View {
                         .foregroundStyle(sourceColor(s.sourceType))
                         .lineLimit(1)
                         .truncationMode(.tail)
+                    // Multi-Cluster-Confidence: »+N« wenn weitere Pool-
+                    // Quellen denselben Spot innerhalb des Dedup-Fensters
+                    // gemeldet haben. Tooltip listet die Quellen auf.
+                    if !s.alsoSeenBy.isEmpty {
+                        Text("+\(s.alsoSeenBy.count)")
+                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(theme.accentGreen.opacity(0.20))
+                            .foregroundStyle(theme.accentGreen)
+                            .clipShape(Capsule())
+                            .help("Auch gesehen von: " + s.alsoSeenBy.joined(separator: ", "))
+                    }
                 }
             }
             .width(min: 130, ideal: 200)

@@ -322,17 +322,24 @@ final class DXClusterViewModel: ObservableObject {
         // Multi-Cluster-Dedup: derselbe DX-Spot wird typischerweise von
         // mehreren Clusters innerhalb weniger Sekunden gepusht (RBN-Hub
         // ist global). Wir vergleichen Call + Frequenz (auf 0.1 kHz
-        // gerundet) gegen die letzten 60 s — Match → ignorieren.
-        // Schritt 3 erweitert das auf eine alsoSeenBy-Liste (Confidence-
-        // Badge "+N Clusters" pro Spot), für jetzt reicht der Filter.
+        // gerundet) gegen die letzten 60 s. Bei Match → bestehenden Spot
+        // mit der zusätzlichen Quelle anreichern (alsoSeenBy), nicht neu
+        // einfügen. UI rendert daraus ein „+N"-Confidence-Badge.
         let call = spot.dxCall.uppercased()
         let freq = (spot.frequency * 10).rounded() / 10
         let cutoff = Date().addingTimeInterval(-60)
-        if spots.contains(where: { existing in
+        if let i = spots.firstIndex(where: { existing in
             existing.timestamp >= cutoff
                 && existing.dxCall.uppercased() == call
                 && ((existing.frequency * 10).rounded() / 10) == freq
         }) {
+            let primary = spots[i].source
+            let newSource = spot.source
+            if !newSource.isEmpty,
+               newSource != primary,
+               !spots[i].alsoSeenBy.contains(newSource) {
+                spots[i].alsoSeenBy.append(newSource)
+            }
             return
         }
 
