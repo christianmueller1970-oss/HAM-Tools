@@ -25,8 +25,12 @@ struct EinstellungenView: View {
             LicenseSettingsView()
                 .tabItem { Label("Lizenz", systemImage: "key.fill") }
         }
-        .frame(minWidth: 580, idealWidth: 640,
-               minHeight: 480, idealHeight: 860)
+        // 9 Top-Tabs + interne Sub-Picker (z.B. 12 Lookup-Services) brauchen
+        // mehr Platz als die alten 640×860. Mit 820 passt die TabBar ohne
+        // »…«-Overflow rein, 760 Höhe passt auf 13"-MacBooks. ScrollViews in
+        // den einzelnen Tabs handhaben den Rest.
+        .frame(minWidth: 760, idealWidth: 820,
+               minHeight: 560, idealHeight: 760)
     }
 }
 

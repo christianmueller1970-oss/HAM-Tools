@@ -96,14 +96,36 @@ struct LookupUploadSettingsView: View {
     // MARK: - Sub-Picker
 
     private var servicePicker: some View {
-        Picker("Service", selection: $selectedService) {
-            ForEach(ServiceTab.allCases, id: \.self) { tab in
-                Text(tab.label).tag(tab)
+        // 12 Services in Segmented-Style sprengen jedes vernünftige
+        // Fenstermaß. Als Chip-Reihe in einem H-ScrollView funktioniert
+        // das stabil bei jeder Fensterbreite und der gewählte Service
+        // bleibt visuell hervorgehoben.
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(ServiceTab.allCases, id: \.self) { tab in
+                    Button {
+                        selectedService = tab
+                    } label: {
+                        Text(tab.label)
+                            .font(.callout)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                selectedService == tab
+                                    ? Color.accentColor
+                                    : Color.secondary.opacity(0.15)
+                            )
+                            .foregroundStyle(
+                                selectedService == tab ? .white : .primary
+                            )
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
-        .pickerStyle(.segmented)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
     }
 
     // MARK: - Detail je Service
