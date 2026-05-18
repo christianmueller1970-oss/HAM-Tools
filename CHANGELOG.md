@@ -5,6 +5,30 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.8.12] — 2026-05-18
+
+### Hotfix #2: App-Startcrash auf macOS 26.5 (echte Ursache)
+
+Der 1.8.11-Versuch (Bundle-Format auf kanonisch umbauen + eigen-signieren)
+hat den Crash auf macOS 26.5 nicht behoben — die App stürzte weiter mit
+identischem Stack ab. Wahre Ursache: macOS 26.5's `Bundle.init(url:)`
+liefert für die von `Bundle.module` durchprobierten Kandidaten in
+manchen Setups **nil**, egal in welchem Format das Bundle vorliegt —
+SwiftPM's `fatalError`-Fallback feuert dann sofort.
+
+`Bundle.module` wird ab 1.8.12 nicht mehr verwendet. Neuer
+`AppResource.url(forResource:withExtension:)`-Helper sucht das
+Resource-Bundle direkt im App-Bundle (toleriert flat- und regular-
+Layout, fällt auf `FileManager.fileExists` zurück) und gibt nil
+zurück, wenn nichts gefunden wird — ohne Crash. Wirkt für alle fünf
+Konsumenten: `BOTARefService`, `TRXProfile`, `BandplanModel`,
+`ContestService`, `RechnerBeschreibung`.
+
+Die Bundle-Konvertierung in `build-dmg.sh` bleibt drin — sie ist nach
+wie vor nützlich für saubere Code-Signing-Hygiene und schadet nicht.
+
+---
+
 ## [1.8.11] — 2026-05-18
 
 ### Hotfix: App-Startcrash auf macOS 26.5

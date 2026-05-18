@@ -21,27 +21,25 @@ import CryptoKit
 
 // MARK: - RELEASE-DATEN (für jeden Release anpassen)
 
-let RELEASE_VERSION   = "1.8.11"
+let RELEASE_VERSION   = "1.8.12"
 let RELEASE_BUILDDATE = "2026-05-18"          // ISO 8601, YYYY-MM-DD
 let RELEASE_MIN_MACOS = "14.0"                 // oder nil
-let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.11.dmg"
+let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.12.dmg"
 let RELEASE_CRITICAL  = true                   // true zwingt User zur Installation (kein Skip)
 let RELEASE_NOTES = """
-Hotfix: App-Startcrash auf macOS 26.5 + Multi-Cluster Confidence-Badge.
+Hotfix #2: App-Startcrash auf macOS 26.5 (echte Behebung).
 
-WICHTIG: 1.8.10 ließ sich auf macOS 26.5 nicht starten — die App \
-crashte beim ersten Resource-Zugriff (BOTA-Bunker-DB-Snapshot) im \
-Bundle-Loader. Ursache: Apple verschärft in 26.5 die Bundle-Format-\
-Prüfung; das von SwiftPM erzeugte flat-Resource-Bundle wird als \
-ungültig abgelehnt. Der Release-Build konvertiert das Resource-Bundle \
-jetzt zur kanonischen Contents/Info.plist-Struktur und signiert es \
-eigenständig. Rückwärts-kompatibel mit allen macOS-Versionen.
+Der 1.8.11-Versuch (Bundle-Format kanonisch umbauen) hat den Crash \
+nicht behoben — die App startete auf macOS 26.5 weiter nicht. Wahre \
+Ursache: macOS 26.5's Bundle.init(url:) liefert für SwiftPM-Resource-\
+Bundles in manchen Setups nil, egal in welchem Format. Bundle.module \
+fällt dann auf seinen fatalError zurück.
 
-Multi-Cluster Confidence-Badge:
-- Pro DX-Spot zeigt die Spotter/Quelle-Spalte ein grünes »+N«, wenn \
-derselbe Spot innerhalb des Dedup-Fensters von mehreren Cluster-\
-Quellen aus dem Pool kam. Mehr Quellen = höhere Sicherheit (RBN-Bot \
-vs. einzelner Spotter). Tooltip listet die zusätzlichen Cluster.
+Ab 1.8.12 wird Bundle.module komplett umgangen. Ein neuer AppResource-\
+Helper sucht das Resource-Bundle selbst, toleriert verschiedene Bundle-\
+Layouts und gibt nil statt zu crashen. Wirkt für alle fünf Konsumenten \
+(BOTA-Bunker-DB, Bandplan, CAT-TRX-Profile, Contest-Templates, \
+Rechner-Beschreibungen).
 """
 
 // MARK: - Implementation (sollte stabil bleiben)

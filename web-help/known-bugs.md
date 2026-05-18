@@ -8,9 +8,13 @@ Aktive Issues + Workarounds. Wird händisch gepflegt; gemeldete Bugs landen im P
 Aktuell sind keine kritischen Bugs offen.
 :::
 
+## Behoben in v1.8.12
+
+- App-Startcrash auf macOS 26.5 (echte Ursache): macOS 26.5's `Bundle.init(url:)` liefert für SwiftPM-Resource-Bundles bei manchen Setups nil — `Bundle.module` greift dann auf seinen `fatalError`-Fallback zurück und die App crashed direkt in `BOTARefService.init`. Der 1.8.11-Fix (Bundle-Format kanonisch umbauen) hat das nicht behoben. Ab 1.8.12 wird `Bundle.module` komplett umgangen: ein neuer `AppResource`-Helper sucht das Resource-Bundle selbst, toleriert verschiedene Bundle-Layouts und gibt nil statt zu crashen.
+
 ## Behoben in v1.8.11
 
-- App-Startcrash auf macOS 26.5: SwiftPM-Resource-Bundles im »flat«-Format wurden vom neuen Bundle-Loader als »bundle format unrecognized« abgelehnt, `Bundle.module` schlug fehl und die App stürzte im `BOTARefService`-Init ab. Der Release-Build konvertiert das Bundle jetzt zur kanonischen `Contents/Info.plist`-Struktur und signiert es eigenständig. Wirkt rückwirkend für alle macOS-Versionen.
+- App-Startcrash auf macOS 26.5 (erster Versuch — siehe v1.8.12 für die echte Behebung): Bundle-Format-Korrektur in `build-dmg.sh`. Brachte allein noch keinen Erfolg, ist aber für saubere Code-Signing-Hygiene weiter im Build drin.
 
 ## Behoben in v1.8.10
 

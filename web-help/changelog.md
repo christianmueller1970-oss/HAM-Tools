@@ -2,6 +2,28 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.12 — 2026-05-18
+
+**Hotfix #2: macOS 26.5 Startcrash echte Behebung**
+
+Der 1.8.11-Versuch (Bundle-Format kanonisch umbauen) hat den Crash
+nicht behoben — die App startete auf macOS 26.5 weiter nicht. Wahre
+Ursache: macOS 26.5's `Bundle.init(url:)` liefert für SwiftPM-Resource-
+Bundles in manchen Setups nil, egal in welchem Format. `Bundle.module`
+fällt dann auf seinen `fatalError` zurück.
+
+Ab 1.8.12 wird `Bundle.module` komplett umgangen. Ein neuer
+`AppResource.url(forResource:withExtension:)`-Helper sucht das
+Resource-Bundle selbst, toleriert verschiedene Bundle-Layouts und gibt
+nil statt zu crashen. Wirkt für alle fünf Konsumenten in der App
+(BOTA-Bunker-DB, Bandplan, CAT-TRX-Profile, Contest-Templates,
+Rechner-Beschreibungen).
+
+**Wenn 1.8.10 oder 1.8.11 nicht starteten:** Lade das neue DMG direkt
+von [latest.dmg](https://toolbox.funkwelt.net/app/dmg/latest.dmg) — der
+eingebaute Update-Check kann dich nicht erreichen, solange die alte
+App nicht startet.
+
 ## 1.8.11 — 2026-05-18
 
 **Hotfix: App-Startcrash auf macOS 26.5 · Multi-Cluster Confidence-Badge**
