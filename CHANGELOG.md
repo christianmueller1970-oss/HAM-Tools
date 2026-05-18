@@ -5,6 +5,44 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.8.13] — 2026-05-18
+
+### Update-Check: Semver-Version statt nur Build-Datum
+
+Der Update-Check verglich bisher ausschließlich das Build-Datum als
+String — Hotfix-Releases vom selben Tag (1.8.11 → 1.8.12 → 1.8.13)
+wurden so nicht erkannt und der Dialog meldete »HAM-Tools ist
+aktuell«. Jetzt: primär numerisches Semver pro Punkt-Segment
+(1.8.13 > 1.8.12, 1.10.0 > 1.9.9), Build-Datum nur als Tiebreaker bei
+gleicher Version. Wirkt ab 1.8.13 — der eingebaute Auto-Update-Check
+funktioniert von jetzt an auch innerhalb desselben Build-Tages.
+
+### Multi-Cluster: Polish-Pass
+
+- **Live-Status-Pille** pro Zeile im Einstellungen → Cluster-Tab.
+  Farbiger Punkt + Label (verbunden / Login… / Fehler / getrennt) aus
+  dem aktuellen Pool-Status, inaktive Nodes mit dezenter Markierung.
+- **»N/M verbunden«-Counter** in allen Top-Bar-Indikatoren (Logbuch-
+  Header, DXClusters-Tab-Context-Bar, eigenständiges DX-Cluster-
+  Fenster). Zählt live die tatsächlich verbundenen Pool-Member, bei
+  einem aktiven Cluster ohne Counter (eindeutig).
+- **Host/Port-Edits aktiver Pool-Nodes wirken live**: bisher musste man
+  den Aktiv-Toggle aus/ein klicken, damit Änderungen greifen.
+  `applyActiveNodes()` macht jetzt einen Field-Diff und startet den
+  betroffenen Client gezielt neu. Name-Only-Edits triggern keinen
+  Reconnect (sonst Cluster-Kick).
+
+### DX-Cluster: ATNO-Pille als eigene Tabellenspalte
+
+Die ATNO/NEW-BAND/NEW-MODE-Markierung klebte bisher links am Call.
+Jetzt eigenständige »ATNO«-Spalte zwischen Mode und DX-Rufz. —
+reorderbar, ein-/ausblendbar über Header-Rechtsklick. Weil SwiftUI
+maximal 10 Table-Spalten pro Builder erlaubt, wurde die Kontinent-
+Spalte mit »Land« zusammengelegt: »Germany (EU)«. Der Kontinent-
+Filter im Top-Bar bleibt davon unberührt.
+
+---
+
 ## [1.8.12] — 2026-05-18
 
 ### Hotfix #2: App-Startcrash auf macOS 26.5 (echte Ursache)

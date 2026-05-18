@@ -8,6 +8,11 @@ Aktive Issues + Workarounds. Wird händisch gepflegt; gemeldete Bugs landen im P
 Aktuell sind keine kritischen Bugs offen.
 :::
 
+## Behoben in v1.8.13
+
+- Auto-Update-Check meldete »HAM-Tools ist aktuell«, obwohl auf dem Server eine neuere Version bereitstand — `isNewerBuild()` verglich nur das Build-Datum als String, Hotfix-Releases vom selben Tag (1.8.11 → 1.8.12 → 1.8.13) wurden so nicht erkannt. Jetzt numerischer Semver-Vergleich primär, Build-Datum nur als Tiebreaker. Wirkt ab dem 1.8.13-Build — wer auf 1.8.12 oder älter sitzt, muss einmalig manuell aus `/app/dmg/latest.dmg` updaten.
+- Multi-Cluster: Host- oder Port-Änderungen an einem bereits aktiven Cluster-Node wurden vom Pool-Resync ignoriert (alter Client lief weiter). `applyActiveNodes()` macht jetzt einen Field-Diff und startet betroffene Clients gezielt neu.
+
 ## Behoben in v1.8.12
 
 - App-Startcrash auf macOS 26.5 (echte Ursache): macOS 26.5's `Bundle.init(url:)` liefert für SwiftPM-Resource-Bundles bei manchen Setups nil — `Bundle.module` greift dann auf seinen `fatalError`-Fallback zurück und die App crashed direkt in `BOTARefService.init`. Der 1.8.11-Fix (Bundle-Format kanonisch umbauen) hat das nicht behoben. Ab 1.8.12 wird `Bundle.module` komplett umgangen: ein neuer `AppResource`-Helper sucht das Resource-Bundle selbst, toleriert verschiedene Bundle-Layouts und gibt nil statt zu crashen.

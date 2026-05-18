@@ -2,6 +2,45 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.13 — 2026-05-18
+
+**Update-Check repariert · Multi-Cluster Polish · ATNO-Spalte**
+
+### Auto-Update funktioniert wieder
+
+Der eingebaute Update-Check (⌘⌥U) verglich bisher ausschließlich das
+Build-Datum als String — Hotfix-Releases vom selben Tag (1.8.11 →
+1.8.12 → 1.8.13) wurden so nie als neuer erkannt, die App meldete
+»HAM-Tools ist aktuell«. Jetzt: numerischer Versionsvergleich (1.8.13
+> 1.8.12, 1.10.0 > 1.9.9), Build-Datum nur als Tiebreaker bei gleicher
+Version.
+
+Heißt: ab 1.8.13 funktioniert Auto-Update verlässlich, auch innerhalb
+desselben Build-Tages. Wer noch auf 1.8.12 oder älter sitzt und das
+Update-Dialog »aktuell« angezeigt bekommt, muss einmalig manuell von
+[latest.dmg](https://toolbox.funkwelt.net/app/dmg/latest.dmg) laden —
+ab 1.8.13 läuft's wieder von alleine.
+
+### Multi-Cluster: Status-Pille + »N/M verbunden«-Counter
+
+- **In Einstellungen → Cluster**: pro Zeile eine farbige Status-Pille
+  (grün verbunden, gelb Login, rot Fehler, grau getrennt). Live aus
+  dem Pool, ohne Refresh.
+- **In allen Top-Bars** (Logbuch-Header, DXClusters-Tab, eigenständiges
+  DX-Cluster-Fenster): »N/M verbunden« statt nur »N Cluster aktiv« —
+  zeigt sofort, ob alle Pool-Member wirklich Daten liefern.
+- **Host/Port-Edits an aktiven Clustern wirken live**: in den
+  Einstellungen Host oder Port ändern → der entsprechende Client
+  startet sich selbst neu, ohne manuellen Aktiv-Toggle-Trick.
+
+### ATNO-Markierung als eigene Spalte 🆕
+
+Die ATNO/NEW-BAND/NEW-MODE-Pille im DX-Cluster steht jetzt in einer
+eigenen Tabellenspalte direkt links vom Rufzeichen, statt am Call zu
+kleben. Spalte ist über Header-Rechtsklick reorderbar und
+ausblendbar. Kontinent-Spalte wurde mit »Land« zusammengeführt
+(»Germany (EU)«), weil SwiftUI nur 10 Spalten pro Tabelle erlaubt.
+
 ## 1.8.12 — 2026-05-18
 
 **Hotfix #2: macOS 26.5 Startcrash echte Behebung**

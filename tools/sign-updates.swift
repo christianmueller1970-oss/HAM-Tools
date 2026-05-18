@@ -21,25 +21,31 @@ import CryptoKit
 
 // MARK: - RELEASE-DATEN (für jeden Release anpassen)
 
-let RELEASE_VERSION   = "1.8.12"
+let RELEASE_VERSION   = "1.8.13"
 let RELEASE_BUILDDATE = "2026-05-18"          // ISO 8601, YYYY-MM-DD
 let RELEASE_MIN_MACOS = "14.0"                 // oder nil
-let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.12.dmg"
-let RELEASE_CRITICAL  = true                   // true zwingt User zur Installation (kein Skip)
+let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.13.dmg"
+let RELEASE_CRITICAL  = false
 let RELEASE_NOTES = """
-Hotfix #2: App-Startcrash auf macOS 26.5 (echte Behebung).
+Auto-Update wieder funktional + Multi-Cluster Polish + ATNO-Spalte.
 
-Der 1.8.11-Versuch (Bundle-Format kanonisch umbauen) hat den Crash \
-nicht behoben — die App startete auf macOS 26.5 weiter nicht. Wahre \
-Ursache: macOS 26.5's Bundle.init(url:) liefert für SwiftPM-Resource-\
-Bundles in manchen Setups nil, egal in welchem Format. Bundle.module \
-fällt dann auf seinen fatalError zurück.
+Auto-Update-Check repariert:
+- Der eingebaute Update-Check (Cmd+Opt+U) verglich bisher nur das \
+Build-Datum als String — Hotfix-Releases vom selben Tag wurden nie \
+als neuer erkannt. Jetzt numerischer Semver-Vergleich, Build-Datum \
+nur als Tiebreaker. Auto-Update läuft ab 1.8.13 wieder verlässlich.
 
-Ab 1.8.12 wird Bundle.module komplett umgangen. Ein neuer AppResource-\
-Helper sucht das Resource-Bundle selbst, toleriert verschiedene Bundle-\
-Layouts und gibt nil statt zu crashen. Wirkt für alle fünf Konsumenten \
-(BOTA-Bunker-DB, Bandplan, CAT-TRX-Profile, Contest-Templates, \
-Rechner-Beschreibungen).
+Multi-Cluster Polish:
+- Live-Status-Pille pro Zeile in Einstellungen → Cluster (grün/gelb/\
+rot/grau).
+- »N/M verbunden«-Counter in allen Top-Bars statt nur »N aktiv«.
+- Host/Port-Edits aktiver Cluster wirken sofort, ohne Aktiv-Toggle-\
+Workaround.
+
+ATNO-Spalte:
+- ATNO/NEW-BAND/NEW-MODE-Pille jetzt eigene Tabellenspalte im DX-\
+Cluster (reorderbar, ausblendbar) statt am Call zu kleben. Kontinent \
+wurde mit »Land« zusammengelegt (»Germany (EU)«).
 """
 
 // MARK: - Implementation (sollte stabil bleiben)
