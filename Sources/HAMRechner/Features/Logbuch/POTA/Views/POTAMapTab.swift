@@ -17,7 +17,7 @@ struct POTAMapTab: View {
     @EnvironmentObject var pota:         PotaParkService
     @EnvironmentObject var callbook:     CallbookManager
 
-    @AppStorage("logbook.potaMap.qsoLines") private var showQsoLines: Bool = true
+    @AppStorage("logbook.potaMap.qsoLines") private var showQsoLines: Bool = false
     @AppStorage("logbook.potaMap.band")     private var bandFilter         = "Alle"
     @AppStorage("map.style")                private var selectedMapStyle: MapStyleChoice = .standard
 
@@ -113,7 +113,7 @@ struct POTAMapTab: View {
         return nil
     }
 
-    private var mappedQSOs: [MappedQSO] {
+    private var allMappedQSOs: [MappedQSO] {
         qsosWithParks.compactMap { item in
             guard let coord = resolveCoord(for: item.qso) else { return nil }
             return MappedQSO(id: item.qso.id, qso: item.qso,
@@ -121,9 +121,17 @@ struct POTAMapTab: View {
         }
     }
 
-    private var qsosWithoutPositionCount: Int {
-        qsosWithParks.count - mappedQSOs.count
+    private var mappedQSOs: [MappedQSO] {
+        allMappedQSOs.cappedByDate(max: MapRenderLimits.maxAnnotations,
+                                   dateKey: { $0.qso.datetime })
     }
+
+    private var qsosWithoutPositionCount: Int {
+        qsosWithParks.count - allMappedQSOs.count
+    }
+
+    private var isOverflow: Bool { allMappedQSOs.count > MapRenderLimits.maxAnnotations }
+    private var linesAllowed: Bool { showQsoLines && mappedQSOs.count <= MapRenderLimits.maxLines }
 
     // Schnelle Lookup-Map Park-Ref → Coord (für Linien).
     private var parkCoordByRef: [String: CLLocationCoordinate2D] {
@@ -198,7 +206,7 @@ struct POTAMapTab: View {
     private var mapContent: some View {
         Map(position: $cameraPosition) {
             // Linien Park → DX-QSO
-            if showQsoLines {
+            if linesAllowed {
                 ForEach(mappedQSOs) { m in
                     ForEach(Array(m.parkRefs.enumerated()), id: \.offset) { _, ref in
                         if let parkCoord = parkCoordByRef[ref] {
@@ -230,9 +238,16 @@ struct POTAMapTab: View {
         }
         .appMapStyle(selectedMapStyle)
         .overlay(alignment: .bottomLeading) {
-            if let q = selectedQSO {
-                infoPopup(for: q).padding(12)
+            VStack(alignment: .leading, spacing: 8) {
+                if isOverflow {
+                    MapOverflowBanner(totalMatched: allMappedQSOs.count,
+                                      shown: mappedQSOs.count)
+                }
+                if let q = selectedQSO {
+                    infoPopup(for: q)
+                }
             }
+            .padding(12)
         }
     }
 

@@ -18,7 +18,7 @@ struct SOTAMapTab: View {
     @EnvironmentObject var sota:         SotaSummitService
     @EnvironmentObject var callbook:     CallbookManager
 
-    @AppStorage("logbook.sotaMap.qsoLines") private var showQsoLines: Bool = true
+    @AppStorage("logbook.sotaMap.qsoLines") private var showQsoLines: Bool = false
     @AppStorage("logbook.sotaMap.band")     private var bandFilter         = "Alle"
     @AppStorage("map.style")                private var selectedMapStyle: MapStyleChoice = .standard
 
@@ -104,7 +104,7 @@ struct SOTAMapTab: View {
         return nil
     }
 
-    private var mappedQSOs: [MappedQSO] {
+    private var allMappedQSOs: [MappedQSO] {
         qsosWithSummits.compactMap { item in
             guard let coord = resolveCoord(for: item.qso) else { return nil }
             return MappedQSO(id: item.qso.id, qso: item.qso,
@@ -112,9 +112,17 @@ struct SOTAMapTab: View {
         }
     }
 
-    private var qsosWithoutPositionCount: Int {
-        qsosWithSummits.count - mappedQSOs.count
+    private var mappedQSOs: [MappedQSO] {
+        allMappedQSOs.cappedByDate(max: MapRenderLimits.maxAnnotations,
+                                   dateKey: { $0.qso.datetime })
     }
+
+    private var qsosWithoutPositionCount: Int {
+        qsosWithSummits.count - allMappedQSOs.count
+    }
+
+    private var isOverflow: Bool { allMappedQSOs.count > MapRenderLimits.maxAnnotations }
+    private var linesAllowed: Bool { showQsoLines && mappedQSOs.count <= MapRenderLimits.maxLines }
 
     private var summitCoordByRef: [String: CLLocationCoordinate2D] {
         Dictionary(uniqueKeysWithValues: summitPins.map { ($0.id, $0.coord) })
@@ -187,7 +195,7 @@ struct SOTAMapTab: View {
 
     private var mapContent: some View {
         Map(position: $cameraPosition) {
-            if showQsoLines {
+            if linesAllowed {
                 ForEach(mappedQSOs) { m in
                     ForEach(Array(m.summitRefs.enumerated()), id: \.offset) { _, ref in
                         if let summitCoord = summitCoordByRef[ref] {
@@ -217,9 +225,16 @@ struct SOTAMapTab: View {
         }
         .appMapStyle(selectedMapStyle)
         .overlay(alignment: .bottomLeading) {
-            if let q = selectedQSO {
-                infoPopup(for: q).padding(12)
+            VStack(alignment: .leading, spacing: 8) {
+                if isOverflow {
+                    MapOverflowBanner(totalMatched: allMappedQSOs.count,
+                                      shown: mappedQSOs.count)
+                }
+                if let q = selectedQSO {
+                    infoPopup(for: q)
+                }
             }
+            .padding(12)
         }
     }
 

@@ -20,15 +20,11 @@ struct HistoryTab: View {
 
     private var theme: AppTheme { themeManager.theme }
 
-    // Schutz-Limits gegen MapKit-Overload (Bug 1.8.14 → 1.8.15): bei sehr
-    // großen Logs + "Alle"-Filter zeichnete der Tab zigtausende Annotations
-    // + Polylines und brachte den Renderer komplett zum Erliegen — Fenster
-    // wurde nie sichtbar, App-Prozess lebte ohne UI weiter.
-    private static let maxAnnotations = 1500
-    private static let maxLines       = 500
     // Tages-Cap: stale »Alle« (= 0) aus älteren Defaults wird hier auf 1 Jahr
     // geclamped, damit Bestands-User nicht mehr in den alten Crash laufen.
-    private static let maxDaysClamp   = 1825   // 5 Jahre
+    // Annotation-/Linien-Limits leben in MapRenderLimits (shared mit den
+    // Programm-Map-Tabs ab 1.8.16).
+    private static let maxDaysClamp = 1825   // 5 Jahre
 
     // QTH-Koordinaten (aus dem Locator) für Linien-Start
     private var qthCoord: CLLocationCoordinate2D? {
@@ -62,24 +58,21 @@ struct HistoryTab: View {
     }
 
     private var mappedQSOs: [MappedQSO] {
-        let all = matchedQSOs
-        guard all.count > Self.maxAnnotations else { return all }
-        // Bei Overflow: neueste maxAnnotations QSOs nehmen, ältere werden
-        // ausgeblendet (mit Banner-Hinweis, siehe overflowBanner).
-        return Array(all.sorted { $0.qso.datetime > $1.qso.datetime }
-                        .prefix(Self.maxAnnotations))
+        matchedQSOs.cappedByDate(max: MapRenderLimits.maxAnnotations,
+                                 dateKey: { $0.qso.datetime })
     }
 
     private var totalMatchedCount: Int { matchedQSOs.count }
-    private var isOverflow: Bool { totalMatchedCount > Self.maxAnnotations }
-    private var linesAllowed: Bool { showLines && mappedQSOs.count <= Self.maxLines }
+    private var isOverflow: Bool { totalMatchedCount > MapRenderLimits.maxAnnotations }
+    private var linesAllowed: Bool { showLines && mappedQSOs.count <= MapRenderLimits.maxLines }
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             mapContent
             VStack(alignment: .leading, spacing: 8) {
                 if isOverflow {
-                    overflowBanner
+                    MapOverflowBanner(totalMatched: totalMatchedCount,
+                                      shown: mappedQSOs.count)
                 }
                 if let q = selectedQSO {
                     infoPopup(for: q)
@@ -89,24 +82,6 @@ struct HistoryTab: View {
         }
         .background(theme.bgApp)
         .onChange(of: qthLocator) { centerOnQTH() }
-    }
-
-    private var overflowBanner: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-            Text("\(totalMatchedCount) Treffer — Karte zeigt nur die neuesten \(Self.maxAnnotations). Zeitraum/Band/Mode enger setzen.")
-                .font(.caption)
-                .foregroundStyle(theme.textPrimary)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(theme.bgCard.opacity(0.95))
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(.orange.opacity(0.6), lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
     // MARK: - Map

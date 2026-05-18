@@ -62,13 +62,21 @@ struct ContestMapTab: View {
         ["Alle"] + Array(Set(manager.currentQSOs.map(\.band))).filter { !$0.isEmpty }.sorted()
     }
 
-    private var mappedQSOs: [MappedQSO] {
+    private var allMappedQSOs: [MappedQSO] {
         manager.currentQSOs.compactMap { q in
             if bandFilter != "Alle", q.band != bandFilter { return nil }
             guard let c = resolveCoord(for: q) else { return nil }
             return MappedQSO(id: q.id, qso: q, coord: c)
         }
     }
+
+    private var mappedQSOs: [MappedQSO] {
+        allMappedQSOs.cappedByDate(max: MapRenderLimits.maxAnnotations,
+                                   dateKey: { $0.qso.datetime })
+    }
+
+    private var isOverflow: Bool { allMappedQSOs.count > MapRenderLimits.maxAnnotations }
+    private var linesAllowed: Bool { mappedQSOs.count <= MapRenderLimits.maxLines }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -83,7 +91,7 @@ struct ContestMapTab: View {
         HStack(spacing: 10) {
             Image(systemName: "map.fill")
                 .foregroundStyle(theme.accentBlue)
-            Text("Contest-Map · \(mappedQSOs.count) / \(manager.currentQSOs.count) QSO geomappt")
+            Text("Contest-Map · \(allMappedQSOs.count) / \(manager.currentQSOs.count) QSO geomappt")
                 .font(.caption)
                 .foregroundStyle(theme.textSecondary)
             Spacer()
@@ -121,13 +129,20 @@ struct ContestMapTab: View {
             ForEach(mappedQSOs) { item in
                 Marker(item.qso.call, coordinate: item.coord)
                     .tint(.blue)
-                if let qth = qthCoord {
+                if linesAllowed, let qth = qthCoord {
                     MapPolyline(coordinates: [qth, item.coord])
                         .stroke(.blue.opacity(0.35), lineWidth: 1)
                 }
             }
         }
         .appMapStyle(selectedMapStyle)
+        .overlay(alignment: .bottomLeading) {
+            if isOverflow {
+                MapOverflowBanner(totalMatched: allMappedQSOs.count,
+                                  shown: mappedQSOs.count)
+                    .padding(12)
+            }
+        }
         .onAppear {
             if !didCenterOnQTH {
                 centerOnQTH(animated: false)

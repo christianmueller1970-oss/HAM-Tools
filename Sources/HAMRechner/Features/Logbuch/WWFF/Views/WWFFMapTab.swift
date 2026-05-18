@@ -17,7 +17,7 @@ struct WWFFMapTab: View {
     @EnvironmentObject var wwff:         WWFFRefService
     @EnvironmentObject var callbook:     CallbookManager
 
-    @AppStorage("logbook.wwffMap.qsoLines") private var showQsoLines: Bool = true
+    @AppStorage("logbook.wwffMap.qsoLines") private var showQsoLines: Bool = false
     @AppStorage("logbook.wwffMap.band")     private var bandFilter         = "Alle"
     @AppStorage("map.style")                private var selectedMapStyle: MapStyleChoice = .standard
 
@@ -103,7 +103,7 @@ struct WWFFMapTab: View {
         return nil
     }
 
-    private var mappedQSOs: [MappedQSO] {
+    private var allMappedQSOs: [MappedQSO] {
         qsosWithRefs.compactMap { item in
             guard let coord = resolveCoord(for: item.qso) else { return nil }
             return MappedQSO(id: item.qso.id, qso: item.qso,
@@ -111,9 +111,17 @@ struct WWFFMapTab: View {
         }
     }
 
-    private var qsosWithoutPositionCount: Int {
-        qsosWithRefs.count - mappedQSOs.count
+    private var mappedQSOs: [MappedQSO] {
+        allMappedQSOs.cappedByDate(max: MapRenderLimits.maxAnnotations,
+                                   dateKey: { $0.qso.datetime })
     }
+
+    private var qsosWithoutPositionCount: Int {
+        qsosWithRefs.count - allMappedQSOs.count
+    }
+
+    private var isOverflow: Bool { allMappedQSOs.count > MapRenderLimits.maxAnnotations }
+    private var linesAllowed: Bool { showQsoLines && mappedQSOs.count <= MapRenderLimits.maxLines }
 
     private var refCoordByRef: [String: CLLocationCoordinate2D] {
         Dictionary(uniqueKeysWithValues: refPins.map { ($0.id, $0.coord) })
@@ -186,7 +194,7 @@ struct WWFFMapTab: View {
 
     private var mapContent: some View {
         Map(position: $cameraPosition) {
-            if showQsoLines {
+            if linesAllowed {
                 ForEach(mappedQSOs) { m in
                     ForEach(Array(m.refs.enumerated()), id: \.offset) { _, ref in
                         if let refCoord = refCoordByRef[ref] {
@@ -216,9 +224,16 @@ struct WWFFMapTab: View {
         }
         .appMapStyle(selectedMapStyle)
         .overlay(alignment: .bottomLeading) {
-            if let q = selectedQSO {
-                infoPopup(for: q).padding(12)
+            VStack(alignment: .leading, spacing: 8) {
+                if isOverflow {
+                    MapOverflowBanner(totalMatched: allMappedQSOs.count,
+                                      shown: mappedQSOs.count)
+                }
+                if let q = selectedQSO {
+                    infoPopup(for: q)
+                }
             }
+            .padding(12)
         }
     }
 
