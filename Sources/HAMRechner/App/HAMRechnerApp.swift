@@ -312,6 +312,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(updateChecker)
                 .environmentObject(wsjtxSettings)
                 .environmentObject(wsjtxBridge)
+                .environmentObject(dxClusterVM)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
     }

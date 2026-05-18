@@ -783,6 +783,7 @@ private struct StationTab: View {
 
 private struct ClusterTab: View {
     @EnvironmentObject var store: ClusterSettingsStore
+    @EnvironmentObject var vm:    DXClusterViewModel
     @State private var selectedID:  UUID?
     @State private var editNode:    ClusterNode?
     @State private var showAdd      = false
@@ -808,6 +809,12 @@ private struct ClusterTab: View {
                           : "")
                 }
                 .width(46)
+
+                TableColumn("Status") { node in
+                    // Live-Status nur für aktive Nodes — sonst grauer Punkt.
+                    statusPill(for: node)
+                }
+                .width(96)
 
                 TableColumn("Name") { node in
                     Text(node.name)
@@ -878,6 +885,36 @@ private struct ClusterTab: View {
               let idx = store.nodes.firstIndex(where: { $0.id == id }) else { return }
         store.remove(at: IndexSet(integer: idx))
         selectedID = nil
+    }
+
+    /// Live-Status-Pille aus dem DXClusterViewModel-Pool. Für inaktive
+    /// Nodes ein dezenter grauer Punkt; für aktive Nodes Farbe + Label
+    /// (grün verbunden, gelb verbindet/login, rot Fehler, grau getrennt).
+    @ViewBuilder
+    private func statusPill(for node: ClusterNode) -> some View {
+        if !node.isActive {
+            HStack(spacing: 4) {
+                Circle().fill(Color.secondary.opacity(0.4))
+                    .frame(width: 8, height: 8)
+                Text("inaktiv").font(.caption).foregroundStyle(.secondary)
+            }
+        } else {
+            let status = vm.statusByNode[node.id] ?? .disconnected
+            let color: Color = {
+                switch status {
+                case .connected:               return .green
+                case .connecting, .loggingIn:  return .yellow
+                case .error:                   return .red
+                case .disconnected:            return .secondary
+                }
+            }()
+            HStack(spacing: 4) {
+                Circle().fill(color).frame(width: 8, height: 8)
+                Text(status.rawValue).font(.caption).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.tail)
+            }
+            .help("Status \(node.name): \(status.rawValue)")
+        }
     }
 }
 
