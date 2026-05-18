@@ -60,8 +60,8 @@ final class TRXProfileLoader {
     let profiles: [TRXProfile]
 
     private init() {
-        guard let url = Bundle.module.url(forResource: "trx-profiles",
-                                          withExtension: "json") else {
+        guard let url = AppResource.url(forResource: "trx-profiles",
+                                        withExtension: "json") else {
             self.profiles = []
             return
         }

@@ -56,8 +56,8 @@ final class BOTARefService: ObservableObject {
         let dbSnapshot = db.getMeta("bundle_snapshot_date") ?? ""
         let dbCount    = db.totalCount()
         guard dbCount == 0 || dbSnapshot < Self.bundleSnapshotDate else { return }
-        guard let url = Bundle.module.url(forResource: Self.bundleResourceName,
-                                          withExtension: "csv") else { return }
+        guard let url = AppResource.url(forResource: Self.bundleResourceName,
+                                        withExtension: "csv") else { return }
         do {
             let data = try Data(contentsOf: url)
             let refs = try Self.parseCSV(data: data)

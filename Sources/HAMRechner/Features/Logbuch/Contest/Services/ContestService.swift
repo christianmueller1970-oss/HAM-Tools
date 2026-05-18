@@ -11,7 +11,7 @@ final class ContestService: ObservableObject {
     init() { load() }
 
     func load() {
-        guard let url = Bundle.module.url(forResource: "contests", withExtension: "json") else {
+        guard let url = AppResource.url(forResource: "contests", withExtension: "json") else {
             loadError = "contests.json nicht im Bundle gefunden"
             templates = []
             return

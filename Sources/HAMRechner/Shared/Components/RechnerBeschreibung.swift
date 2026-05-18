@@ -48,7 +48,7 @@ struct RechnerBeschreibung: View {
     // MARK: Loader
 
     private static func loadSections(named name: String) -> [MDSection] {
-        guard let url = Bundle.module.url(forResource: name, withExtension: "md"),
+        guard let url = AppResource.url(forResource: name, withExtension: "md"),
               let content = try? String(contentsOf: url, encoding: .utf8) else {
             return []
         }

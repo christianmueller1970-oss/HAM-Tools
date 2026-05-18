@@ -63,7 +63,7 @@ struct BandSubsegment: Decodable, Hashable, Identifiable {
 
 enum BandplanLoader {
     static func load() -> BandplanData {
-        guard let url = Bundle.module.url(forResource: "bandplan", withExtension: "json"),
+        guard let url = AppResource.url(forResource: "bandplan", withExtension: "json"),
               let data = try? Data(contentsOf: url),
               let decoded = try? JSONDecoder().decode(BandplanData.self, from: data)
         else {
