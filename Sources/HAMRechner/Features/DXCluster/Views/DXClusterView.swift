@@ -93,25 +93,41 @@ struct DXClusterView: View {
 
     private var clusterMenu: some View {
         Menu {
+            // Pro Node: Klick = Toggle Aktiv (entspricht der Checkbox in den
+            // Settings). Status-Punkt zeigt live, ob die Verbindung steht.
             ForEach(clusterStore.nodes) { node in
                 Button {
-                    clusterStore.activeNodeID = node.id
-                    vm.reconnect(to: node)
+                    let nowActive = node.isActive
+                    if nowActive {
+                        clusterStore.setActive(nodeID: node.id, active: false)
+                    } else if clusterStore.canActivateMore {
+                        clusterStore.setActive(nodeID: node.id, active: true)
+                    }
                 } label: {
                     HStack {
+                        Image(systemName: node.isActive ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(node.isActive
+                                             ? clusterStatusColor(vm.statusByNode[node.id] ?? .disconnected)
+                                             : Color.secondary)
                         Text(node.name)
-                        if clusterStore.activeNodeID == node.id {
-                            Image(systemName: "checkmark")
+                        if node.isActive,
+                           let s = vm.statusByNode[node.id], s != .connected {
+                            Text("(\(s.rawValue))")
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
+                .disabled(!node.isActive && !clusterStore.canActivateMore)
             }
+            Divider()
+            Text("Max. \(ClusterSettingsStore.maxActiveNodes) Cluster gleichzeitig — Verwalten in Einstellungen → Cluster")
+                .font(.caption)
         } label: {
             HStack(spacing: 5) {
                 Circle()
                     .fill(clusterStatusColor(vm.clusterStatus))
                     .frame(width: 8, height: 8)
-                Text(clusterStore.activeNode?.name ?? "kein Cluster")
+                Text(clusterPoolLabel)
                     .font(.caption)
                     .foregroundStyle(theme.textSecondary)
                 Image(systemName: "chevron.down")
@@ -121,6 +137,17 @@ struct DXClusterView: View {
         }
         .buttonStyle(.plain)
         .menuStyle(.button)
+    }
+
+    /// Kurzlabel für die Top-Bar: »DXSpider Funkwelt« bei genau einem
+    /// Cluster, sonst »N/3 Cluster aktiv«.
+    private var clusterPoolLabel: String {
+        let active = clusterStore.activeNodes
+        switch active.count {
+        case 0:  return "kein Cluster"
+        case 1:  return active[0].name
+        default: return "\(active.count) Cluster aktiv"
+        }
     }
 
     private func apiDot(_ active: Bool, label: String) -> some View {

@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 @MainActor
 final class DXClusterViewModel: ObservableObject {
@@ -7,7 +8,22 @@ final class DXClusterViewModel: ObservableObject {
     @Published var spots:         [DXSpot] = []
     @Published var logMessages:   [String] = []
     @Published var propagation    = PropagationData()
-    @Published var clusterStatus: ClusterClient.Status = .disconnected
+
+    /// Status pro aktivem Cluster-Node (Multi-Connect-Pool, max 3).
+    /// `clusterStatus` (Computed) aggregiert daraus den Gesamt-Status für
+    /// alle Top-Bars und Status-Indikatoren — siehe unten.
+    @Published private(set) var statusByNode: [UUID: ClusterClient.Status] = [:]
+
+    /// Aggregierter Status für die UI. „Verbunden" sobald mind. 1 Pool-Member
+    /// connected ist; „Fehler" nur wenn alle in .error sind.
+    var clusterStatus: ClusterClient.Status {
+        let states = Array(statusByNode.values)
+        if states.contains(.connected)  { return .connected }
+        if states.contains(.loggingIn)  { return .loggingIn }
+        if states.contains(.connecting) { return .connecting }
+        if !states.isEmpty, states.allSatisfy({ $0 == .error }) { return .error }
+        return .disconnected
+    }
 
     // MARK: - API status (true = reached at least once)
     @Published var sotaActive = false
@@ -63,7 +79,14 @@ final class DXClusterViewModel: ObservableObject {
     private var unsavedCount = 0
 
     // MARK: - Network
-    private var client:    ClusterClient?
+    /// Multi-Connect-Pool: ein ClusterClient pro aktivem Node. Wird via
+    /// `applyActiveNodes()` mit `ClusterSettingsStore.activeNodes` in Sync
+    /// gehalten — Toggle in den Settings öffnet/schließt den jeweiligen
+    /// Client live (über die Combine-Subscription auf `$nodes`).
+    private var clients: [UUID: ClusterClient] = [:]
+    private var clusterStore: ClusterSettingsStore?
+    private var storeObserver: AnyCancellable?
+
     private var propTask:  Task<Void, Never>?
     private var sotaTask:  Task<Void, Never>?
     private var potaTask:  Task<Void, Never>?
@@ -123,8 +146,21 @@ final class DXClusterViewModel: ObservableObject {
 
     // MARK: - Persistence setup (einmalig aus DXClusterView.onAppear)
 
-    func setup(watchStore: WatchListStore? = nil) {
+    func setup(watchStore: WatchListStore? = nil,
+               clusterStore: ClusterSettingsStore? = nil) {
         if let ws = watchStore { self.watchStore = ws }
+        if let cs = clusterStore, self.clusterStore !== cs {
+            self.clusterStore = cs
+            // Live-Sync: jeder Settings-Toggle (Aktiv-Checkbox) führt sofort
+            // zum Öffnen/Schließen der jeweiligen Cluster-Verbindung. Erste
+            // Lieferung wird via dropFirst geschluckt — `connect()` macht
+            // den initialen Pool-Aufbau.
+            storeObserver = cs.$nodes
+                .dropFirst()
+                .sink { [weak self] _ in
+                    Task { @MainActor in self?.applyActiveNodes() }
+                }
+        }
         guard !didSetup else { return }
         didSetup = true
         let loaded = SpotPersistence.load()
@@ -136,17 +172,15 @@ final class DXClusterViewModel: ObservableObject {
 
     // MARK: - Lifecycle
 
+    /// Öffnet den Multi-Cluster-Pool (alle in den Settings aktivierten Nodes,
+     /// max `ClusterSettingsStore.maxActiveNodes`) und startet die externen
+    /// Spot-Fetcher (SOTA/POTA/WWFF + Propagation).
+    ///
+    /// Die Args `host/port/name` werden ignoriert — sie blieben für Aufrufer
+    /// stehen, die den alten Single-Connect kannten. Maßgeblich ist seit dem
+    /// Multi-Cluster-Refactor allein der `ClusterSettingsStore`.
     func connect(host: String? = nil, port: Int? = nil, name: String? = nil) {
-        let h    = host ?? clusterHost
-        let p    = UInt16(port ?? clusterPort)
-        let call = storedCallsign
-        let n    = name ?? h
-
-        client = ClusterClient(host: h, port: p, callsign: call, name: n)
-        client?.onSpot    = { [weak self] spot in self?.addSpot(spot) }
-        client?.onStatus  = { [weak self] status in self?.clusterStatus = status }
-        client?.onMessage = { [weak self] msg in self?.appendLog(msg) }
-        client?.connect()
+        applyActiveNodes()
 
         propTask = Task {
             let fetcher = PropagationFetcher()
@@ -186,21 +220,57 @@ final class DXClusterViewModel: ObservableObject {
 
     func disconnect() {
         savePending()
-        client?.disconnect()
+        for (_, c) in clients { c.disconnect() }
+        clients.removeAll()
+        statusByNode.removeAll()
         propTask?.cancel()
         sotaTask?.cancel()
         potaTask?.cancel()
         wwffTask?.cancel()
     }
 
-    func reconnect(to node: ClusterNode) {
-        clusterHost = node.host
-        clusterPort = node.port
-        disconnect()
-        Task {
-            try? await Task.sleep(for: .milliseconds(400))
-            connect(host: node.host, port: node.port, name: node.name)
+    /// Bringt den Pool in Einklang mit `clusterStore.activeNodes` — schließt
+    /// Clients, deren Node nicht mehr aktiv ist, und öffnet Clients für
+    /// neu hinzugekommene Nodes. Idempotent.
+    ///
+    /// Host/Port-Änderungen an einem **bereits aktiven** Node werden hier
+    /// (noch) nicht erkannt — der User muss in dem Fall den Toggle einmal
+    /// aus/ein klicken oder die App neu starten. Reicht für Schritt 2; ein
+    /// Field-Diff kommt mit Schritt 3.
+    func applyActiveNodes() {
+        guard let store = clusterStore else { return }
+        let desired = Set(store.activeNodes.map { $0.id })
+        let current = Set(clients.keys)
+
+        for id in current.subtracting(desired) {
+            clients[id]?.disconnect()
+            clients.removeValue(forKey: id)
+            statusByNode.removeValue(forKey: id)
         }
+
+        for node in store.activeNodes where !clients.keys.contains(node.id) {
+            let id = node.id
+            let client = ClusterClient(host: node.host,
+                                       port: UInt16(node.port),
+                                       callsign: storedCallsign,
+                                       name: node.name)
+            client.onSpot    = { [weak self] spot in self?.addSpot(spot) }
+            client.onStatus  = { [weak self] s in
+                Task { @MainActor in self?.statusByNode[id] = s }
+            }
+            client.onMessage = { [weak self] m in
+                Task { @MainActor in self?.appendLog(m) }
+            }
+            clients[id] = client
+            statusByNode[id] = .disconnected
+            client.connect()
+        }
+    }
+
+    /// Bleibt als Compat für das Cluster-Menü im Logbuch-Header — wir
+    /// triggern einfach einen Pool-Resync, der Store ist die Wahrheit.
+    func reconnect(to node: ClusterNode) {
+        applyActiveNodes()
     }
 
     func resetFilters() {
@@ -220,7 +290,7 @@ final class DXClusterViewModel: ObservableObject {
 
     func sendSpot(freq: Double, call: String, comment: String) {
         let cmd = "DX \(String(format: "%.1f", freq)) \(call.uppercased()) \(comment)"
-        client?.sendCommand(cmd)
+        primaryClient()?.sendCommand(cmd)
     }
 
     /// Generisches Senden eines beliebigen Cluster-Befehls. Wird vom
@@ -231,12 +301,41 @@ final class DXClusterViewModel: ObservableObject {
     func sendCommand(_ cmd: String) {
         let trimmed = cmd.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        client?.sendCommand(trimmed)
+        primaryClient()?.sendCommand(trimmed)
+    }
+
+    /// Primary-Client für Send-Commands (DX-Spot, sh/dx, …): der erste
+    /// aktive Node aus der Settings-Reihenfolge. Verhindert, dass der
+    /// gleiche Send-Befehl aus 3 Clusters parallel rausgeht.
+    private func primaryClient() -> ClusterClient? {
+        if let store = clusterStore {
+            for node in store.activeNodes {
+                if let c = clients[node.id] { return c }
+            }
+        }
+        return clients.values.first
     }
 
     // MARK: - Private
 
     private func addSpot(_ spot: DXSpot) {
+        // Multi-Cluster-Dedup: derselbe DX-Spot wird typischerweise von
+        // mehreren Clusters innerhalb weniger Sekunden gepusht (RBN-Hub
+        // ist global). Wir vergleichen Call + Frequenz (auf 0.1 kHz
+        // gerundet) gegen die letzten 60 s — Match → ignorieren.
+        // Schritt 3 erweitert das auf eine alsoSeenBy-Liste (Confidence-
+        // Badge "+N Clusters" pro Spot), für jetzt reicht der Filter.
+        let call = spot.dxCall.uppercased()
+        let freq = (spot.frequency * 10).rounded() / 10
+        let cutoff = Date().addingTimeInterval(-60)
+        if spots.contains(where: { existing in
+            existing.timestamp >= cutoff
+                && existing.dxCall.uppercased() == call
+                && ((existing.frequency * 10).rounded() / 10) == freq
+        }) {
+            return
+        }
+
         spots.insert(spot, at: 0)
         if spots.count > SpotPersistence.maxSpots { spots.removeLast() }
         unsavedCount += 1

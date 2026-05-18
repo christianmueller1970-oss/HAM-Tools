@@ -138,12 +138,11 @@ struct ContentView: View {
             // Band Activity, Propagation-Daten und POTA/SOTA-Spots im Logbuch
             // sofort verfügbar sind, ohne dass der User erst auf den DX-Cluster-
             // Tab wechseln muss.
-            dxClusterVM.setup(watchStore: watchList)
-            if let node = clusterStore.activeNode {
-                dxClusterVM.connect(host: node.host, port: node.port, name: node.name)
-            } else {
-                dxClusterVM.connect()
-            }
+            // Store-Injection für den Multi-Cluster-Pool — sobald der User
+            // die »Aktiv«-Checkboxen in den Settings umschaltet, reagiert
+            // das ViewModel live (öffnet/schließt Clients).
+            dxClusterVM.setup(watchStore: watchList, clusterStore: clusterStore)
+            dxClusterVM.connect()
 
             // Lizenz-Hooks im LogbookManager verkabeln. Closure-Capture statt
             // direkter Service-Referenz, damit der Manager License-agnostisch bleibt.
