@@ -54,7 +54,34 @@ Du kannst **mehrere Konfigurationen** speichern (z.B. eine pro Radio). Workflow:
 - **Frequenz lesen**: alle 500 ms (Default, einstellbar 200–2000 ms) → wird im Logbuch-Eingabe-Panel und im POTA/Contest-Form angezeigt
 - **Frequenz setzen**: beim Klick auf einen DX-Cluster-Spot oder QTH-Memory springt das Radio auf die Frequenz
 - **Mode lesen**: synchron zur Frequenz, bestimmt RST-Default (599 für CW/Digi, 59 für SSB)
+- **Mode setzen**: Mode-Picker im Radio/CAT-Panel sendet `setMode` an Hamlib → Radio dreht USB/LSB/CW/PKTUSB
+- **VFO A/B + Split**: per Klick im Radio/CAT-Panel
+- **S-Meter**: live aus dem Radio gelesen (Hamlib-`get_strength`)
 - **PTT**: aktuell nicht angesteuert — die App ist read-only beim Funken (kein Voice-Keyer in dieser Version)
+
+## Mode-Picker auch ohne CAT nutzbar
+
+::: tip Neu in 1.8.10
+Mode-Auswahl funktioniert auch ohne aktive CAT-Verbindung — wichtig
+für Remote-Setups, Reise-Loggen ohne TRX in Reichweite oder das
+nachträgliche Pflegen von Papier-Logs.
+:::
+
+- **Mit CAT**: Mode-Klick schickt `setMode` ans Radio, das Radio
+  dreht, der Poll-Loop bestätigt den neuen Wert. Auswahl beschränkt
+  auf Hamlib-Modes: USB, LSB, CW, CWR, AM, FM, RTTY, RTTYR, PKTUSB,
+  PKTLSB.
+- **Ohne CAT**: Mode-Klick setzt den Wert direkt im internen
+  RadioState (USB/LSB werden zu `SSB` gemappt, PKTUSB/PKTLSB zu
+  `DATA`, der Rest 1:1). Zusätzlich erscheinen **digitale Modes**
+  unter einem Divider: **FT8, FT4, JT65, JT9, PSK31, JS8, Q65,
+  MSK144**. Diese laufen am TRX über PKTUSB-Modulation — Hamlib
+  kennt sie nicht direkt, deshalb sind sie ohne CAT-Verbindung
+  ausgeblendet.
+
+Der Status unter der Frequenz-Anzeige zeigt `CAT` (grün) oder
+`manuell` (grau), damit du jederzeit weißt, woher die aktuellen
+Werte kommen.
 
 ## Hamlib unter der Haube
 
