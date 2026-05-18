@@ -44,6 +44,43 @@ cp "$RELEASE_DIR/$APP_NAME" "$APP_DIR/Contents/MacOS/$APP_NAME"
 BUNDLE_NAME="${APP_NAME}_${APP_NAME}.bundle"
 if [ -d "$RELEASE_DIR/$BUNDLE_NAME" ]; then
   cp -R "$RELEASE_DIR/$BUNDLE_NAME" "$APP_DIR/Contents/Resources/"
+
+  # SwiftPM erzeugt »flat« Resource-Bundles (Resources direkt im
+  # .bundle/-Folder, ohne Contents/Info.plist). macOS bis ~26.4 hat das
+  # noch geladen, macOS 26.5+ lehnt es mit »bundle format unrecognized,
+  # invalid, or unsuitable« ab — die App crashed direkt im Bundle.module-
+  # Init mit assertionFailure (Tester-Crash 2026-05-18, BOTARefService.init).
+  # Wir konvertieren das Bundle deshalb hier zur kanonischen Contents/
+  # Info.plist + Contents/Resources/-Struktur.
+  BUNDLE_DIR="$APP_DIR/Contents/Resources/$BUNDLE_NAME"
+  if [ -d "$BUNDLE_DIR" ] && [ ! -d "$BUNDLE_DIR/Contents" ]; then
+    echo "==> Konvertiere $BUNDLE_NAME zu Standard-Bundle-Format..."
+    TMP="$BUNDLE_DIR.tmp"
+    rm -rf "$TMP"
+    mkdir -p "$TMP/Contents/Resources"
+    # Alle Files+Subfolders ins Contents/Resources/ verschieben
+    find "$BUNDLE_DIR" -mindepth 1 -maxdepth 1 -print0 \
+      | xargs -0 -I {} mv {} "$TMP/Contents/Resources/"
+    # Info.plist erzeugen — minimal, aber mit BNDL-PackageType und
+    # eigener Bundle-ID, damit Gatekeeper das Bundle als gültiges
+    # eingebettetes Sub-Bundle erkennt.
+    cat > "$TMP/Contents/Info.plist" <<EOF_BUNDLE_PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>            <string>com.hb9hji.hamrechner.resources</string>
+    <key>CFBundleInfoDictionaryVersion</key> <string>6.0</string>
+    <key>CFBundleName</key>                  <string>${APP_NAME}</string>
+    <key>CFBundlePackageType</key>           <string>BNDL</string>
+    <key>CFBundleShortVersionString</key>    <string>${VERSION}</string>
+    <key>CFBundleVersion</key>               <string>${VERSION}</string>
+</dict>
+</plist>
+EOF_BUNDLE_PLIST
+    rm -rf "$BUNDLE_DIR"
+    mv "$TMP" "$BUNDLE_DIR"
+  fi
 fi
 
 # CAT: rigctld (Hamlib-Subprocess) ins Bundle. Falls noch nicht gebaut,
@@ -102,12 +139,27 @@ if security find-identity -v -p codesigning 2>/dev/null | grep -q "$SIGN_IDENTIT
     echo "==> Code-Signing mit Developer ID..."
     # --timestamp wird für Notarisierung verlangt. --options runtime aktiviert das
     # Hardened Runtime (Pflicht für Notarisierung).
+    # --deep signiert eingebettete Mach-O-Helfer (rigctld), übersieht aber
+    # eingebettete Resource-Bundles. Auf macOS 26.5 verlangt der Bundle-
+    # Loader eigene Signaturen für embedded Bundles — wir signieren das
+    # SwiftPM-Resource-Bundle deshalb explizit, bevor wir die App selbst
+    # versiegeln (sonst stoppt der Bundle.module-Init mit assertionFailure).
+    if [ -d "$APP_DIR/Contents/Resources/$BUNDLE_NAME/Contents" ]; then
+        codesign --force --timestamp --options runtime \
+            --sign "$SIGN_IDENTITY" "$APP_DIR/Contents/Resources/$BUNDLE_NAME" \
+            2>&1 | grep -v "replacing existing signature" || true
+    fi
     codesign --force --deep --timestamp --options runtime \
         --sign "$SIGN_IDENTITY" "$APP_DIR" 2>&1 | grep -v "replacing existing signature" || true
     codesign --verify --deep --strict "$APP_DIR" && echo "    Signatur OK"
     SIGNED_FOR_NOTARIZATION=1
 else
     echo "==> Developer-ID-Cert nicht gefunden — fallback auf Ad-hoc-Signing (Dev-Build, NICHT für Verteilung)..."
+    if [ -d "$APP_DIR/Contents/Resources/$BUNDLE_NAME/Contents" ]; then
+        codesign --force --sign - --options runtime \
+            "$APP_DIR/Contents/Resources/$BUNDLE_NAME" \
+            2>&1 | grep -v "replacing existing signature" || true
+    fi
     codesign --force --deep --sign - --options runtime "$APP_DIR" 2>&1 | grep -v "replacing existing signature" || true
     codesign --verify --deep --strict "$APP_DIR" && echo "    Signatur OK (ad-hoc)" || echo "    ⚠ Signatur-Verifikation fehlgeschlagen"
     SIGNED_FOR_NOTARIZATION=0
