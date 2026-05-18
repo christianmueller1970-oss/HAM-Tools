@@ -27,6 +27,7 @@ struct HAMRechnerApp: App {
     @StateObject private var licenseService:   LicenseService = LicenseService()
     @StateObject private var updateChecker:    UpdateChecker  = UpdateChecker()
     @StateObject private var wsjtxSettings:    WsjtxBridgeSettings = WsjtxBridgeSettings()
+    @StateObject private var batteryMonitor:   BatteryMonitor      = BatteryMonitor()
     @StateObject private var wsjtxBridge:      WsjtxBridgeService = WsjtxBridgeService()
     // DXClusterViewModel hier auf App-Level, damit auch Pop-up-Fenster
     // (Bandmap-Windows) denselben Spot-Stream sehen — nicht mehr nur das
@@ -155,6 +156,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(wsjtxSettings)
                 .environmentObject(wsjtxBridge)
                 .environmentObject(dxClusterVM)
+                .environmentObject(batteryMonitor)
                 .frame(minWidth: 860, minHeight: 560)
                 .preferredColorScheme(themeManager.theme.colorScheme)
                 .task {
@@ -166,8 +168,23 @@ struct HAMRechnerApp: App {
                     // haben darf (sie wird auch außerhalb des Logbuch-Trees
                     // gerendert).
                     let cat = catController
+                    let rs  = radioState
                     LogEntryBridge.shared.onRequestQSY = { mhz, hamlibMode in
                         Task { @MainActor in
+                            // RadioState ist die UI-Quelle der Wahrheit für
+                            // Frequenz/Mode-Anzeigen (Status-Bar, DX-Spot-
+                            // Sender, Bandplan-Pille, …). Bei Spot-Klick
+                            // setzen wir den State immer — auch ohne CAT —
+                            // damit die UI sofort den richtigen Mode zeigt.
+                            rs.frequencyMHz = mhz
+                            rs.source       = .manual
+                            if let mode = hamlibMode {
+                                rs.hamlibMode = mode
+                                rs.mode       = CATController.mapMode(hamlib: mode)
+                            }
+                            // Wenn CAT verbunden ist, zusätzlich an den TRX
+                            // schicken (Frequenz + Mode). Der CAT-Poll
+                            // bestätigt den Wert anschließend zurück.
                             guard case .connected = cat.status else { return }
                             await cat.setFrequencyMHz(mhz)
                             if let mode = hamlibMode {
@@ -313,6 +330,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(wsjtxSettings)
                 .environmentObject(wsjtxBridge)
                 .environmentObject(dxClusterVM)
+                .environmentObject(batteryMonitor)
                 .preferredColorScheme(themeManager.theme.colorScheme)
         }
     }
