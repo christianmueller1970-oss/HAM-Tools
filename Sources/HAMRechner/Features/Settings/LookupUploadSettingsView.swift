@@ -141,13 +141,6 @@ struct LookupUploadSettingsView: View {
         case .eqsl:      eqslPanel
         case .clublog:   clubLogPanel
         case .hrdlog:    placeholder(name: "HRDLOG.net",   web: "https://www.hrdlog.net",  showRT: true)
-        case .pota:      potaPanel
-        case .sota:      programmePlaceholder(name: "SOTA (sotadata.org.uk)",
-                                              web: "https://www.sotadata.org.uk")
-        case .wwff:      programmePlaceholder(name: "WWFF (wwff.cc)",
-                                              web: "https://wwff.cc")
-        case .bota:      programmePlaceholder(name: "BOTA (bunkersontheair.com)",
-                                              web: "https://bunkersontheair.com")
         }
     }
 
@@ -197,26 +190,6 @@ struct LookupUploadSettingsView: View {
                 credentialField(label: "Password", text: $callbook.hamqthPassword,
                                 secure: true)
                 statusLine(configured: callbook.hamqthIsConfigured)
-            }
-        }
-    }
-
-    // POTA: Auto-Upload via Cognito-SRP wurde 2026-05-16 versucht, die
-    // Crypto-Math gegen POTAs Hosted-UI-Pool blieb hartnäckig auf
-    // NotAuthorizedException stehen. Workflow ist bis auf Weiteres manuell
-    // (ADIF-Export + Browser-Upload auf pota.app). Username bleibt
-    // optional persistiert, falls wir später nochmal ansetzen.
-    private var potaPanel: some View {
-        servicePanel(name: "POTA (pota.app)", web: "https://pota.app") {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Auto-Upload aktuell nicht aktiv — siehe »pota.app…«-Button in der POTA-Log-Toolbar für den manuellen Workflow (ADIF-Export + Browser-Upload).")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                credentialField(label: "Username", text: $upload.potaUsername)
-                Text("Username wird aktuell nicht verwendet, aber gespeichert — wenn der Auto-Upload-Flow später (re)aktiviert wird, ist der Wert schon da.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                comingSoonBadge
             }
         }
     }
@@ -307,22 +280,6 @@ struct LookupUploadSettingsView: View {
         }
     }
 
-    // MARK: - Award-Programme (kein Real-Time-Upload)
-
-    private func programmePlaceholder(name: String, web: String) -> some View {
-        servicePanel(name: name, web: web) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Award-Programm-Konfiguration.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                Text("Upload erfolgt **nicht automatisch** — du lädst aus dem jeweiligen Programm-Log (POTA/SOTA/WWFF/BOTA) manuell hoch.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                comingSoonBadge
-            }
-        }
-    }
-
     // MARK: - Bausteine
 
     private func servicePanel<Content: View>(
@@ -394,10 +351,14 @@ struct LookupUploadSettingsView: View {
 
     // MARK: - Service-Tabs
 
+    /// Service-Liste im Lookup-&-Upload-Tab.
+    /// Outdoor-Programme (POTA/SOTA/WWFF/BOTA) sind hier bewusst NICHT
+    /// vertreten — der Workflow ist manueller ADIF-/CSV-Export aus dem
+    /// jeweiligen Programm-Log. Auto-Upload zu pota.app/wwff.co/wwbota.net
+    /// ist unbestimmt vertagt (User-Entscheidung 2026-05-19).
     enum ServiceTab: String, CaseIterable, Hashable {
         case qrzXml, hamQTH, qrzCQ, hamCall
         case lotw, eqsl, clublog, hrdlog
-        case pota, sota, wwff, bota
 
         var label: String {
             switch self {
@@ -409,10 +370,6 @@ struct LookupUploadSettingsView: View {
             case .eqsl:    return "eQSL"
             case .clublog: return "Club Log"
             case .hrdlog:  return "HRDLOG"
-            case .pota:    return "POTA"
-            case .sota:    return "SOTA"
-            case .wwff:    return "WWFF"
-            case .bota:    return "BOTA"
             }
         }
     }

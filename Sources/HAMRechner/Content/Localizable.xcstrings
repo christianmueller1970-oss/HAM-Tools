@@ -1366,7 +1366,7 @@
       }
     },
     "Auto-Upload aktuell nicht aktiv — siehe »pota.app…«-Button in der POTA-Log-Toolbar für den manuellen Workflow (ADIF-Export + Browser-Upload).": {
-      "extractionState": "manual",
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -1388,7 +1388,7 @@
       }
     },
     "Award-Programm-Konfiguration.": {
-      "extractionState": "manual",
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7735,7 +7735,7 @@
       }
     },
     "Upload erfolgt **nicht automatisch** — du lädst aus dem jeweiligen Programm-Log (POTA/SOTA/WWFF/BOTA) manuell hoch.": {
-      "extractionState": "manual",
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -7746,7 +7746,7 @@
       }
     },
     "Username wird aktuell nicht verwendet, aber gespeichert — wenn der Auto-Upload-Flow später (re)aktiviert wird, ist der Wert schon da.": {
-      "extractionState": "manual",
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
