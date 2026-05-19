@@ -43,19 +43,31 @@ final class RadioState: ObservableObject {
     @Published var rfPowerLevel: Float = 0
     @Published var rfPowerAvailable: Bool = false
 
-    // Persistierung der letzten Frequenz, damit Restart einen sinnvollen
-    // Wert bringt statt 14.200 Default.
+    // Persistierung der letzten Frequenz + Mode, damit Restart einen
+    // sinnvollen Zustand bringt statt 14.200 / "SSB" Default.
     private let lastFreqKey = "radio.lastFrequencyMHz"
-    private var cancellable: AnyCancellable?
+    private let lastModeKey = "radio.lastMode"
+    private var freqCancellable: AnyCancellable?
+    private var modeCancellable: AnyCancellable?
 
     init() {
         let stored = UserDefaults.standard.double(forKey: lastFreqKey)
         if stored > 0 { self.frequencyMHz = stored }
 
-        cancellable = $frequencyMHz
+        if let storedMode = UserDefaults.standard.string(forKey: lastModeKey),
+           !storedMode.isEmpty {
+            self.mode = storedMode
+        }
+
+        freqCancellable = $frequencyMHz
             .dropFirst()
             .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
-            .sink { UserDefaults.standard.set($0, forKey: "radio.lastFrequencyMHz") }
+            .sink { [lastFreqKey] in UserDefaults.standard.set($0, forKey: lastFreqKey) }
+
+        modeCancellable = $mode
+            .dropFirst()
+            .debounce(for: .milliseconds(500), scheduler: RunLoop.main)
+            .sink { [lastModeKey] in UserDefaults.standard.set($0, forKey: lastModeKey) }
     }
 
     // Band-Ableitung aus aktueller Frequenz.

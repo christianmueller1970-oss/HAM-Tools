@@ -20,7 +20,6 @@ struct ContestEntryForm: View {
 
     // Form-Status
     @State private var theirCall: String = ""
-    @State private var mode: String = "SSB"
     @State private var values: [String: String] = [:]
     @State private var notes: String = ""
     @State private var lastError: String?
@@ -35,6 +34,12 @@ struct ContestEntryForm: View {
     @AppStorage("logbook.contest.runMode") private var isRunMode: Bool = true
 
     private var theme: AppTheme { themeManager.theme }
+
+    // Mode kommt aus dem CAT-Bereich (RadioState). Im Contest-Kontext bleibt
+    // der vom Wizard gewählte Cabrillo-Modus die fachliche Klammer (siehe
+    // `allowedModes`), aber der konkrete Wert pro QSO wird aus dem Radio
+    // gelesen — analog zu POTA/SOTA/WWFF/BOTA.
+    private var mode: String { radio.mode }
 
     private var activeLog: Log? {
         guard let id = manager.currentLogID else { return nil }
@@ -121,10 +126,12 @@ struct ContestEntryForm: View {
         }
         .padding(10)
         .onAppear {
-            // Mode auf einen vom Template erlaubten Wert setzen, falls der
-            // letzte State (SSB-Default) nicht zum Contest passt (z.B. CW-only).
-            if !allowedModes.contains(mode), let first = allowedModes.first {
-                mode = first
+            // Wenn das Radio einen Mode liefert, der nicht in die Cabrillo-
+            // Kategorie passt (z.B. CW-only-Contest, Radio steht auf SSB),
+            // ziehen wir den Radio-Mode auf den ersten erlaubten — damit
+            // wird der QSO-Mode konsistent zur Contest-Kategorie geloggt.
+            if !allowedModes.contains(radio.mode), let first = allowedModes.first {
+                radio.mode = first
             }
             // OP-Switcher initialisieren: Default = erster Eintrag. Falls
             // der letzte aktive Operator nicht mehr in der Liste ist (Log
@@ -136,7 +143,7 @@ struct ContestEntryForm: View {
             consumeBridgeIfPending()
         }
         .onChange(of: theirCall)            { _, _ in refreshAutoFills() }
-        .onChange(of: mode)                 { _, _ in refreshAutoFills() }
+        .onChange(of: radio.mode)           { _, _ in refreshAutoFills() }
         .onChange(of: radio.frequencyMHz)   { _, _ in refreshAutoFills() }
         .onChange(of: manager.currentQSOs.count) { _, _ in refreshAutoFills() }
         .onChange(of: logBridge.navigationRequest) { _, _ in
@@ -209,14 +216,18 @@ struct ContestEntryForm: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Mode")
                     .font(.caption2).foregroundStyle(theme.textDim)
-                Picker("", selection: $mode) {
-                    ForEach(allowedModes, id: \.self) {
-                        Text($0).tag($0)
+                HStack(spacing: 4) {
+                    Text(radio.mode.isEmpty ? "—" : radio.mode)
+                        .font(.system(.subheadline, design: .monospaced))
+                    if !radio.mode.isEmpty, !allowedModes.contains(radio.mode) {
+                        let allowedList = allowedModes.joined(separator: ", ")
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(theme.accentOrange)
+                            .help("Mode \(radio.mode) passt nicht zur Contest-Kategorie. Erlaubt: \(allowedList)")
                     }
                 }
-                .labelsHidden()
-                .frame(width: 90)
-                .disabled(allowedModes.count <= 1)
+                .frame(width: 90, alignment: .leading)
             }
             Spacer()
         }
@@ -477,7 +488,7 @@ struct ContestEntryForm: View {
             radio.frequencyMHz = f
         }
         if let m = draft.mode, !m.isEmpty {
-            if allowedModes.contains(m) { mode = m }
+            if allowedModes.contains(m) { radio.mode = m }
         }
         refreshAutoFills()
     }

@@ -77,7 +77,6 @@ struct QSOEntryPanel: View {
     @State private var call: String = ""
     @State private var timeOn: Date = Date()
     @State private var timeOff: Date? = nil
-    @State private var mode: String = "SSB"
     @State private var rstSent: String = "59"
     @State private var rstReceived: String = "59"
     @State private var powerW: String = "100"
@@ -124,9 +123,6 @@ struct QSOEntryPanel: View {
 
     private var theme: AppTheme { themeManager.theme }
 
-    private static let modes = ["SSB", "USB", "LSB", "CW", "AM", "FM", "RTTY",
-                                "FT8", "FT4", "JT65", "JS8", "PSK31"]
-
     private var canLog: Bool {
         !call.trimmingCharacters(in: .whitespaces).isEmpty
             && radio.frequencyMHz > 0
@@ -166,7 +162,7 @@ struct QSOEntryPanel: View {
                     .padding(10)
                 HStack {
                     Spacer()
-                    BandplanStatusPill(frequencyMHz: radio.frequencyMHz, mode: mode)
+                    BandplanStatusPill(frequencyMHz: radio.frequencyMHz, mode: radio.mode)
                 }
                 .padding(.horizontal, 10)
                 .padding(.bottom, 6)
@@ -214,6 +210,17 @@ struct QSOEntryPanel: View {
             // userkontrolliert.
             timeOn = Date()
         }
+        .onChange(of: radio.mode) { _, newMode in
+            // Mode-abhängige RST-Defaults — Mode kommt aus CAT, daher hängen
+            // wir die Default-Logik an radio.mode.
+            if newMode == "CW" || newMode == "RTTY" || newMode == "PSK31" {
+                if rstSent == "59" { rstSent = "599" }
+                if rstReceived == "59" { rstReceived = "599" }
+            } else {
+                if rstSent == "599" { rstSent = "59" }
+                if rstReceived == "599" { rstReceived = "59" }
+            }
+        }
     }
 
     // Spot-Banner: zeigt an dass Daten aus dem DX-Cluster vorausgefüllt wurden
@@ -255,7 +262,7 @@ struct QSOEntryPanel: View {
             radio.frequencyMHz = f
         }
         if let m = draft.mode, !m.isEmpty {
-            mode = m
+            radio.mode = m
             // Mode-abhängige RST-Defaults
             if m == "CW" || m == "RTTY" || m == "PSK31" {
                 rstSent = "599"; rstReceived = "599"
@@ -478,14 +485,14 @@ struct QSOEntryPanel: View {
             }
             .frame(maxWidth: .infinity)
 
-            // Spalte 2: Zeit + Frequenz / Band / Mode / RST / Power
+            // Spalte 2: Zeit + Frequenz / Band / RST / Power
+            // Mode kommt aus dem CAT-Bereich (radio.mode), kein separates Feld hier.
             VStack(spacing: 4) {
                 timeFieldRow("Time On",  value: $timeOn)
                 timeFieldRow("Time Off", value: Binding(
                     get: { timeOff ?? Date() },
                     set: { timeOff = $0 }
                 ), enabled: timeOff != nil)
-                modePickerRow
                 fieldRow("RST S",   value: $rstSent, monospaced: true)
                 fieldRow("RST R",   value: $rstReceived, monospaced: true)
                 fieldRow("Power",   value: $powerW, monospaced: true)
@@ -720,32 +727,6 @@ struct QSOEntryPanel: View {
         }
     }
 
-    private var modePickerRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text("Mode")
-                .font(Self.fieldFont)
-                .foregroundStyle(theme.textSecondary)
-                .frame(width: Self.labelColumnWidth, alignment: .trailing)
-            Picker("Mode", selection: $mode) {
-                ForEach(Self.modes, id: \.self) { m in
-                    Text(m).tag(m)
-                }
-            }
-            .labelsHidden()
-            .controlSize(.small)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .onChange(of: mode) { _, newMode in
-                if newMode == "CW" || newMode == "RTTY" || newMode == "PSK31" {
-                    if rstSent == "59" { rstSent = "599" }
-                    if rstReceived == "59" { rstReceived = "599" }
-                } else {
-                    if rstSent == "599" { rstSent = "59" }
-                    if rstReceived == "599" { rstReceived = "59" }
-                }
-            }
-        }
-    }
-
     // MARK: - Logic
 
     private func formatUTC(_ date: Date) -> String {
@@ -763,7 +744,7 @@ struct QSOEntryPanel: View {
         let mhz = radio.frequencyMHz
         guard !trimmedCall.isEmpty, mhz > 0 else { return }
         let freqKHz = mhz * 1000.0
-        let parts = [mode, notes].filter { !$0.isEmpty }
+        let parts = [radio.mode, notes].filter { !$0.isEmpty }
         let comment = parts.joined(separator: " ").trimmingCharacters(in: .whitespaces)
         clusterVM.sendSpot(freq: freqKHz, call: trimmedCall, comment: comment)
     }
@@ -786,7 +767,7 @@ struct QSOEntryPanel: View {
             datetime: timeOn,
             frequencyMHz: f,
             band: radio.band.isEmpty ? "—" : radio.band,
-            mode: mode,
+            mode: radio.mode,
             rstSent: rstSent,
             rstReceived: rstReceived
         )
