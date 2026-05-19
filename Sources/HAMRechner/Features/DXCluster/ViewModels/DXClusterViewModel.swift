@@ -43,8 +43,30 @@ final class DXClusterViewModel: ObservableObject {
 
     // MARK: - Filter state (persistiert in UserDefaults)
     // Defaults: nur DXSpider an, SOTA/POTA/WWFF aus — User-Wunsch.
-    @Published var filterBand:      String = UserDefaults.standard.string(forKey: "cluster.filterBand") ?? "Alle" {
-        didSet { UserDefaults.standard.set(filterBand, forKey: "cluster.filterBand") }
+    /// Multi-Band-Filter (HB9HJL-Wunsch 2026-05-19). Leeres Set = alle Bänder
+    /// zeigen. Beim ersten Migration-Load wird ein eventuell vorhandener
+    /// alter Single-Band-Wert (`cluster.filterBand`) ins Set übernommen.
+    @Published var filterBands: Set<String> = DXClusterViewModel.loadBandsFromDefaults() {
+        didSet {
+            let raw = filterBands.sorted().joined(separator: ",")
+            UserDefaults.standard.set(raw, forKey: "cluster.filterBands")
+        }
+    }
+
+    private static func loadBandsFromDefaults() -> Set<String> {
+        let ud = UserDefaults.standard
+        if let raw = ud.string(forKey: "cluster.filterBands") {
+            let parts = raw.split(separator: ",").map { String($0) }
+            return Set(parts.filter { !$0.isEmpty })
+        }
+        // Migration: alten Single-Band-Key übernehmen, dann löschen.
+        if let legacy = ud.string(forKey: "cluster.filterBand"),
+           !legacy.isEmpty, legacy != "Alle" {
+            ud.removeObject(forKey: "cluster.filterBand")
+            return [legacy]
+        }
+        ud.removeObject(forKey: "cluster.filterBand")
+        return []
     }
     @Published var filterMode:      String = UserDefaults.standard.string(forKey: "cluster.filterMode") ?? "Alle" {
         didSet { UserDefaults.standard.set(filterMode, forKey: "cluster.filterMode") }
@@ -115,7 +137,7 @@ final class DXClusterViewModel: ObservableObject {
             : nil
 
         return spots.filter { spot in
-            if filterBand != "Alle" && spot.band != filterBand { return false }
+            if !filterBands.isEmpty && !filterBands.contains(spot.band) { return false }
             if filterMode != "Alle" && spot.mode != filterMode { return false }
             if filterContinent != "Alle" && spot.continent != filterContinent { return false }
             switch spot.sourceType {
@@ -295,7 +317,7 @@ final class DXClusterViewModel: ObservableObject {
     }
 
     func resetFilters() {
-        filterBand = "Alle"; filterMode = "Alle"; filterContinent = "Alle"
+        filterBands = []; filterMode = "Alle"; filterContinent = "Alle"
         showDX = true; showSOTA = true; showPOTA = true; showWWFF = true
         searchText = ""; spotterRadiusKm = 0
     }

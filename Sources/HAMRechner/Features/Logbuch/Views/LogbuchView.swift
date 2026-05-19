@@ -83,7 +83,6 @@ struct LogbuchView: View {
     // Users: »Alle Einstellungen die man irgendwo im LOG macht sollten
     // persistent sein nach dem nächsten laden.«
     @AppStorage("logbook.bottomTab")      private var bottomTab: LogbookBottomTab = .dxClusters
-    @AppStorage("logbook.heatmapMinutes") private var heatmapMinutes: Int         = 60
 
     // Filter-State für den Log-Tab (persistent)
     @AppStorage("logbook.filter.call")    private var filterCall: String    = ""
@@ -152,7 +151,6 @@ struct LogbuchView: View {
                 } else {
                     PropagationPanelView(
                         propagation: clusterVM.propagation,
-                        bandMatrix:  clusterVM.bandMatrix(minutes: heatmapMinutes),
                         theme:       theme,
                         callsign:    clusterVM.myCallsign,
                         connected:   clusterVM.clusterStatus == .connected,

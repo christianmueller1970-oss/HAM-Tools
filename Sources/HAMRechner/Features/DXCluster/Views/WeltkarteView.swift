@@ -80,8 +80,22 @@ struct WeltkarteView: View {
 
     // MARK: - Map
 
+    /// Eigener QTH als Koordinate — nil bei ungültigem Locator.
+    private var qthCoordinate: CLLocationCoordinate2D? {
+        guard let (lat, lon) = locatorToLatLon(qthLocator) else { return nil }
+        return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+    }
+
     private var mapContent: some View {
         Map(position: $cameraPosition) {
+            // Eigener QTH-Marker — wird ZUERST gerendert, damit Spot-Pins
+            // bei Überlappung darüber liegen. HB9HJL-Wunsch 2026-05-19:
+            // Locator soll als Pin sichtbar sein.
+            if let qth = qthCoordinate {
+                Annotation(qthLocator, coordinate: qth, anchor: .bottom) {
+                    QTHMarker(theme: theme)
+                }
+            }
             if showSpotterLines {
                 ForEach(recentSpots.filter { $0.spotterLat != 0 || $0.spotterLon != 0 }) { spot in
                     MapPolyline(coordinates: [
@@ -174,6 +188,46 @@ struct WeltkarteView: View {
 }
 
 // MARK: - SpotDot
+
+/// Eigener-QTH-Pin: Antenne (SF Symbol) auf einem Akzent-Pin, plus ein
+/// schwacher Ring drumherum, damit der Marker auch bei vielen Spots in
+/// der Region sofort auffällt. Anchor unten — die Spitze des Pins zeigt
+/// auf den exakten Locator-Mittelpunkt.
+private struct QTHMarker: View {
+    let theme: AppTheme
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                Circle()
+                    .fill(theme.accentBlue)
+                    .frame(width: 26, height: 26)
+                Circle()
+                    .stroke(Color.white, lineWidth: 2)
+                    .frame(width: 26, height: 26)
+                Image(systemName: "antenna.radiowaves.left.and.right")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+            Triangle()
+                .fill(theme.accentBlue)
+                .frame(width: 10, height: 6)
+                .offset(y: -1)
+        }
+        .shadow(color: .black.opacity(0.35), radius: 3, x: 0, y: 1)
+    }
+}
+
+private struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        p.closeSubpath()
+        return p
+    }
+}
 
 private struct SpotDot: View {
     let color:      Color

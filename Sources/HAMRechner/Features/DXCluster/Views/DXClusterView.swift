@@ -10,7 +10,6 @@ struct DXClusterView: View {
     @AppStorage("qthLocator") private var qthLocator = "JN47PN"
 
     @State private var selectedTab    = 0
-    @State private var heatmapMinutes = 60
     @State private var utcTime        = ""
     @State private var localTime      = ""
 
@@ -27,7 +26,6 @@ struct DXClusterView: View {
                     .frame(minWidth: 480, maxWidth: .infinity, maxHeight: .infinity)
                 PropagationPanelView(
                     propagation: vm.propagation,
-                    bandMatrix:  vm.bandMatrix(minutes: heatmapMinutes),
                     theme:       theme,
                     callsign:    vm.myCallsign,
                     connected:   vm.clusterStatus == .connected,
@@ -230,7 +228,7 @@ struct DXClusterView: View {
 
     private var filterBar: some View {
         HStack(spacing: 6) {
-            filterPicker("Band", options: ["Alle"] + allBandNames(), selection: $vm.filterBand)
+            multiBandFilterMenu
             filterPicker("Mode", options: ["Alle","FT8","CW","SSB","AM","FM","RTTY","FT4","WSPR"],
                          selection: $vm.filterMode)
             filterPicker("Kont.", options: ["Alle"] + CONTINENTS,
@@ -268,6 +266,70 @@ struct DXClusterView: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
         .background(theme.bgPanel)
+    }
+
+    // Multi-Select-Band-Filter (HB9HJL-Wunsch): kein Single-Pick mehr,
+    // sondern Menü mit Toggle-Items. Leere Auswahl = alle Bänder zeigen.
+    private var multiBandFilterMenu: some View {
+        Menu {
+            Button {
+                vm.filterBands.removeAll()
+            } label: {
+                if vm.filterBands.isEmpty {
+                    Label("Alle Bänder", systemImage: "checkmark")
+                } else {
+                    Text("Alle Bänder")
+                }
+            }
+            Divider()
+            ForEach(allBandNames(), id: \.self) { band in
+                Button {
+                    if vm.filterBands.contains(band) {
+                        vm.filterBands.remove(band)
+                    } else {
+                        vm.filterBands.insert(band)
+                    }
+                } label: {
+                    if vm.filterBands.contains(band) {
+                        Label(band, systemImage: "checkmark")
+                    } else {
+                        Text(band)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text("Band:")
+                    .font(.caption.bold())
+                    .foregroundStyle(theme.textSecondary)
+                Text(bandFilterLabel)
+                    .font(.caption.bold())
+                    .foregroundStyle(vm.filterBands.isEmpty ? theme.textPrimary : theme.accentBlue)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8))
+                    .foregroundStyle(theme.textDim)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(theme.bgSubPanel)
+            .cornerRadius(5)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .fixedSize()
+    }
+
+    private var bandFilterLabel: String {
+        let selected = vm.filterBands
+        if selected.isEmpty { return "Alle" }
+        if selected.count == 1 { return selected.first ?? "—" }
+        if selected.count <= 3 {
+            // Sortierung nach Bandplan (höchstes Band zuerst)
+            let order = allBandNames()
+            let sorted = order.filter { selected.contains($0) }
+            return sorted.joined(separator: " · ")
+        }
+        return "\(selected.count) Bänder"
     }
 
     private func filterPicker(_ label: String, options: [String], selection: Binding<String>) -> some View {

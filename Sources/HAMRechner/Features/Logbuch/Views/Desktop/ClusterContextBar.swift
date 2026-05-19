@@ -18,7 +18,7 @@ struct ClusterContextBar: View {
     }
 
     private var hasFilter: Bool {
-        clusterVM.filterBand != "Alle"
+        !clusterVM.filterBands.isEmpty
             || clusterVM.filterMode != "Alle"
             || clusterVM.filterContinent != "Alle"
             || !clusterVM.searchText.isEmpty
@@ -37,8 +37,7 @@ struct ClusterContextBar: View {
 
                 Divider().frame(height: 16).background(theme.separator)
 
-                pickerField("Band", selection: $clusterVM.filterBand,
-                            options: bandOptions, width: 80)
+                multiBandFilterMenu
                 pickerField("Mode", selection: $clusterVM.filterMode,
                             options: modeOptions, width: 80)
                 pickerField("Kont.", selection: $clusterVM.filterContinent,
@@ -48,7 +47,7 @@ struct ClusterContextBar: View {
 
                 if hasFilter {
                     Button {
-                        clusterVM.filterBand = "Alle"
+                        clusterVM.filterBands.removeAll()
                         clusterVM.filterMode = "Alle"
                         clusterVM.filterContinent = "Alle"
                         clusterVM.searchText = ""
@@ -117,6 +116,77 @@ struct ClusterContextBar: View {
         }
         .toggleStyle(.checkbox)
         .controlSize(.mini)
+    }
+
+    /// Multi-Select-Band-Filter: leeres `filterBands`-Set = alle Bänder.
+    /// User-Klick toggelt einzelne Bänder, „Alle Bänder" leert das Set.
+    private var multiBandFilterMenu: some View {
+        Menu {
+            Button {
+                clusterVM.filterBands.removeAll()
+            } label: {
+                if clusterVM.filterBands.isEmpty {
+                    Label("Alle Bänder", systemImage: "checkmark")
+                } else {
+                    Text("Alle Bänder")
+                }
+            }
+            Divider()
+            ForEach(availableBands, id: \.self) { band in
+                Button {
+                    if clusterVM.filterBands.contains(band) {
+                        clusterVM.filterBands.remove(band)
+                    } else {
+                        clusterVM.filterBands.insert(band)
+                    }
+                } label: {
+                    if clusterVM.filterBands.contains(band) {
+                        Label(band, systemImage: "checkmark")
+                    } else {
+                        Text(band)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 3) {
+                Text("Band")
+                    .font(.caption2)
+                    .foregroundStyle(theme.textDim)
+                Text(bandFilterLabel)
+                    .font(.caption.bold())
+                    .foregroundStyle(clusterVM.filterBands.isEmpty
+                                     ? theme.textPrimary : theme.accentBlue)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8))
+                    .foregroundStyle(theme.textDim)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(theme.bgCard2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(theme.separator.opacity(0.5), lineWidth: 0.5)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .fixedSize()
+    }
+
+    private var bandFilterLabel: String {
+        let s = clusterVM.filterBands
+        if s.isEmpty { return "Alle" }
+        if s.count == 1 { return s.first ?? "—" }
+        if s.count <= 3 {
+            let ordered = availableBands.filter { s.contains($0) }
+            return ordered.joined(separator: " · ")
+        }
+        return "\(s.count) Bänder"
+    }
+
+    private var availableBands: [String] {
+        Array(Set(clusterVM.spots.compactMap { $0.band.isEmpty ? nil : $0.band })).sorted()
     }
 
     private func pickerField(_ label: String,

@@ -4,7 +4,6 @@ import SwiftUI
 
 struct PropagationPanelView: View {
     let propagation: PropagationData
-    let bandMatrix:  [[Int]]       // HEATMAP_BANDS × CONTINENTS
     let theme:       AppTheme
     var callsign:    String = ""
     var connected:   Bool   = false
@@ -21,7 +20,29 @@ struct PropagationPanelView: View {
     /// in den Mode-Picker übernommen, sofern in der erlaubten Liste.
     var prefillMode:    String = ""
 
-    @State private var heatmapMinutes = 60
+    // Heatmap-Zeit-Spanne als AppStorage statt @Binding — der Parent
+    // (LogbuchView / DXClusterView) liest denselben Key, dadurch ist
+    // garantiert dass Picker-Änderungen sofort in die `bandMatrix(minutes:)`-
+    // Berechnung fließen, ohne explizites Binding-Throughput.
+    @AppStorage("logbook.heatmapMinutes") private var heatmapMinutes: Int = 60
+
+    // Bandmatrix berechnet sich live aus `spots` + `heatmapMinutes` —
+    // beides ist im View beobachtet (spots als let-Param vom Parent, der
+    // bei Spot-Änderungen rerendert; heatmapMinutes als AppStorage). Damit
+    // ändert sich die Matrix unmittelbar wenn der User den Zeit-Picker
+    // umstellt, ohne dass der Parent einen neuen Wert durchreichen muss.
+    private var bandMatrix: [[Int]] {
+        let cutoff = Date().addingTimeInterval(-Double(heatmapMinutes) * 60)
+        var matrix = Array(repeating: Array(repeating: 0, count: CONTINENTS.count),
+                           count: HEATMAP_BANDS.count)
+        for spot in spots where spot.timestamp >= cutoff {
+            if let bi = HEATMAP_BANDS.firstIndex(of: spot.band),
+               let ci = CONTINENTS.firstIndex(of: spot.continent) {
+                matrix[bi][ci] += 1
+            }
+        }
+        return matrix
+    }
     @State private var dxCall    = ""
     @State private var frequency = ""
     @State private var mode      = "FT8"
@@ -348,6 +369,7 @@ struct PropagationPanelView: View {
                     .foregroundStyle(gold)
                 Spacer()
                 Picker("", selection: $heatmapMinutes) {
+                    Text("5 min").tag(5)
                     Text("15 min").tag(15)
                     Text("30 min").tag(30)
                     Text("60 min").tag(60)

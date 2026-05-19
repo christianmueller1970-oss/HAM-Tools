@@ -81,6 +81,7 @@ struct HistoryTab: View {
             .padding(12)
         }
         .background(theme.bgApp)
+        .onAppear { centerOnQTH() }
         .onChange(of: qthLocator) { centerOnQTH() }
     }
 
@@ -88,9 +89,11 @@ struct HistoryTab: View {
 
     private var mapContent: some View {
         Map(position: $cameraPosition) {
-            // QTH-Marker
+            // QTH-Marker — Label zeigt den Locator, damit man auch ohne
+            // Annotation-Tooltip sofort sieht wo das eigene QTH liegt.
             if let home = qthCoord {
-                Annotation("QTH", coordinate: home) {
+                Annotation(qthLocator.isEmpty ? "QTH" : qthLocator,
+                           coordinate: home, anchor: .bottom) {
                     Image(systemName: "house.circle.fill")
                         .foregroundStyle(theme.accentBlue)
                         .background(Circle().fill(.white).frame(width: 20, height: 20))

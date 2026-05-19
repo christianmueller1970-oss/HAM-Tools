@@ -650,6 +650,17 @@
         }
       }
     },
+    "5 min": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        }
+      }
+    },
     "50 km": {
       "extractionState": "manual",
       "localizations": {
@@ -8390,6 +8401,28 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Z₀ = \\(Int(kabel.impedanz)) Ω"
+          }
+        }
+      }
+    },
+    "[\\(heatmapMinutes)·\\(bandMatrix.flatMap { $0 }.reduce(0, +))]": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        }
+      }
+    },
+    "[t=\\(heatmapTick)·m=\\(heatmapMinutes)·n=\\(spots.count)·s=\\(bandMatrix.flatMap { $0 }.reduce(0, +))]": {
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
           }
         }
       }
