@@ -96,6 +96,9 @@ struct LogbuchView: View {
 
     // Map/Bands Filter (persistent)
     @AppStorage("logbook.spotsModeFilter")  private var spotsModeFilter: String = "Alle"
+    /// Multi-Select-Mode-Filter für Map/Bands, persistiert als Komma-Liste
+    /// in UserDefaults. Leer = alle Modes. Analog zu `clusterVM.filterBands`.
+    @AppStorage("logbook.spotsModeFilters") private var spotsModeFiltersCSV: String = ""
     @AppStorage("logbook.spotsRadiusKm")    private var spotsRadiusKm:   Int    = 0
 
     // Auswahl in der QSO-Tabelle (für Bulk-QRZ-Lookup) — bleibt während
@@ -491,18 +494,9 @@ struct LogbuchView: View {
                     .font(.caption)
                     .foregroundStyle(theme.accentBlue)
 
-                // Mode-Filter (gilt für Map UND Bands)
-                HStack(spacing: 3) {
-                    Text("Mode")
-                        .font(.caption2)
-                        .foregroundStyle(theme.textDim)
-                    Picker("Mode", selection: $spotsModeFilter) {
-                        ForEach(spotsModeOptions, id: \.self) { Text($0).tag($0) }
-                    }
-                    .labelsHidden()
-                    .controlSize(.mini)
-                    .frame(width: 90)
-                }
+                // Mode-Filter (gilt für Map UND Bands) — Multi-Select-Menu
+                // analog zum Band-Filter: leeres Set = alle Modes.
+                spotsModeFilterMenu
 
                 // Radius vom QTH (0 = unbegrenzt)
                 HStack(spacing: 3) {
@@ -522,9 +516,9 @@ struct LogbuchView: View {
                     .frame(width: 100)
                 }
 
-                if spotsModeFilter != "Alle" || spotsRadiusKm > 0 {
+                if !spotsModeFilters.isEmpty || spotsRadiusKm > 0 {
                     Button {
-                        spotsModeFilter = "Alle"
+                        setSpotsModeFilters([])
                         spotsRadiusKm = 0
                     } label: {
                         HStack(spacing: 3) {
@@ -557,11 +551,93 @@ struct LogbuchView: View {
         }
     }
 
-    // Mode-Optionen für den Spot-Filter — aus den aktuellen Spots
-    private var spotsModeOptions: [String] {
-        ["Alle"] + Array(Set(clusterVM.filteredSpots.compactMap {
-            $0.mode.isEmpty ? nil : $0.mode
-        })).sorted()
+    /// Multi-Select-Mode-Filter-Menü, analog zum Band-Filter in der Cluster-
+    /// ContextBar. „Alle Modes" leert das Set; einzelne Modes togglen.
+    private var spotsModeFilterMenu: some View {
+        let selected = spotsModeFilters
+        return Menu {
+            Button {
+                setSpotsModeFilters([])
+            } label: {
+                if selected.isEmpty {
+                    Label("Alle Modes", systemImage: "checkmark")
+                } else {
+                    Text("Alle Modes")
+                }
+            }
+            Divider()
+            ForEach(Self.spotsModeAllOptions, id: \.self) { mode in
+                Button {
+                    var s = selected
+                    if s.contains(mode) { s.remove(mode) } else { s.insert(mode) }
+                    setSpotsModeFilters(s)
+                } label: {
+                    if selected.contains(mode) {
+                        Label(mode, systemImage: "checkmark")
+                    } else {
+                        Text(mode)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 3) {
+                Text("Mode")
+                    .font(.caption2)
+                    .foregroundStyle(theme.textDim)
+                Text(spotsModeFilterLabel)
+                    .font(.caption.bold())
+                    .foregroundStyle(selected.isEmpty ? theme.textPrimary : theme.accentBlue)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8))
+                    .foregroundStyle(theme.textDim)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(theme.bgCard2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 3)
+                    .stroke(theme.separator.opacity(0.5), lineWidth: 0.5)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .fixedSize()
+    }
+
+    private var spotsModeFilterLabel: String {
+        let s = spotsModeFilters
+        if s.isEmpty { return "Alle" }
+        if s.count == 1 { return s.first ?? "—" }
+        if s.count <= 3 {
+            return Self.spotsModeAllOptions
+                .filter { s.contains($0) }
+                .joined(separator: " · ")
+        }
+        return "\(s.count) Modes"
+    }
+
+    // Mode-Optionen für den Multi-Select: feste Liste der gängigen Modes,
+    // damit der User auch Modes auswählen kann, die aktuell nicht im
+    // Stream sind. Cluster-Spotter melden je nach Quelle "SSB"/"USB"/"LSB"
+    // separat — alle drei einzeln anwählbar.
+    private static let spotsModeAllOptions: [String] = [
+        "FT8", "FT4", "CW", "SSB", "USB", "LSB", "AM", "FM",
+        "RTTY", "PSK31", "PSK63", "WSPR", "JS8", "JT65", "JT9",
+        "MSK144", "Q65", "DIGI", "DATA"
+    ]
+
+    /// Multi-Select-Mode-Filter als Set. Leer = alle Modes anzeigen.
+    /// Persistiert über `spotsModeFiltersCSV`.
+    private var spotsModeFilters: Set<String> {
+        get {
+            let parts = spotsModeFiltersCSV.split(separator: ",").map { String($0) }
+            return Set(parts.filter { !$0.isEmpty })
+        }
+    }
+
+    private func setSpotsModeFilters(_ new: Set<String>) {
+        spotsModeFiltersCSV = new.sorted().joined(separator: ",")
     }
 
     // Spots gefiltert auf Mode + Radius vom eigenen QTH
@@ -569,9 +645,10 @@ struct LogbuchView: View {
 
     private var spotsForMapOrBands: [DXSpot] {
         let base = clusterVM.filteredSpots
-        let modeFiltered = spotsModeFilter == "Alle"
+        let selected = spotsModeFilters
+        let modeFiltered = selected.isEmpty
             ? base
-            : base.filter { $0.mode == spotsModeFilter }
+            : base.filter { selected.contains($0.mode) }
 
         guard spotsRadiusKm > 0,
               let qth = locatorToLatLon(qthLocator) else {

@@ -1057,6 +1057,17 @@
         }
       }
     },
+    "Alle Modes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        }
+      }
+    },
     "Alle aktiven Bänder werden als NEC2-Drahtmodell exportiert (Driver + Reflektor pro Band). Ein Band wird gespeist — die anderen wirken als passive Parasiten und beeinflussen das Strahlungsdiagramm realitätsnah.": {
       "extractionState": "manual",
       "localizations": {

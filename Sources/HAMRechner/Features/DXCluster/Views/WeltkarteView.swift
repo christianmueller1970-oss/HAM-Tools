@@ -124,7 +124,10 @@ struct WeltkarteView: View {
             }
             ForEach(recentSpots) { spot in
                 let coord = CLLocationCoordinate2D(latitude: spot.lat, longitude: spot.lon)
-                Annotation("", coordinate: coord, anchor: .center) {
+                // Annotation-Label zeigt den DX-Call neben dem Pin. MapKit
+                // rendert das Label automatisch deckungs-aware (kollidierende
+                // Labels werden bei hoher Spot-Dichte ausgeblendet).
+                Annotation(spot.dxCall, coordinate: coord, anchor: .center) {
                     SpotDot(color:      mapModeColor(spot.mode),
                             isSelected: selectedSpot?.id == spot.id)
                         .onTapGesture { selectedSpot = spot }
