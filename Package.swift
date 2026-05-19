@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "HAMRechner",
+    defaultLocalization: "de",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(

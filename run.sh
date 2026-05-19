@@ -6,6 +6,14 @@ cd "$(dirname "$0")"
 # regelmäßig ein ("Drive-Stuck"), wenn swift build dort Intermediates schreibt.
 BUILD_PATH="/tmp/hamtools-build"
 
+# i18n-Extraktor läuft vor jedem Build mit. Scannt alle .swift-Files in
+# Sources/HAMRechner/ und synchronisiert Localizable.xcstrings: neue Source-
+# Keys werden ergänzt, fehlende als "stale" markiert. Bestehende EN-/andere-
+# Sprach-Übersetzungen bleiben unangetastet.
+if command -v python3 >/dev/null 2>&1; then
+    python3 tools/extract_strings.py
+fi
+
 swift build --build-path "$BUILD_PATH"
 
 # Binary-Name aus Swift-Build (Package.swift target) — Bundle-Name fürs UI ist HAM-Tools.
