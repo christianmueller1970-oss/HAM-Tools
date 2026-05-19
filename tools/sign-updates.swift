@@ -21,32 +21,40 @@ import CryptoKit
 
 // MARK: - RELEASE-DATEN (für jeden Release anpassen)
 
-let RELEASE_VERSION   = "1.8.16"
+let RELEASE_VERSION   = "1.9.0"
 let RELEASE_BUILDDATE = "2026-05-19"          // ISO 8601, YYYY-MM-DD
 let RELEASE_MIN_MACOS = "14.0"                 // oder nil
-let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.16.dmg"
+let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.9.0.dmg"
 let RELEASE_CRITICAL  = false
 let RELEASE_NOTES = """
-Logger-Polish + Frequenz-Anzeige mit Hz-Auflösung.
+Großer Sprung: zweite Sprache, neue Logger-Brücken, frische UI.
+
+Sprache:
+- HAM-Tools spricht jetzt Englisch. Komplette UI zweisprachig, Wahl in \
+Einstellungen → Darstellung → »App-Sprache«. Über 850 Strings übersetzt.
 
 Logbuch:
-- Callbook-Lookup bei Stations-Wechsel wirklich frisch. Wer einen \
-Call lookuppt und dann auf einen anderen Cluster-Spot klickt (oder \
-den Call manuell überschreibt + Tab), bekommt jetzt sauber die neuen \
-Personendaten — Name, QTH, Locator, Email, Zonen. Bisher blieben \
-die Felder der vorigen Station stehen, obwohl Bild und Header schon \
-die neue zeigten.
+- Mode kommt aus dem CAT — eigenes Mode-Feld in DX-/Contest-Form raus. \
+RST-Defaults (59 vs. 599) ziehen sich automatisch mit.
+- eQSL.cc Auto-Upload jetzt aktiv. Damit sind QRZ-Logbook, Club Log und \
+eQSL alle drei automatisch — LoTW folgt.
+- Externe Logger: JS8Call, MSHV und N1MM Logger+ können jetzt mitloggen. \
+Mehrere Listener parallel konfigurierbar unter »Externe Logger«.
 
-Radio/CAT:
-- Frequenz-Anzeige mit voller 1-Hz-Auflösung. Der rechte Block zeigt \
-jetzt 3 statt 2 Stellen: »7.095.000« statt »7.095.00«.
+DX-Cluster + Maps:
+- Multi-Band- und Multi-Mode-Filter (statt einem Eintrag jetzt beliebige \
+Kombination). Auswahl persistiert.
+- Eigener QTH auf der Karte sichtbar + »QTH«-Button springt zurück.
+- DX-Spots auf der Karte mit Call-Beschriftung.
+- Karte lässt sich bis zur Globus-Sicht herauszoomen.
+- Heatmap-Picker (15/30/60 min) wirkt jetzt wirklich (Bug-Fix) — neue \
+»5 min«-Option für ruhige Cluster-Phasen.
 
-Programm-Maps:
-- Hard-Cap + Overflow-Banner aus dem History-Tab-Schutzschild gilt \
-jetzt konsistent auch für die POTA/SOTA/WWFF/BOTA-Maps. Bei großen \
-Logs gibt's einen Overflow-Banner statt eines MapKit-Stalls.
+Contest:
+- Super Check Partial (SCP) im Call-Feld: ~50k Contester aus \
+supercheckpartial.com + ~180k aus Club Log, Bundle-Cold-Start.
 
-Special Thanks an HB9HJL Rene für unermüdliches Testen.
+Special Thanks an HB9HJL Rene für die produktive Test-Wunschliste.
 """
 
 // MARK: - Implementation (sollte stabil bleiben)
