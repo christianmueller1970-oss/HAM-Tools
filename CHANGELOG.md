@@ -5,12 +5,11 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
-## [Unreleased] — Stand 2026-05-19 (zweite Tagesserie)
+## [1.9.0] — 2026-05-19
 
-Neun Feature-Commits nach Release 1.8.16. Die meisten sind zugleich
-strukturelle Refactors — Sammeln wir hier für den nächsten Release-
-Drop (1.9.0 wahrscheinlich, weil i18n + UDP-Bridges-Refactor groß genug
-für einen Minor-Bump sind).
+Zwölf Feature-Commits nach Release 1.8.16. Drei davon sind strukturelle
+Refactors (i18n + UDP-Bridges-Multi-Logger + Mode-aus-CAT), der Rest
+sind sichtbare User-Features — daher Minor-Bump auf 1.9.0.
 
 ### Logbuch — Mode aus CAT statt eigenem Feld
 
@@ -105,6 +104,24 @@ für einen Minor-Bump sind).
   Picker im Panel hatte eigenen lokalen `@State` — Disconnect. Jetzt
   computed property direkt im Panel mit `@AppStorage`-Trigger.
   Zusätzlich „5 min"-Option ergänzt für ruhige Cluster-Phasen.
+- QTH-Button neben dem Zeit-Picker in der DX-Map — Klick fliegt die
+  Karte zurück nach Mitteleuropa (MapKit-Quirk umgangen via
+  `.camera(MapCamera(...))`-Snapshot). `MapCameraBounds` aufgebohrt
+  (1 km bis 200 000 km), damit der User bis Globus-Niveau heraus-
+  zoomen kann.
+- Spot-Pins auf der DX-Map zeigen jetzt den DX-Call als Label.
+- Mode-Filter im Map-/Bands-ContextBar ist Multi-Select analog zum
+  Band-Filter — feste Liste von 19 gängigen Modes (vorher nur die
+  aktuell gespotteten), persistiert als Komma-Liste.
+
+### Aufgeräumt
+
+- Outdoor-Programme (POTA/SOTA/WWFF/BOTA) aus dem Service-Picker im
+  „Lookup & Upload"-Tab entfernt. Auto-Upload zu pota.app/wwff.co/
+  wwbota.net ist unbestimmt vertagt — die Outdoor-Workflows laufen
+  manuell über den Export aus der jeweiligen Programm-Log-Toolbar.
+  Settings-Slot für POTA-Username bleibt unter der Haube persistiert,
+  taucht aber nicht mehr im UI auf.
 
 ### Special Thanks
 

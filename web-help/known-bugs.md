@@ -8,6 +8,12 @@ Aktive Issues + Workarounds. Wird händisch gepflegt; gemeldete Bugs landen im P
 Aktuell sind keine kritischen Bugs offen.
 :::
 
+## Behoben in v1.9.0
+
+- DX-Cluster Heatmap-Picker (Band Activity, rechtes Panel): Die 15/30/60-Min-Auswahl wirkte nur visuell — die Zahlen in der Heatmap rechneten weiter mit dem alten Wert. Picker im Panel und `bandMatrix`-Berechnung waren über zwei unabhängige States entkoppelt. Jetzt computed property direkt im Panel, AppStorage-basiert. Zusätzlich »5 min«-Option, damit man bei vollem Cluster (~500 Spots in der 15-Min-Retention) überhaupt einen Unterschied sieht.
+- App war auf Englisch nicht startbar (war auch nie wirklich englisch). Drei Bugs gleichzeitig: SwiftPM kompiliert das String-Catalog nicht automatisch in die runtime-fähige Form; die generierten Lokalisierungs-Dateien landeten nur im SwiftPM-Sub-Bundle (für SwiftUI unsichtbar); Info.plist fehlten die CFBundleLocalizations-/DevelopmentRegion-Einträge. Alle drei Stellen gefixt — Sprach-Picker im Darstellungs-Tab tut jetzt was er soll.
+- DX-Map QTH-Zentrierung griff nach interaktiver Camera-Bewegung nicht: `MapCameraPosition.region` wurde von SwiftUI als »gleich« verworfen wenn der User die Karte vorher manuell verschoben hatte. Jetzt mit `.camera(MapCamera(...))`-Snapshot, animiert sauber zurück zum eigenen QTH.
+
 ## Behoben in v1.8.16
 
 - Callbook-Lookup: Beim Klick auf einen neuen Cluster-Spot oder bei manuellem Call-Wechsel + Tab blieben First/Last/Street/City/State/Email/Locator/Zonen der vorigen Station stehen, obwohl Bild und Header schon die neue Station zeigten. `applyCallbookResult` füllte nur leere Felder; jetzt räumt ein gemeinsamer Helper vor jedem frischen Lookup auf.

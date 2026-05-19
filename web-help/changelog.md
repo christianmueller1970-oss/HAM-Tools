@@ -2,6 +2,85 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.9.0 — 2026-05-19
+
+**Großer Sprung: zweite Sprache, neue Logger-Brücken, frische UI.**
+
+Zwölf Verbesserungen am Stück nach v1.8.16 — daher Minor-Sprung auf 1.9.0.
+
+### Sprache
+
+- **HAM-Tools spricht jetzt Englisch.** Komplette UI ist zweisprachig
+  (Deutsch / Englisch). Sprachwahl in Einstellungen → Darstellung →
+  „App-Sprache" (System / Deutsch / English). Wechsel wird beim
+  nächsten App-Start wirksam. Über 850 Strings wurden für Englisch
+  übersetzt — die wichtigsten von Hand, der Rest maschinell mit
+  DeepL und Funk-Vokabular-Korrekturen. Falls dir eine seltsame
+  Übersetzung auffällt, gerne kurz melden.
+
+### Logbuch
+
+- **Mode kommt aus dem CAT.** Das Mode-Feld in DX- und Contest-Form
+  ist weg — der Mode aus dem Radio (USB/CW/FT8/…) wird direkt
+  verwendet. RST-Defaults (59 vs. 599) ziehen sich automatisch mit.
+- **eQSL.cc Auto-Upload.** Jedes geloggte Standard-QSO wird direkt
+  an eQSL hochgeladen (Einstellung pro User in Lookup & Upload).
+  Settings für Username/Password/Nickname, plus Pro-Log-Override
+  für /P-QTH-Profile. Bulk-Upload via Kontextmenü in der QSO-Tabelle.
+  Damit sind QRZ-Logbook, Club Log und eQSL alle drei Auto-Upload-
+  fähig — LoTW folgt später (braucht tqsl-Signing).
+
+### DX-Cluster + Maps
+
+- **Mehrere Bänder gleichzeitig filtern.** Der Band-Filter im
+  DX-Cluster und im Logbuch-DXClusters-Tab ist jetzt Multi-Select.
+  Klick auf „Alle Bänder" leert die Auswahl. Im Map-/Bands-Tab gilt
+  dasselbe auch für den Mode-Filter.
+- **Eigener QTH auf der Karte sichtbar.** Locator-Marker (blauer
+  Kreis mit Antennen-Symbol) zeigt den eigenen Standort. „QTH"-
+  Button neben dem Zeit-Picker fliegt die Karte zurück zum eigenen
+  Standort. Karte ist beim Öffnen automatisch zentriert.
+- **DX-Spots auf der Karte mit Call-Beschriftung.** Pins zeigen den
+  DX-Call neben dem Punkt (MapKit blendet bei hoher Spot-Dichte
+  kollidierende Labels selbst aus).
+- **Weiter herauszoomen.** MapKit-Limit aufgehoben — Karten lassen
+  sich bis zur Globus-Sicht herauszoomen.
+- **Heatmap-Picker (Solar-Panel rechts) wirkt jetzt.** Die 15/30/60-
+  Min-Auswahl filterte vorher nichts mit. Neu mit „5 min"-Option für
+  ruhige Cluster-Phasen.
+
+### Externe Logger
+
+- **JS8Call, MSHV und N1MM Logger+ können jetzt mitloggen.** Die
+  bisherige WSJT-X-Brücke wurde zu einem flexiblen Multi-Logger-Modul
+  ausgebaut. Mehrere Listener parallel auf eigenen Ports konfigurierbar
+  unter Einstellungen → „Externe Logger". WSJT-X/JTDX/JS8Call/MSHV
+  reden alle dasselbe Protokoll (nur unterschiedliche Default-Ports),
+  N1MM-Logger-Plus liefert XML-Pakete — ContactInfo wird zu QSOs ins
+  aktive Log, Spot-Pakete fließen in den DX-Cluster-Stream.
+
+### Contest
+
+- **Super Check Partial (SCP) im Contest-Form.** Beim Tippen ins
+  Call-Feld erscheinen Top-Treffer aus einer Master-Call-DB als
+  Chips unter dem Form. Zwei Datenquellen (supercheckpartial.com mit
+  ~50k aktiven Contestern + Club Log mit ~180k Calls weltweit), beim
+  ersten Start ist eine Snapshot-Datei im App-Bundle dabei. Updates
+  via Einstellungen → Daten → „Master Call Database". Nach 14 Tagen
+  Inaktivität gibt's eine sanfte Update-Erinnerung.
+
+### Aufgeräumt
+
+- POTA/SOTA/WWFF/BOTA aus dem „Lookup & Upload"-Service-Picker
+  entfernt. Auto-Upload zu pota.app/wwff.co/wwbota.net ist nicht
+  geplant — die Outdoor-Workflows laufen über manuellen ADIF/CSV-
+  Export aus dem jeweiligen Programm-Log.
+
+### Special Thanks
+
+- **HB9HJL Rene** für eine wirklich produktive Test-Wunschliste, die
+  fast jede UX-Schwachstelle aufgedeckt hat.
+
 ## 1.8.16 — 2026-05-19
 
 **Logger-Polish + Frequenz-Anzeige mit Hz-Auflösung**
