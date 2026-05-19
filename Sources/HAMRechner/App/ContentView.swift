@@ -115,6 +115,7 @@ struct ContentView: View {
     @EnvironmentObject var updateChecker:  UpdateChecker
     @EnvironmentObject var wsjtxSettings:  WsjtxBridgeSettings
     @EnvironmentObject var wsjtxBridge:    WsjtxBridgeService
+    @EnvironmentObject var scpService:     SCPService
     // dxClusterVM lebt auf App-Level (HAMRechnerApp) — wird hier nur per
     // Environment konsumiert, damit auch Pop-up-Bandmap-Fenster dieselbe
     // Spot-Quelle sehen.
@@ -124,6 +125,8 @@ struct ContentView: View {
     @State private var selectedCalculator: Calculator? = .logbuch
     @State private var pendingUpdatePayload: UpdateManifestPayload?
     @State private var showBugReport: Bool = false
+    @State private var scpStaleAlertShown: Bool = false
+    @AppStorage("scp.dontAskAgain") private var scpDontAskAgain: Bool = false
 
     private var theme: AppTheme { themeManager.theme }
 
@@ -178,6 +181,30 @@ struct ContentView: View {
 
             // Update-Check beim Start (max 1×/24h).
             updateChecker.autoCheckIfDue()
+
+            // SCP-Stale-Check: wenn alle aktiven Quellen >14 Tage alt sind und
+            // der User nicht „Nicht mehr fragen" gewählt hat, einmaliges Alert.
+            // Verzögerung 1.5s, damit der Service Zeit hat, Bundle + Cache zu
+            // laden, bevor wir den Stale-Status auswerten.
+            if !scpDontAskAgain {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    if scpService.allActiveSourcesStale() {
+                        scpStaleAlertShown = true
+                    }
+                }
+            }
+        }
+        .alert("Master-Call-Liste aktualisieren?",
+               isPresented: $scpStaleAlertShown) {
+            Button("Jetzt aktualisieren") {
+                Task { await scpService.updateAllActive() }
+            }
+            Button("Später", role: .cancel) {}
+            Button("Nicht mehr fragen", role: .destructive) {
+                scpDontAskAgain = true
+            }
+        } message: {
+            Text("Die Master-Call-Datenbank (Contest-Suggest) ist älter als \(SCPService.staleThresholdDays) Tage. Frische Daten von supercheckpartial.com und Club Log laden? Du kannst das jederzeit unter Einstellungen → Daten manuell auslösen.")
         }
         .onChange(of: wsjtxSettings.enabled) { _, newValue in
             if newValue { wsjtxBridge.start(port: wsjtxSettings.port) }

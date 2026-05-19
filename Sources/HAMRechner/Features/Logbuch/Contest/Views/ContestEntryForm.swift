@@ -10,6 +10,7 @@ struct ContestEntryForm: View {
     @EnvironmentObject var contests:     ContestService
     @EnvironmentObject var radio:        RadioState
     @EnvironmentObject var logBridge:    LogEntryBridge
+    @EnvironmentObject var scp:          SCPService
 
     // User-Profil (Auto-Fill-Quellen)
     @AppStorage("callsign")    private var myCallsign = ""
@@ -123,6 +124,7 @@ struct ContestEntryForm: View {
             entryRow
             exchangeRow
             footerRow
+            scpSuggestionsRow
         }
         .padding(10)
         .onAppear {
@@ -367,6 +369,54 @@ struct ContestEntryForm: View {
                 RoundedRectangle(cornerRadius: 5)
                     .fill(isDupe ? theme.accentRed.opacity(0.12) : Color.clear)
             )
+        }
+    }
+
+    // SCP-Suggestions als eigene Zeile unter dem Footer. Chips-Style,
+    // Flow-Layout via LazyVGrid mit adaptiven Spalten — passt sich
+    // automatisch an die Fenster-Breite an.
+    @ViewBuilder
+    private var scpSuggestionsRow: some View {
+        let calls = scp.suggestions(for: theirCall, limit: 16)
+        if !calls.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    Image(systemName: "wand.and.stars")
+                        .font(.caption2)
+                        .foregroundStyle(theme.accentBlue)
+                    Text("Vorschläge")
+                        .font(.caption2)
+                        .foregroundStyle(theme.textDim)
+                }
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 100), spacing: 6)],
+                    alignment: .leading,
+                    spacing: 6
+                ) {
+                    ForEach(calls, id: \.self) { call in
+                        Button {
+                            theirCall = call
+                            refreshAutoFills()
+                        } label: {
+                            Text(call)
+                                .font(.system(.subheadline, design: .monospaced))
+                                .foregroundStyle(theme.accentBlue)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .fill(theme.accentBlue.opacity(0.12))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 5)
+                                        .stroke(theme.accentBlue.opacity(0.4), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
         }
     }
 

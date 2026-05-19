@@ -24,6 +24,7 @@ struct HAMRechnerApp: App {
     @StateObject private var wwffRefService: WWFFRefService
     @StateObject private var botaRefService: BOTARefService
     @StateObject private var contestService:   ContestService = ContestService()
+    @StateObject private var scpService:       SCPService
     @StateObject private var licenseService:   LicenseService = LicenseService()
     @StateObject private var updateChecker:    UpdateChecker  = UpdateChecker()
     @StateObject private var wsjtxSettings:    WsjtxBridgeSettings = WsjtxBridgeSettings()
@@ -125,6 +126,10 @@ struct HAMRechnerApp: App {
         } catch {
             fatalError("BOTA-Reference-Service konnte nicht initialisiert werden: \(error)")
         }
+
+        // Super-Check-Partial-DB (Contest-Suggest). Bundle-MASTER.SCP greift
+        // beim Cold-Start, Updates landen in <Root>/Cache/SCP/.
+        _scpService = StateObject(wrappedValue: SCPService(dataRoot: root))
     }
 
     var body: some Scene {
@@ -151,6 +156,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(wwffRefService)
                 .environmentObject(botaRefService)
                 .environmentObject(contestService)
+                .environmentObject(scpService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)
                 .environmentObject(wsjtxSettings)
@@ -284,6 +290,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(watchList)
                 .environmentObject(logbookManager)
                 .environmentObject(contestService)
+                .environmentObject(scpService)
                 .frame(minWidth: 600, minHeight: 400)
         }
         .windowStyle(.titleBar)
@@ -325,6 +332,7 @@ struct HAMRechnerApp: App {
                 .environmentObject(wwffRefService)
                 .environmentObject(botaRefService)
                 .environmentObject(contestService)
+                .environmentObject(scpService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)
                 .environmentObject(wsjtxSettings)

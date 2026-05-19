@@ -214,6 +214,7 @@ private struct DatenTab: View {
     @EnvironmentObject var sota:     SotaSummitService
     @EnvironmentObject var wwff:     WWFFRefService
     @EnvironmentObject var bota:     BOTARefService
+    @EnvironmentObject var scp:      SCPService
 
     var body: some View {
         ScrollView {
@@ -270,10 +271,110 @@ private struct DatenTab: View {
                 sotaSummitsGroup
                 wwffRefsGroup
                 botaRefsGroup
+                scpDatabaseGroup
             }
             .padding(16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - SCP (Master Call Database fürs Contest-Suggest)
+
+    private var scpDatabaseGroup: some View {
+        GroupBox("Master Call Database (Contest-Suggest)") {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "person.crop.square.filled.and.at.rectangle")
+                        .foregroundStyle(.blue)
+                    Text("\(scp.allCalls.count) Calls geladen")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button {
+                        Task { await scp.updateAllActive() }
+                    } label: {
+                        if scp.isUpdating {
+                            HStack(spacing: 6) {
+                                ProgressView().controlSize(.small)
+                                Text("Aktualisiere …")
+                            }
+                        } else {
+                            Label("Alle aktualisieren", systemImage: "arrow.clockwise")
+                        }
+                    }
+                    .disabled(scp.isUpdating)
+                }
+                Divider()
+                ForEach(SCPService.Source.allCases) { source in
+                    scpSourceRow(source)
+                }
+                if let err = scp.lastError {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+                Text("Master-Call-Listen für Vorschläge im Contest-Form. Beide Quellen sind Public Domain und werden wöchentlich aktualisiert. Supercheckpartial = klassische Contest-Liste (~50k Calls), Club Log = breiter (~180k Calls inkl. non-Contester). Bei Doppelvorkommen wird dedupliziert. Die im Bundle ausgelieferte MASTER.SCP greift bis zum ersten Update als Cold-Start.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(4)
+        }
+    }
+
+    @ViewBuilder
+    private func scpSourceRow(_ source: SCPService.Source) -> some View {
+        let enabled = scp.isEnabled(source)
+        let stats = scp.perSourceStats[source]
+        HStack(spacing: 8) {
+            Toggle("", isOn: Binding(
+                get: { scp.isEnabled(source) },
+                set: { scp.setEnabled(source, $0) }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(source.displayName)
+                    .font(.subheadline.bold())
+                HStack(spacing: 6) {
+                    if enabled, let s = stats {
+                        Text("\(s.callCount) Calls")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("·").foregroundStyle(.secondary)
+                        if let last = s.lastUpdate {
+                            Text("aktualisiert \(relativeDate(last))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else if s.isFromBundle {
+                            Text("aus App-Bundle")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("noch nie aktualisiert")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                        }
+                    } else if !enabled {
+                        Text("deaktiviert")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            Spacer()
+            Button {
+                Task { await scp.updateFromSource(source) }
+            } label: {
+                Label("Aktualisieren", systemImage: "arrow.down.circle")
+            }
+            .disabled(!enabled || scp.isUpdating)
+        }
+    }
+
+    private func relativeDate(_ d: Date) -> String {
+        let fmt = RelativeDateTimeFormatter()
+        fmt.unitsStyle = .short
+        return fmt.localizedString(for: d, relativeTo: Date())
     }
 
     // MARK: - POTA Parks DB
