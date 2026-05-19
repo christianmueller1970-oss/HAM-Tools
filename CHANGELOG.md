@@ -5,6 +5,47 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [1.8.16] — 2026-05-19
+
+### Logbuch-Fixes
+
+- **Callbook-Felder bei Spot-Klick und Call-Wechsel räumen** —
+  beim Klick auf einen neuen DX-Cluster-Spot bzw. beim manuellen
+  Ändern des Calls + Tab blieben First/Last/Street/City/State/
+  Email/Locator/Zonen der vorigen Station stehen, obwohl Bild und
+  Header schon die neue Station zeigten. Ursache:
+  `applyCallbookResult` füllte bewusst nur leere Felder. Neuer
+  gemeinsamer `clearCallbookFields()`-Helper räumt jetzt vor jedem
+  frischen Lookup auf; `lastLookedUpCall` wird im Spot-Pfad
+  zurückgesetzt, damit auch derselbe Spot ein zweites Mal sauber
+  durchläuft.
+
+### Radio/CAT
+
+- **Frequenz-Anzeige auf volle 1-Hz-Auflösung** — der rechte
+  Block der Ham-Style-Anzeige zeigte nur 10-Hz-Auflösung mit 2
+  Stellen (`7.095.00`). Jetzt 3 Stellen mit voller Hz-Auflösung
+  (`7.095.000`). Format, Parser und Placeholder konsistent
+  angepasst.
+
+### Programm-Maps
+
+- **Hard-Cap + Overflow-Banner für alle Programm-Maps** — das
+  History-Tab-Schutzschild aus 1.8.15 (Hard-Cap auf 1500
+  Annotations, 500 Polylines, „Alle"-Option entfernt) gilt jetzt
+  konsistent auch für die POTA/SOTA/WWFF/BOTA-Maps. Wer ein
+  großes Programm-Log durchwühlt, läuft nicht mehr in den
+  MapKit-Render-Stall, sondern bekommt einen sichtbaren Overflow-
+  Hinweis.
+
+### Special Thanks
+
+- **HB9HJL Rene** — fleissiger Eigentester, der zuverlässig
+  Bugs meldet. Vielen Dank für die Geduld und die scharfen
+  Augen!
+
+---
+
 ## [1.8.15] — 2026-05-18
 
 ### Hotfix: History-Tab überlebt riesige Logs

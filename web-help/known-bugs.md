@@ -8,6 +8,16 @@ Aktive Issues + Workarounds. Wird händisch gepflegt; gemeldete Bugs landen im P
 Aktuell sind keine kritischen Bugs offen.
 :::
 
+## Behoben in v1.8.16
+
+- Callbook-Lookup: Beim Klick auf einen neuen Cluster-Spot oder bei manuellem Call-Wechsel + Tab blieben First/Last/Street/City/State/Email/Locator/Zonen der vorigen Station stehen, obwohl Bild und Header schon die neue Station zeigten. `applyCallbookResult` füllte nur leere Felder; jetzt räumt ein gemeinsamer Helper vor jedem frischen Lookup auf.
+- Radio/CAT-Frequenz-Anzeige: rechtes Segment war nur 2-stellig (10-Hz-Auflösung) — »7.095.00«. Jetzt 3-stellig mit voller 1-Hz-Auflösung: »7.095.000«.
+- Programm-Maps (POTA/SOTA/WWFF/BOTA) hatten dasselbe MapKit-Stall-Risiko wie der History-Tab vor 1.8.15. Hard-Cap + Overflow-Banner ist jetzt auf alle Programm-Maps ausgedehnt.
+
+## Behoben in v1.8.15
+
+- History-Tab-Crash: Bei »Zeitraum = Alle« und einem großen Standard-Log konnte die App beim Klick auf den History-Tab komplett »verschwinden« — Prozess lief weiter, aber kein Fenster wurde mehr sichtbar. Ursache: MapKit-Render-Stall durch zu viele Annotations + Polylines. Drei Schutzschichten: Hard-Cap auf 1500 Annotations, Linien-Limit 500, »Alle«-Option im Zeitraum-Picker entfernt (Max »2 Jahre«).
+
 ## Behoben in v1.8.13
 
 - Auto-Update-Check meldete »HAM-Tools ist aktuell«, obwohl auf dem Server eine neuere Version bereitstand — `isNewerBuild()` verglich nur das Build-Datum als String, Hotfix-Releases vom selben Tag (1.8.11 → 1.8.12 → 1.8.13) wurden so nicht erkannt. Jetzt numerischer Semver-Vergleich primär, Build-Datum nur als Tiebreaker. Wirkt ab dem 1.8.13-Build — wer auf 1.8.12 oder älter sitzt, muss einmalig manuell aus `/app/dmg/latest.dmg` updaten.

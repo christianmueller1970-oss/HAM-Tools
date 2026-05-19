@@ -2,6 +2,39 @@
 
 Vollständiger Versionsverlauf von HAM-Tools.
 
+## 1.8.16 — 2026-05-19
+
+**Logger-Polish + Frequenz-Anzeige mit Hz-Auflösung**
+
+Bug-Fix-Release mit drei sichtbaren Verbesserungen für den Logger-
+Alltag.
+
+### Logbuch
+
+- **Callbook-Lookup bei Stations-Wechsel wirklich frisch.** Wer
+  einen Call lookuppt und dann auf einen anderen Cluster-Spot
+  klickt (oder den Call manuell überschreibt + Tab), bekommt
+  jetzt sauber die neuen Personendaten — Name, QTH, Locator,
+  Email, Zonen. Bisher blieben die Felder der vorigen Station
+  stehen, obwohl Bild und Header schon die neue zeigten.
+
+### Radio/CAT
+
+- **Frequenz-Anzeige mit voller Hz-Auflösung.** Der rechte Block
+  zeigt jetzt 3 statt 2 Stellen: `7.095.000` statt `7.095.00`.
+
+### Programm-Maps
+
+- **History-Tab-Schutzschild jetzt auch für POTA/SOTA/WWFF/BOTA.**
+  Der Hard-Cap auf 1500 Annotations + 500 Polylines (eingeführt
+  mit 1.8.15 für den History-Tab) gilt jetzt konsistent für alle
+  Programm-Maps. Bei großen Logs gibt's einen Overflow-Banner
+  statt eines MapKit-Stalls.
+
+### Special Thanks
+
+- **HB9HJL Rene** für sein unermüdliches Testen — danke!
+
 ## 1.8.15 — 2026-05-18
 
 **Hotfix: History-Tab überlebt riesige Logs**
