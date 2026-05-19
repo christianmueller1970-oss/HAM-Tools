@@ -261,7 +261,16 @@ struct QSOEntryPanel: View {
                 rstSent = "599"; rstReceived = "599"
             }
         }
-        if let c = draft.country, !c.isEmpty { country = c }
+        // Spot-Klick wechselt die Station — Callbook-belegte Felder der
+        // vorigen Station leeren, damit der frische QRZ-Lookup sie mit den
+        // korrekten Daten neu befüllen kann. `applyCallbookResult` schreibt
+        // nur leere Felder, daher müssen wir hier explizit räumen.
+        clearCallbookFields()
+        // Lookup-Guard zurücksetzen, damit derselbe Call (z.B. zweimal
+        // hintereinander geklickter Spot) wieder einen frischen Lookup auslöst.
+        lastLookedUpCall = ""
+
+        if let c = draft.country, !c.isEmpty { country = c } else { country = "" }
         // Beim Hunten: der Spot zeigt einen Activator-Park/-Summit — das
         // landet im "their"-Feld des QSOs (wir sind Hunter).
         // Im Eingabeformular gibt es aktuell nur ein generisches POTA/SOTA-
@@ -615,10 +624,27 @@ struct QSOEntryPanel: View {
         // Nur lookup wenn Call nicht trivial und sich geändert hat
         guard trimmed.count >= 3, trimmed != lastLookedUpCall else { return }
         lastLookedUpCall = trimmed
+        // Call hat sich gegenüber dem letzten Lookup geändert → Reste der
+        // vorigen Station räumen, damit applyCallbookResult sie neu befüllt.
+        clearCallbookFields()
         Task {
             guard let result = await callbookManager.lookup(call: trimmed) else { return }
             await MainActor.run { applyCallbookResult(result) }
         }
+    }
+
+    /// Räumt alle Felder, die `applyCallbookResult` befüllt — wird vor
+    /// einem frischen Lookup (Spot-Klick oder manuelle Call-Änderung)
+    /// aufgerufen, damit nicht Reste der vorigen Station stehen bleiben.
+    private func clearCallbookFields() {
+        firstName = ""; lastName = ""
+        street = ""; city = ""; county = ""; state = ""
+        email = ""; locator = ""
+        dxcc = ""; cq = ""; itu = ""
+        callbookImageURL = nil
+        callbookQRZURL = nil
+        callbookSummary = ""
+        lastFilledFromCallbook = nil
     }
 
     private func applyCallbookResult(_ r: CallbookResult) {
