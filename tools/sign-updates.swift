@@ -21,33 +21,32 @@ import CryptoKit
 
 // MARK: - RELEASE-DATEN (für jeden Release anpassen)
 
-let RELEASE_VERSION   = "1.8.15"
-let RELEASE_BUILDDATE = "2026-05-18"          // ISO 8601, YYYY-MM-DD
+let RELEASE_VERSION   = "1.8.16"
+let RELEASE_BUILDDATE = "2026-05-19"          // ISO 8601, YYYY-MM-DD
 let RELEASE_MIN_MACOS = "14.0"                 // oder nil
-let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.15.dmg"
+let RELEASE_DMG_URL   = "https://toolbox.funkwelt.net/app/dmg/HAM-Tools-1.8.16.dmg"
 let RELEASE_CRITICAL  = false
 let RELEASE_NOTES = """
-Hotfix: History-Tab überlebt riesige Logs.
+Logger-Polish + Frequenz-Anzeige mit Hz-Auflösung.
 
-Beim Klick auf den History-Tab im Logbuch konnte die App komplett \
-»verschwinden« — Prozess lief weiter, aber kein Fenster wurde mehr \
-sichtbar (auch nach Neustart nicht). Ursache: bei »Zeitraum = Alle« \
-und einem großen Standard-Log zeichnete der History-Tab pro QSO \
-eine Annotation plus eine Polyline von QTH zur Gegenstation. Bei \
-mehreren tausend QSOs hat MapKit den initialen Render-Pass nicht \
-mehr durchgebracht.
+Logbuch:
+- Callbook-Lookup bei Stations-Wechsel wirklich frisch. Wer einen \
+Call lookuppt und dann auf einen anderen Cluster-Spot klickt (oder \
+den Call manuell überschreibt + Tab), bekommt jetzt sauber die neuen \
+Personendaten — Name, QTH, Locator, Email, Zonen. Bisher blieben \
+die Felder der vorigen Station stehen, obwohl Bild und Header schon \
+die neue zeigten.
 
-Drei Schutzschichten:
-- Hard-Cap auf 1500 Annotations — bei mehr Treffern zeigt der Tab \
-die neuesten 1500 QSOs und blendet oben einen Banner ein.
-- Linien-Limit 500 — Polylines sind in MapKit deutlich teurer als \
-Annotations; bei mehr als 500 sichtbaren QSOs werden die QTH→DX-\
-Linien automatisch unterdrückt.
-- »Alle«-Option im Zeitraum-Picker entfernt — statt unbegrenzt steht \
-jetzt »2 Jahre« als Maximum. Altbestand-Werte (days = 0 oder \
->5 Jahre) werden im Tab automatisch auf 1 Jahr geclamped.
+Radio/CAT:
+- Frequenz-Anzeige mit voller 1-Hz-Auflösung. Der rechte Block zeigt \
+jetzt 3 statt 2 Stellen: »7.095.000« statt »7.095.00«.
 
-Default für den »Linien zeigen«-Toggle ist jetzt aus.
+Programm-Maps:
+- Hard-Cap + Overflow-Banner aus dem History-Tab-Schutzschild gilt \
+jetzt konsistent auch für die POTA/SOTA/WWFF/BOTA-Maps. Bei großen \
+Logs gibt's einen Overflow-Banner statt eines MapKit-Stalls.
+
+Special Thanks an HB9HJL Rene für unermüdliches Testen.
 """
 
 // MARK: - Implementation (sollte stabil bleiben)
