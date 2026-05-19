@@ -56,14 +56,14 @@ struct RadioControlPanel: View {
         }
     }
 
-    // Ham-Style Frequenz-Format: MHz.kHz.10Hz mit Punkt-Separatoren.
-    // Beispiel: 7.164.390 Hz → "7.164.39"
+    // Ham-Style Frequenz-Format: MHz.kHz.Hz mit Punkt-Separatoren (volle
+    // 1-Hz-Auflösung). Beispiel: 7.164.390 Hz → "7.164.390".
     private func formatFreq(_ mhz: Double) -> String {
         let totalHz = Int64((mhz * 1_000_000).rounded())
         let mhzPart = totalHz / 1_000_000
         let khzPart = (totalHz % 1_000_000) / 1_000
-        let tenHz   = (totalHz % 1_000) / 10
-        return String(format: "%d.%03d.%02d", mhzPart, khzPart, tenHz)
+        let hzPart  = totalHz % 1_000
+        return String(format: "%d.%03d.%03d", mhzPart, khzPart, hzPart)
     }
     private func commitFreqText() {
         guard let v = parseFreqText(freqText), v > 0 else {
@@ -75,8 +75,8 @@ struct RadioControlPanel: View {
         freqText = formatFreq(v)
     }
 
-    // Akzeptiert sowohl klassische Eingabe ("7.164", "7,164", "7.16439")
-    // als auch das Ham-Style-Format mit doppeltem Punkt ("7.164.39").
+    // Akzeptiert sowohl klassische Eingabe ("7.164", "7,164", "7.164390")
+    // als auch das Ham-Style-Format mit doppeltem Punkt ("7.164.390").
     private func parseFreqText(_ raw: String) -> Double? {
         let cleaned = raw.replacingOccurrences(of: ",", with: ".")
             .trimmingCharacters(in: .whitespaces)
@@ -87,8 +87,8 @@ struct RadioControlPanel: View {
         case 3:
             guard let mhz = Int(parts[0]),
                   let khz = Int(parts[1]),
-                  let tenHz = Int(parts[2]) else { return nil }
-            return Double(mhz) + Double(khz) / 1_000.0 + Double(tenHz) / 100_000.0
+                  let hz  = Int(parts[2]) else { return nil }
+            return Double(mhz) + Double(khz) / 1_000.0 + Double(hz) / 1_000_000.0
         default:
             return nil
         }
@@ -157,7 +157,7 @@ struct RadioControlPanel: View {
     private var frequencyDisplay: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 4) {
-                TextField("14.200.00", text: $freqText)
+                TextField("14.200.000", text: $freqText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 20, weight: .bold, design: .monospaced))
                     .foregroundStyle(theme.textPrimary)
