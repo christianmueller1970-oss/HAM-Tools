@@ -1,7 +1,6 @@
 # HAM-Tools — WWFF-Modus (Phase 4e)
 
-**Status:** Konzept-Skelett (2026-05-14). Implementation startet nach
-einer Folge-Session, sobald Datenquelle final verifiziert ist.
+**Status (Stand 2026-05-19):** ✅ ABGESCHLOSSEN (2026-05-14). Outdoor-Tab-Refactor durch (DX/Contest/Outdoor mit Sub-Picker POTA/SOTA/WWFF/BOTA), Reference-DB mit URL- + CSV-Doppelpfad, 44-QSO-Counter, Map, Awards. Dieses Dokument ist die historische Plan-Skizze.
 **Vorbedingung:** Logbuch Phase 1–4d ist live (v1.8). Phase 4e-0
 (Outdoor-Tab-Refactor) MUSS vor 4e-1 abgeschlossen sein.
 **Vorlage:** SOTA-Modul (`Sources/HAMRechner/Features/Logbuch/SOTA/`)

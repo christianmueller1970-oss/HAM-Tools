@@ -1,6 +1,6 @@
 # HAM-Tools — POTA-Modus (Phase 4c)
 
-**Status:** Konzept-Phase. Architektur entschieden, Implementation steht an.
+**Status (Stand 2026-05-19):** ✅ ABGESCHLOSSEN. Park-DB + Activator/Hunter + P2P + Multi-Park-Hopping + Dupe-Markierung + Spots-Feed mit CAT-QSY + ADIF + QSO-Map alle live. POTA-Self-Spot (api.pota.app/spot) ergänzt. Auto-Upload an pota.app weiterhin manuell (Cognito-SRP-Auth-Versuch 2026-05-16 gescheitert, vertagt). Dieses Dokument ist die historische Plan-Skizze.
 **Vorbedingung:** Logbuch-Phase 1+2+3+4b ist live (Multi-Log + ADIF + Callbook + Cabrillo), CAT ist live (5a + 5b/5c Schreibpfad). Phase 4c hängt sich hier ein.
 
 ## Entscheidungen (Q&A 2026-05-12)

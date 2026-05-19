@@ -176,4 +176,9 @@ Jedes Feature endet mit eigenem Commit, Help-Site-Changelog-Eintrag und (bei Rel
 
 ## Status
 
-- 2026-05-15: Konzept abgestimmt, Implementation steht aus.
+- 2026-05-15: Konzept abgestimmt.
+- 2026-05-19: ✅ **Alle vier Features umgesetzt**:
+  1. Transceiver-Quick-Switch — `TransceiverCommands.swift`
+  2. Bandmap-Fenster — `BandmapWindowView.swift`
+  3. Grayline-Fenster — `GraylineView.swift` + `SunTerminator.swift`
+  4. Cluster-Terminal-Fenster — `ClusterTerminalView.swift` + `DXClusterWindowView.swift`

@@ -1,6 +1,11 @@
 # HAM-Tools — Logbuch + Contest-Modul
 
-**Status:** Brainstorming / Konzept-Phase.
+**Status (Stand 2026-05-19):** Phasen 1+2+3+4b+4c+4d+4e+4f+5 produktiv,
+Phase 6 zu großen Teilen umgesetzt (QRZ Logbook + Club Log + eQSL.cc),
+Phase 7 als Vorgriff (Awards/QSL/Stats) drin. Aktueller Punch-Status mit
+allen Sub-Etappen lebt in `TODO.md` unter »Logbuch-Modul«. Dieses
+Dokument ist die historische Plan-Skizze vom 2026-05-11.
+
 **Architektur-Annahme:** Erst native macOS (SwiftUI + SwiftData/CoreData),
 Web-Portierung später dort wo möglich (CAT-Anbindung geht im Browser nicht,
 QSO-Erfassung schon).

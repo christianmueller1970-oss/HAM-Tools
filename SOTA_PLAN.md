@@ -1,6 +1,6 @@
 # HAM-Tools — SOTA-Modus (Phase 4d)
 
-**Status:** Konzept fertig, Implementation startet 2026-05-14.
+**Status (Stand 2026-05-19):** ✅ ABGESCHLOSSEN (2026-05-14, Polish bis 2026-05-17). ~181k Summits aus sotadata.org.uk, Activator/Chaser, 4-QSO-Counter + Winterbonus, Spots-Tab, Map, Awards-Sub-Tab, ADIF + SOTA-CSV-V2-Export. Dieses Dokument ist die historische Plan-Skizze.
 **Vorbedingung:** Logbuch Phase 1–4b + 4c (POTA) + 5 (CAT) sind live (v1.7.1).
 **Vorlage:** POTA-Modul (`Sources/HAMRechner/Features/Logbuch/POTA/`) zu ~95% strukturidentisch übernehmen.
 

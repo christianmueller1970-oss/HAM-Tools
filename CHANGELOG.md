@@ -5,6 +5,114 @@ Format angelehnt an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ---
 
+## [Unreleased] — Stand 2026-05-19 (zweite Tagesserie)
+
+Neun Feature-Commits nach Release 1.8.16. Die meisten sind zugleich
+strukturelle Refactors — Sammeln wir hier für den nächsten Release-
+Drop (1.9.0 wahrscheinlich, weil i18n + UDP-Bridges-Refactor groß genug
+für einen Minor-Bump sind).
+
+### Logbuch — Mode aus CAT statt eigenem Feld
+
+- Mode-Picker aus DX- und Contest-Form entfernt. Mode wird jetzt
+  durchgängig aus `radio.mode` gelesen (Single-Source-of-Truth).
+  RST-Default-Logik (CW/RTTY/PSK31 → 599 / sonst → 59) hängt jetzt
+  an `radio.mode`, feuert also auch bei CAT-Mode-Wechsel.
+  POTA/SOTA/WWFF/BOTA nutzten das schon vorher.
+- Im Contest-Form wird `radio.mode` gegen die Cabrillo-Kategorie
+  geprüft; bei Mismatch erscheint ein Warn-Dreieck mit Tooltip.
+- `RadioState.mode` persistiert nun analog zur Frequenz mit 500 ms
+  Debounce in UserDefaults (`radio.lastMode`).
+
+### Logbuch — Phase 6: eQSL.cc Auto-Upload
+
+- `EQSLService` mit `ImportADIF.cfm`-Form-POST (`EQSL_USER`,
+  `EQSL_PSWD`, `ADIFData`). Body-Parsing nach Substring-Mustern für
+  Result/Duplicate/Auth-Fail. Schema v10 → v11 mit `qsos.eqslStatus`
+  + `log_meta.usedEqslNickname` (Pro-Log-Override).
+- Settings-Panel ersetzt Placeholder, NewLogSheet bekommt eQSL-
+  Nickname-Feld, QSOTableView kriegt eQSL-Spalte (default-hidden)
+  mit Statuspille + Kontextmenü-Eintrag „N QSOs an eQSL hochladen".
+- Auto-Toggle pausiert bei Auth-Fail. Bulk max 3 parallel.
+
+### Contest — SCP Multi-Source-Master-Call-DB
+
+- Multi-Quellen-Lookup für „Super Check Partial"-Vorschläge im
+  ContestEntryForm. Beide Public-Domain-Quellen unterstützt:
+  - supercheckpartial.com (~50k aktive Contest-Calls, im Bundle
+    als Cold-Start)
+  - cdn.clublog.org (~180k Calls, gzip; eigener Mini-RFC-1952-
+    Decoder über Compression.framework)
+- Binary-Search-Prefix-Lookup auf sortierter Liste — Sub-ms auch
+  bei 230k Calls. Settings-Section unter „Daten" mit Toggle pro
+  Quelle + manuellem Update-Button + Auto-Stale-Popup (14 Tage,
+  Bundle-Stand zählt als frisch).
+- Suggest-Flow-Grid unter dem Contest-Footer; Klick fügt ins
+  theirCall-Feld ein.
+
+### Logbuch — UDP-Bridges-Modul (Multi-Logger)
+
+- Refactor der bisherigen Single-Instance-WSJT-X-Bridge zu generischer
+  Multi-Bridge-Architektur. Default-Setup: WSJT-X 2237 / JS8Call 2242
+  / MSHV 2333 / N1MM 12060 (alle disabled außer migriertem alten
+  WSJT-X-Eintrag).
+- Zwei Adapter: `WsjtxAdapter` (wrapt existierenden Decoder, deckt
+  WSJT-X / JTDX / JS8Call / MSHV ab — alle reden dasselbe Binär-
+  Protokoll). `N1MMAdapter` parst `<contactinfo>`- und `<spot>`-XML-
+  Datagramme. ContactInfo → QSO ins aktive Log, Spot → DXCluster-
+  Stream via `injectExternalSpot(...)`.
+- UI: `UDPBridgesView` mit Add/Remove/Inline-Edit; Status-Pille pro
+  Listener (lauschend / aktiv / Fehler). Status-Badge in der Logbuch-
+  TopBar zeigt N aktive Bridges, Klick öffnet Settings.
+- Dupe-Schutz im QSO-Pfad (60-s-Fenster auf Call+Band+Mode) fängt ab,
+  wenn WSJT-X und N1MM dasselbe QSO simultan melden.
+
+### App — i18n DE/EN mit DeepL-Auto-Übersetzung
+
+- SwiftUI String-Catalog (`Localizable.xcstrings`) mit `defaultLocali-
+  zation: "de"`. Auto-Extract via `tools/extract_strings.py` (läuft vor
+  jedem `swift build`), kompiliert via `xcrun xcstringstool` in die
+  `.lproj/Localizable.strings`-Form, die SwiftPM zur Runtime liest.
+- 866 Source-Keys initial erfasst. 52 manuell geseedet, 814 via
+  DeepL-API mit Token-Schutz für Swift-Interpolation `\(…)`.
+- Drei Locale-Bugs gefixt: (1) SwiftPM kompiliert xcstrings nicht
+  automatisch in .lproj-Form, (2) .lproj im SwiftPM-Sub-Bundle ist
+  unsichtbar für Bundle.main, (3) Info.plist hatte keine
+  CFBundleLocalizations / CFBundleDevelopmentRegion.
+- App-Sprach-Picker in Einstellungen → Appearance: System / Deutsch /
+  English. Schreibt AppleLanguages-UserDefault, Hinweis-Banner zum
+  App-Neustart. Architektur ist n-sprachig — weitere Locales nur
+  Catalog-Spalte ergänzen.
+
+### DX-Cluster + Map (HB9HJL-Wunschliste)
+
+- Multi-Band-Filter (statt Single-Pick). `filterBand: String` →
+  `filterBands: Set<String>`. Menu mit Toggle-Style-Einträgen, „Alle
+  Bänder" leert das Set. Label zeigt „Alle" / einen Band / Komma-Liste
+  bei 2–3 / „N Bänder" ab 4. Beide Stellen (Cluster-Toolbar und
+  Logbuch-ContextBar) umgestellt.
+- DX-Map (WeltkarteView) bekommt sichtbaren QTH-Pin (Akzent-blauer
+  Kreis + Antennen-SF-Symbol + Locator-Label) und einen QTH-Button
+  in der Toolbar, der die Karte zurück nach Mitteleuropa fliegt. Fix:
+  `MapCameraPosition.region` greift nicht nach interaktiver Camera-
+  Bewegung — Umstellung auf `.camera(MapCamera(...))` mit Distance-
+  Snapshot.
+- Logbuch-History-Map (`HistoryTab`): `onAppear { centerOnQTH() }`
+  ergänzt, QTH-Marker mit Locator-Label statt generischem „QTH".
+- `MapCameraBounds` aufgebohrt (1 km min, 200 000 km max) — User
+  kann jetzt bis Globus-Niveau heraus-zoomen.
+- Heatmap-Picker-Bug behoben: `bandMatrix` wurde im Parent berechnet,
+  Picker im Panel hatte eigenen lokalen `@State` — Disconnect. Jetzt
+  computed property direkt im Panel mit `@AppStorage`-Trigger.
+  Zusätzlich „5 min"-Option ergänzt für ruhige Cluster-Phasen.
+
+### Special Thanks
+
+- **HB9HJL Rene** — wieder einmal: die Wunschliste deckte gleich vier
+  reale UX-Issues + den schlafenden Heatmap-Bug auf.
+
+---
+
 ## [1.8.16] — 2026-05-19
 
 ### Logbuch-Fixes

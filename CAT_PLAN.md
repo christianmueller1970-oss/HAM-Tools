@@ -1,6 +1,6 @@
 # HAM-Tools — CAT-Anbindung (Phase 5)
 
-**Status:** Konzept-Phase. Architektur entschieden, Detail-Implementation steht aus.
+**Status (Stand 2026-05-19):** ✅ ABGESCHLOSSEN. Hamlib-Subprocess + TRX-Profile (IC-7300 / IC-705 / IC-9700 verifiziert), S-Meter, VFO/Mode/Split, Multi-Config, CI-V-Adresse, RFPOWER-Polling. Mode + Frequenz seit 2026-05-19 in UserDefaults persistiert. Mode-aus-CAT durchgängig (kein eigenes Mode-Feld mehr in DX-/Contest-Form). Dieses Dokument ist die historische Plan-Skizze.
 **Vorbedingung:** RadioState (Sources/HAMRechner/Features/Logbuch/Models/RadioState.swift) ist
 bereits CAT-aware (`source: .manual | .cat`, `catConnected: Bool`). CAT dockt nur an.
 
