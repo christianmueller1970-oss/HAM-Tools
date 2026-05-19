@@ -56,6 +56,17 @@ struct QSOTableView: View {
             .trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    // eQSL-Bulk-Upload-State.
+    @State private var eqslUploadInFlight: Bool = false
+    @State private var eqslBulkAlert: QRZBulkAlert?
+
+    private var eqslConfigured: Bool {
+        !uploadSettings.eqslUsername
+            .trimmingCharacters(in: .whitespaces).isEmpty
+        && !uploadSettings.eqslPassword
+            .trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     // Sortierung — initialer Default: Datum absteigend (neueste zuerst).
     @State private var sortOrder: [KeyPathComparator<QSO>] = [
         KeyPathComparator(\QSO.datetime, order: .reverse)
@@ -129,6 +140,11 @@ struct QSOTableView: View {
                   dismissButton: .default(Text("OK")))
         }
         .alert(item: $clubLogBulkAlert) { entry in
+            Alert(title: Text(entry.title),
+                  message: Text(entry.message),
+                  dismissButton: .default(Text("OK")))
+        }
+        .alert(item: $eqslBulkAlert) { entry in
             Alert(title: Text(entry.title),
                   message: Text(entry.message),
                   dismissButton: .default(Text("OK")))
@@ -545,6 +561,18 @@ struct QSOTableView: View {
             .customizationID("qrzLogbookStatus")
             .defaultVisibility(.hidden)
 
+            // eQSL Upload-Status — analog QRZ-LB, default-hidden.
+            //   0 = nicht versucht
+            //   1 = OK (accepted)
+            //   2 = duplicate (war schon drin)
+            //   3 = fail (Klick zum Retry)
+            TableColumn("eQSL") { (qso: QSO) in
+                eqslStatusCell(qso: qso)
+            }
+            .width(min: 40, ideal: 50)
+            .customizationID("eqslStatus")
+            .defaultVisibility(.hidden)
+
             // Aktionen-Spalte — nicht customizable (immer ganz rechts)
             TableColumn("") { qso in
                 HStack(spacing: 4) {
@@ -614,6 +642,16 @@ struct QSOTableView: View {
                       systemImage: "arrow.up.doc.on.clipboard")
             }
             .disabled(!clubLogConfigured || clubLogUploadInFlight)
+            Button {
+                bulkUploadToEqsl(for: ids)
+            } label: {
+                let n = ids.count
+                Label(n == 1
+                      ? "An eQSL hochladen"
+                      : "\(n) QSOs an eQSL hochladen",
+                      systemImage: "envelope.arrow.triangle.branch")
+            }
+            .disabled(!eqslConfigured || eqslUploadInFlight)
             if ids.count == 1, let id = ids.first,
                let qso = manager.currentQSOs.first(where: { $0.id == id }) {
                 Divider()
@@ -728,6 +766,76 @@ struct QSOTableView: View {
                         ? "\(r.uploaded) QSOs an QRZ hochgeladen"
                         : "Nichts neu hochgeladen",
                     message: "Neu: \(r.uploaded) · bereits in QRZ: \(r.duplicate) · Fehler: \(r.failed)")
+            }
+        }
+    }
+
+    // MARK: - eQSL-Status-Zelle
+
+    @ViewBuilder
+    private func eqslStatusCell(qso: QSO) -> some View {
+        switch qso.eqslStatus {
+        case 1:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .help("eQSL: hochgeladen")
+        case 2:
+            Image(systemName: "checkmark.circle")
+                .foregroundStyle(theme.textSecondary)
+                .help("eQSL: war bereits hochgeladen")
+        case 3:
+            Button {
+                bulkUploadToEqsl(for: [qso.id])
+            } label: {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.borderless)
+            .help("eQSL-Upload fehlgeschlagen — Klick: nochmal versuchen")
+            .disabled(eqslUploadInFlight)
+        default:
+            Button {
+                bulkUploadToEqsl(for: [qso.id])
+            } label: {
+                Image(systemName: "arrow.up.circle")
+                    .foregroundStyle(theme.textDim)
+            }
+            .buttonStyle(.borderless)
+            .help("Noch nicht hochgeladen — Klick: jetzt hochladen")
+            .disabled(!eqslConfigured || eqslUploadInFlight)
+        }
+    }
+
+    // MARK: - Bulk-Upload an eQSL
+
+    private func bulkUploadToEqsl(for ids: Set<UUID>) {
+        guard !ids.isEmpty, eqslConfigured, !eqslUploadInFlight else { return }
+        eqslUploadInFlight = true
+        Task {
+            let result = await manager.bulkUploadToEqsl(ids: ids)
+            await MainActor.run {
+                eqslUploadInFlight = false
+                guard let r = result else {
+                    eqslBulkAlert = QRZBulkAlert(
+                        title: "eQSL-Upload nicht konfiguriert",
+                        message: "Trag in den Einstellungen → Lookup & Upload → eQSL.cc Username + Password ein.")
+                    return
+                }
+                if r.stoppedDueToAuth {
+                    eqslBulkAlert = QRZBulkAlert(
+                        title: "eQSL-Login fehlgeschlagen",
+                        message: "Auto-Upload wurde pausiert. Prüfe Username/Password in den Einstellungen.\n\n\(r.firstError ?? "")")
+                } else if r.uploaded > 0 || r.duplicate > 0 {
+                    eqslBulkAlert = QRZBulkAlert(
+                        title: r.uploaded > 0
+                            ? "\(r.uploaded) QSOs an eQSL hochgeladen"
+                            : "Nichts neu hochgeladen",
+                        message: "Neu: \(r.uploaded) · bereits in eQSL: \(r.duplicate) · Fehler: \(r.failed)")
+                } else {
+                    eqslBulkAlert = QRZBulkAlert(
+                        title: "Upload fehlgeschlagen",
+                        message: r.firstError ?? "Unbekannter Fehler — siehe Konsole.")
+                }
             }
         }
     }

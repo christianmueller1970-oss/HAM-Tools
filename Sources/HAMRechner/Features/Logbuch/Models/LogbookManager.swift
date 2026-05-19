@@ -203,10 +203,12 @@ final class LogbookManager: ObservableObject {
         recomputeGeometry(&local)
         do {
             try db.addQSO(local); currentQSOs = db.qsos
+            // eQSL Auto-Upload Hook — symmetrisch zu QRZ + ClubLog.
             recomputeAwards()
             onQSOLogged?()
             scheduleQRZAutoUpload(for: local)
             scheduleClubLogAutoUpload(for: local)
+            scheduleEqslAutoUpload(for: local)
         } catch { print("addQSO failed: \(error.localizedDescription)") }
     }
 
@@ -737,6 +739,159 @@ final class LogbookManager: ObservableObject {
             return ClubLogBulkResult(uploaded: 0, failed: qsos.count,
                                       stoppedDueToAuth: false, firstError: msg)
         }
+    }
+
+    // MARK: - eQSL.cc Upload (Phase 6 Schritt 2)
+
+    struct EqslBulkResult: Equatable {
+        var uploaded:  Int      // accepted (neu in eQSL)
+        var duplicate: Int      // war bereits in eQSL — wie OK gewertet
+        var failed:    Int      // Auth, Netzwerk, sonstige Rejects
+        var stoppedDueToAuth: Bool
+        var firstError: String?
+        var total: Int { uploaded + duplicate + failed }
+    }
+
+    /// Fire-and-forget Auto-Upload für eQSL nach `addQSO`. Greift nur:
+    ///   • bei Master + per-Service-Toggle an, Credentials gesetzt
+    ///   • Log-Typ Standard (DX) — Outdoor-Programme nutzen eigene Pfade
+    /// Bei Auth-Fail wird der Auto-Toggle automatisch deaktiviert, damit
+    /// wiederholte falsche Credentials nicht zur Account-Sperre führen.
+    private func scheduleEqslAutoUpload(for qso: QSO) {
+        guard let settings = uploadServices,
+              settings.eqslAutoUpload,
+              !settings.eqslUsername.trimmingCharacters(in: .whitespaces).isEmpty,
+              !settings.eqslPassword.trimmingCharacters(in: .whitespaces).isEmpty,
+              let log = logs.first(where: { $0.id == qso.logID }),
+              log.type == .standard
+        else { return }
+
+        let username = settings.eqslUsername
+        let password = settings.eqslPassword
+        let nickname = effectiveEqslNickname(for: log, settings: settings)
+        let markQsl  = settings.eqslMarkQslSent
+
+        Task { [weak self] in
+            let service = EQSLService()
+            let outcome = await service.uploadSingle(qso: qso,
+                                                      username: username,
+                                                      password: password,
+                                                      nickname: nickname)
+            await MainActor.run {
+                self?.applyEqslUploadOutcome(outcome, to: qso.id, markQsl: markQsl)
+                if case .authFailed = outcome {
+                    self?.uploadServices?.eqslAutoUpload = false
+                }
+            }
+        }
+    }
+
+    /// Schreibt das eQSL-Status-Flag am QSO zurück + setzt bei Erfolg
+    /// optional `eqslSent = true` (User-Wunsch via Settings).
+    private func applyEqslUploadOutcome(_ outcome: EQSLService.UploadOutcome,
+                                         to qsoID: UUID,
+                                         markQsl: Bool) {
+        guard let db = openDB,
+              var q = currentQSOs.first(where: { $0.id == qsoID })
+        else { return }
+        let newStatus = outcome.statusInt
+        var dirty = false
+        if q.eqslStatus != newStatus {
+            q.eqslStatus = newStatus
+            dirty = true
+        }
+        if markQsl, (outcome == .accepted || outcome == .duplicate), !q.eqslSent {
+            q.eqslSent = true
+            dirty = true
+        }
+        guard dirty else { return }
+        do {
+            try db.updateQSO(q)
+            currentQSOs = db.qsos
+        } catch {
+            print("eQSL status persist failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Bulk-Upload für eine Auswahl QSOs an eQSL. Parallel via TaskGroup,
+    /// aber konservativ gedrosselt (3 gleichzeitig) — eQSL toleriert Burst-
+    /// Requests, aber bei vielen QSOs lohnt sich kein flachgelegtes Pool.
+    func bulkUploadToEqsl(ids: Set<UUID>) async -> EqslBulkResult? {
+        guard let settings = uploadServices,
+              !settings.eqslUsername.trimmingCharacters(in: .whitespaces).isEmpty,
+              !settings.eqslPassword.trimmingCharacters(in: .whitespaces).isEmpty
+        else { return nil }
+        let qsos = currentQSOs.filter { ids.contains($0.id) }
+        guard !qsos.isEmpty else {
+            return EqslBulkResult(uploaded: 0, duplicate: 0, failed: 0,
+                                   stoppedDueToAuth: false, firstError: nil)
+        }
+        let username = settings.eqslUsername
+        let password = settings.eqslPassword
+        let markQsl  = settings.eqslMarkQslSent
+        let log      = logs.first(where: { $0.id == currentLogID })
+        let nickname = log.map { effectiveEqslNickname(for: $0, settings: settings) } ?? settings.eqslNickname
+
+        var uploaded  = 0
+        var duplicate = 0
+        var failed    = 0
+        var firstError: String? = nil
+        var stoppedDueToAuth = false
+
+        await withTaskGroup(of: (UUID, EQSLService.UploadOutcome).self) { group in
+            let maxParallel = 3
+            var iter = qsos.makeIterator()
+            var inFlight = 0
+            func addNext() {
+                guard let q = iter.next() else { return }
+                group.addTask {
+                    let service = EQSLService()
+                    let outcome = await service.uploadSingle(qso: q,
+                                                              username: username,
+                                                              password: password,
+                                                              nickname: nickname)
+                    return (q.id, outcome)
+                }
+                inFlight += 1
+            }
+            for _ in 0..<maxParallel { addNext() }
+            while let (id, outcome) = await group.next() {
+                inFlight -= 1
+                applyEqslUploadOutcome(outcome, to: id, markQsl: markQsl)
+                switch outcome {
+                case .accepted:                 uploaded  += 1
+                case .duplicate:                duplicate += 1
+                case .authFailed(let m):
+                    failed += 1
+                    if firstError == nil { firstError = m }
+                    stoppedDueToAuth = true
+                    uploadServices?.eqslAutoUpload = false
+                case .rejected(let m), .network(let m):
+                    failed += 1
+                    if firstError == nil { firstError = m }
+                }
+                if !stoppedDueToAuth { addNext() }
+                _ = inFlight
+            }
+        }
+
+        return EqslBulkResult(uploaded: uploaded, duplicate: duplicate,
+                               failed: failed, stoppedDueToAuth: stoppedDueToAuth,
+                               firstError: firstError)
+    }
+
+    /// Hole den effektiven eQSL-Nickname: Pro-Log-Override hat Vorrang,
+    /// Fallback ist der globale Default aus Settings. Leerstring → nil
+    /// (eQSL nutzt dann das Default-QTH des Accounts).
+    private func effectiveEqslNickname(for log: Log,
+                                        settings: UploadServicesSettings) -> String? {
+        if let logNick = log.usedEqslNickname?
+            .trimmingCharacters(in: .whitespaces), !logNick.isEmpty {
+            return logNick
+        }
+        let global = settings.eqslNickname
+            .trimmingCharacters(in: .whitespaces)
+        return global.isEmpty ? nil : global
     }
 
     func deleteQSO(_ qso: QSO) {

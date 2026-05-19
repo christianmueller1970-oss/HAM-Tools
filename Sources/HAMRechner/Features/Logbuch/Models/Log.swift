@@ -31,6 +31,14 @@ struct Log: Identifiable, Codable, Hashable {
     // beim Wizard via CallValidator (Substring-Match an "/").
     var usedCallsign: String?
 
+    // eQSL-Nickname-Override (Phase 6 Schritt 2, Schema v11): überschreibt
+    // pro Log den globalen Default aus UploadServicesSettings.eqslNickname.
+    // Sinn: bei /P oder /M-Ausgaben hat man bei eQSL eigene QTH-Profile
+    // ("Nicknames"), die separat geführt werden — das Pro-Log-Feld erlaubt,
+    // einen einzelnen Aktivitäts-Block auf das passende Profil zu mappen
+    // ohne die globale Einstellung zu ändern. nil → Fallback auf Default.
+    var usedEqslNickname: String?
+
     // OP-Liste pro Contest-Log (Multi-Op-Workflow, 1.8.2). Komma-getrennter
     // String, beim Anlegen definiert. Befüllt das OP-Switcher-Dropdown im
     // ContestEntryForm und damit qso.operatorCall. Diese Calls brauchen
@@ -59,6 +67,7 @@ struct Log: Identifiable, Codable, Hashable {
          botaRefs: String? = nil,
          role: String? = nil,
          usedCallsign: String? = nil,
+         usedEqslNickname: String? = nil,
          contestOperators: String? = nil,
          notes: String? = nil,
          createdAt: Date = Date()) {
@@ -81,6 +90,7 @@ struct Log: Identifiable, Codable, Hashable {
         self.botaRefs = botaRefs
         self.role = role
         self.usedCallsign = usedCallsign
+        self.usedEqslNickname = usedEqslNickname
         self.contestOperators = contestOperators
         self.notes = notes
         self.createdAt = createdAt

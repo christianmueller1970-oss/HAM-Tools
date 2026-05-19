@@ -68,6 +68,13 @@ struct QSO: Identifiable, Codable, Hashable {
     //   3 = fail (auth, network, sonstige Fehler — Retry möglich)
     var qrzLogbookStatus: Int = 0
 
+    // eQSL.cc Upload-Status (Phase 6 Schritt 2, Schema v11):
+    //   0 = nicht versucht
+    //   1 = OK (eQSL hat „Result: Confirming Submission" zurückgegeben)
+    //   2 = duplicate (eQSL kennt das QSO bereits — wie 1 zu werten)
+    //   3 = fail (Auth, Netzwerk, andere Rejects — Retry möglich)
+    var eqslStatus: Int = 0
+
     // Solar (Phase 7)
     var sfi: Int?
     var kIndex: Double?

@@ -20,6 +20,7 @@ struct NewLogSheet: View {
     @State private var selectedType: LogType = .standard
     @State private var notes: String = ""
     @State private var usedCallsign: String = ""
+    @State private var eqslNicknameOverride: String = ""
     @AppStorage("callsign") private var defaultCallsign = ""
 
     private var theme: AppTheme { themeManager.theme }
@@ -94,6 +95,17 @@ struct NewLogSheet: View {
 
             MyCallField(call: $usedCallsign)
 
+            VStack(alignment: .leading, spacing: 6) {
+                Text("eQSL-Nickname (optional)")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(theme.textSecondary)
+                TextField("Leer = Default aus den Einstellungen", text: $eqslNicknameOverride)
+                    .textFieldStyle(.roundedBorder)
+                Text("Überschreibt den globalen eQSL-Nickname für dieses Log — sinnvoll wenn du z.B. ein /P-QTH-Profil bei eQSL pflegst und dieses eine Aktivität dorthin routen willst.")
+                    .font(.caption2)
+                    .foregroundStyle(theme.textDim)
+            }
+
             // Speicherort-Anzeige (read-only — zentral konfigurierbar
             // in den Einstellungen → Daten)
             VStack(alignment: .leading, spacing: 6) {
@@ -138,10 +150,12 @@ struct NewLogSheet: View {
                     .keyboardShortcut(.cancelAction)
                 Button("Anlegen") {
                     let trimmedCall = usedCallsign.trimmingCharacters(in: .whitespaces)
+                    let trimmedNick = eqslNicknameOverride.trimmingCharacters(in: .whitespaces)
                     let log = Log(
                         name: name.trimmingCharacters(in: .whitespaces),
                         type: selectedType,
                         usedCallsign: trimmedCall.isEmpty ? nil : trimmedCall.uppercased(),
+                        usedEqslNickname: trimmedNick.isEmpty ? nil : trimmedNick,
                         notes: notes.isEmpty ? nil : notes
                     )
                     onCreate(log)

@@ -138,7 +138,7 @@ struct LookupUploadSettingsView: View {
         case .qrzCQ:     placeholder(name: "QRZCQ",     web: "https://www.qrzcq.com")
         case .hamCall:   placeholder(name: "HamCall",   web: "https://hamcall.net")
         case .lotw:      placeholder(name: "LoTW (ARRL)",  web: "https://lotw.arrl.org",   showRT: true)
-        case .eqsl:      placeholder(name: "eQSL.cc",      web: "https://www.eqsl.cc",     showRT: true)
+        case .eqsl:      eqslPanel
         case .clublog:   clubLogPanel
         case .hrdlog:    placeholder(name: "HRDLOG.net",   web: "https://www.hrdlog.net",  showRT: true)
         case .pota:      potaPanel
@@ -230,6 +230,36 @@ struct LookupUploadSettingsView: View {
     //
     // Club Log firewallt die Client-IP nach wiederholten 4xx-Fehlern.
     // Auto-Upload deaktiviert sich daher bei Auth-Fail automatisch.
+    private var eqslPanel: some View {
+        servicePanel(name: "eQSL.cc", web: "https://www.eqsl.cc") {
+            VStack(alignment: .leading, spacing: 8) {
+                credentialField(label: "Username", text: $upload.eqslUsername)
+                credentialField(label: "Password", text: $upload.eqslPassword, secure: true)
+                credentialField(label: "Nickname", text: $upload.eqslNickname)
+                Text("Der **Nickname** ist optional. Falls du in deinem eQSL-Account mehrere QTH-Profile pflegst (z.B. Heim-QTH + /P), gib hier das Default-Profil ein. Beim Anlegen eines Logs lässt sich der Nickname pro Log überschreiben.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Toggle("Jedes geloggte QSO automatisch hochladen",
+                       isOn: $upload.eqslAutoUpload)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                Toggle("Nach erfolgreichem Upload »QSL via eQSL gesendet« markieren",
+                       isOn: $upload.eqslMarkQslSent)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                Text("Wirkt nur in **Standard-Logs (DX)**. Programm-Logs (POTA/SOTA/WWFF/BOTA) nutzen ihre eigenen Upload-Pfade.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("⚠️ Bei Auth-Fehlern wird der Auto-Upload automatisch pausiert, damit kein falsches Passwort wiederholt geprüft wird.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                statusLine(configured:
+                    !upload.eqslUsername.trimmingCharacters(in: .whitespaces).isEmpty &&
+                    !upload.eqslPassword.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+    }
+
     private var clubLogPanel: some View {
         servicePanel(name: "Club Log", web: "https://clublog.org") {
             VStack(alignment: .leading, spacing: 8) {

@@ -12,7 +12,7 @@ final class LogbookDatabase {
     let fileURL: URL
     private let conn: SQLiteConnection
 
-    static let schemaVersion = 10
+    static let schemaVersion = 11
     static let fileExtension = "htlog"          // intern SQLite
 
     private(set) var log: Log
@@ -123,6 +123,7 @@ final class LogbookDatabase {
             botaRefs TEXT,
             role TEXT,
             usedCallsign TEXT,
+            usedEqslNickname TEXT,
             contestOperators TEXT,
             notes TEXT,
             createdAt REAL NOT NULL
@@ -183,6 +184,7 @@ final class LogbookDatabase {
             distanceKm REAL,
             bearingDeg REAL,
             qrzLogbookStatus INTEGER NOT NULL DEFAULT 0,
+            eqslStatus INTEGER NOT NULL DEFAULT 0,
             createdAt REAL NOT NULL,
             modifiedAt REAL NOT NULL
         );
@@ -309,6 +311,22 @@ final class LogbookDatabase {
             }
         }
 
+        // v10 → v11: eQSL.cc-Upload-Status pro QSO + eQSL-Nickname-Override
+        // pro Log. Statuswerte analog qrzLogbookStatus. Nickname-Override
+        // bevorzugt vor uploadServices.eqslNickname beim Upload.
+        if current < 11 {
+            if !columnExists(conn: conn, table: "qsos", column: "eqslStatus") {
+                if !conn.exec("ALTER TABLE qsos ADD COLUMN eqslStatus INTEGER NOT NULL DEFAULT 0;") {
+                    throw LogbookError.writeFailed(conn.lastErrorMessage)
+                }
+            }
+            if !columnExists(conn: conn, table: "log_meta", column: "usedEqslNickname") {
+                if !conn.exec("ALTER TABLE log_meta ADD COLUMN usedEqslNickname TEXT;") {
+                    throw LogbookError.writeFailed(conn.lastErrorMessage)
+                }
+            }
+        }
+
         // v2 → v3: Contest-Etappe-1-Felder (Serial, Sent/Recv-Exchange, Run/S&P).
         if current < 3 {
             let migrations: [(table: String, column: String, type: String)] = [
@@ -379,7 +397,8 @@ final class LogbookDatabase {
                    wwffRef, wwffRefs,
                    botaRef, botaRefs,
                    usedCallsign,
-                   contestOperators
+                   contestOperators,
+                   usedEqslNickname
             FROM log_meta LIMIT 1;
         """)
         guard stmt.step() == SQLITE_ROW,
@@ -411,6 +430,7 @@ final class LogbookDatabase {
             botaRefs: stmt.columnText(19),
             role: stmt.columnText(12),
             usedCallsign: stmt.columnText(20),
+            usedEqslNickname: stmt.columnText(22),
             contestOperators: stmt.columnText(21),
             notes: stmt.columnText(13),
             createdAt: Date(timeIntervalSince1970: createdTS)
@@ -426,8 +446,9 @@ final class LogbookDatabase {
                 wwffRef, wwffRefs,
                 botaRef, botaRefs,
                 usedCallsign,
-                contestOperators)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)
+                contestOperators,
+                usedEqslNickname)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name,
                 type=excluded.type,
@@ -448,6 +469,7 @@ final class LogbookDatabase {
                 role=excluded.role,
                 usedCallsign=excluded.usedCallsign,
                 contestOperators=excluded.contestOperators,
+                usedEqslNickname=excluded.usedEqslNickname,
                 notes=excluded.notes;
         """)
         stmt.bind(1,  log.id.uuidString)
@@ -472,6 +494,7 @@ final class LogbookDatabase {
         stmt.bind(20, log.botaRefs)
         stmt.bind(21, log.usedCallsign)
         stmt.bind(22, log.contestOperators)
+        stmt.bind(23, log.usedEqslNickname)
         guard stmt.step() == SQLITE_DONE else {
             throw LogbookError.writeFailed(conn.lastErrorMessage)
         }
@@ -496,7 +519,8 @@ final class LogbookDatabase {
                    mySotaRefs,
                    myWwffRef, myWwffRefs, theirWwffRef,
                    myBotaRef, myBotaRefs, theirBotaRef,
-                   qrzLogbookStatus
+                   qrzLogbookStatus,
+                   eqslStatus
             FROM qsos ORDER BY datetime DESC;
         """)
         var out: [QSO] = []
@@ -573,6 +597,7 @@ final class LogbookDatabase {
             qso.myBotaRefs         = stmt.columnText(53)
             qso.theirBotaRef       = stmt.columnText(54)
             qso.qrzLogbookStatus   = stmt.columnInt(55) ?? 0
+            qso.eqslStatus         = stmt.columnInt(56) ?? 0
             out.append(qso)
         }
         return out
@@ -597,12 +622,13 @@ final class LogbookDatabase {
                 mySotaRefs,
                 myWwffRef, myWwffRefs, theirWwffRef,
                 myBotaRef, myBotaRefs, theirBotaRef,
-                qrzLogbookStatus)
+                qrzLogbookStatus,
+                eqslStatus)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16,
                     ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28,
                     ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39, ?40,
                     ?41, ?42, ?43, ?44, ?45, ?46, ?47, ?48, ?49, ?50, ?51, ?52,
-                    ?53, ?54, ?55, ?56);
+                    ?53, ?54, ?55, ?56, ?57);
             """
         } else {
             sql = """
@@ -624,7 +650,8 @@ final class LogbookDatabase {
                 mySotaRefs=?49,
                 myWwffRef=?50, myWwffRefs=?51, theirWwffRef=?52,
                 myBotaRef=?53, myBotaRefs=?54, theirBotaRef=?55,
-                qrzLogbookStatus=?56
+                qrzLogbookStatus=?56,
+                eqslStatus=?57
             WHERE id=?1;
             """
         }
@@ -685,6 +712,7 @@ final class LogbookDatabase {
         stmt.bind(54, qso.myBotaRefs)
         stmt.bind(55, qso.theirBotaRef)
         stmt.bind(56, qso.qrzLogbookStatus)
+        stmt.bind(57, qso.eqslStatus)
 
         guard stmt.step() == SQLITE_DONE else {
             throw LogbookError.writeFailed(conn.lastErrorMessage)
