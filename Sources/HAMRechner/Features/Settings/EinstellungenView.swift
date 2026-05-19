@@ -20,8 +20,8 @@ struct EinstellungenView: View {
                 .tabItem { Label("Alerts", systemImage: "bell.badge") }
             CATTab()
                 .tabItem { Label("CAT", systemImage: "cable.connector") }
-            WsjtxBridgeView()
-                .tabItem { Label("WSJT-X", systemImage: "waveform.path") }
+            UDPBridgesView()
+                .tabItem { Label("Externe Logger", systemImage: "waveform.path") }
             LicenseSettingsView()
                 .tabItem { Label("Lizenz", systemImage: "key.fill") }
         }

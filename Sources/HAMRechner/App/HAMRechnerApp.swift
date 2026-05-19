@@ -27,9 +27,9 @@ struct HAMRechnerApp: App {
     @StateObject private var scpService:       SCPService
     @StateObject private var licenseService:   LicenseService = LicenseService()
     @StateObject private var updateChecker:    UpdateChecker  = UpdateChecker()
-    @StateObject private var wsjtxSettings:    WsjtxBridgeSettings = WsjtxBridgeSettings()
+    @StateObject private var udpBridgesSettings: UDPBridgesSettings = UDPBridgesSettings()
     @StateObject private var batteryMonitor:   BatteryMonitor      = BatteryMonitor()
-    @StateObject private var wsjtxBridge:      WsjtxBridgeService = WsjtxBridgeService()
+    @StateObject private var udpBridgesService: UDPBridgesService = UDPBridgesService()
     // DXClusterViewModel hier auf App-Level, damit auch Pop-up-Fenster
     // (Bandmap-Windows) denselben Spot-Stream sehen — nicht mehr nur das
     // Hauptfenster (ContentView).
@@ -159,8 +159,8 @@ struct HAMRechnerApp: App {
                 .environmentObject(scpService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)
-                .environmentObject(wsjtxSettings)
-                .environmentObject(wsjtxBridge)
+                .environmentObject(udpBridgesSettings)
+                .environmentObject(udpBridgesService)
                 .environmentObject(dxClusterVM)
                 .environmentObject(batteryMonitor)
                 .frame(minWidth: 860, minHeight: 560)
@@ -335,8 +335,8 @@ struct HAMRechnerApp: App {
                 .environmentObject(scpService)
                 .environmentObject(licenseService)
                 .environmentObject(updateChecker)
-                .environmentObject(wsjtxSettings)
-                .environmentObject(wsjtxBridge)
+                .environmentObject(udpBridgesSettings)
+                .environmentObject(udpBridgesService)
                 .environmentObject(dxClusterVM)
                 .environmentObject(batteryMonitor)
                 .preferredColorScheme(themeManager.theme.colorScheme)

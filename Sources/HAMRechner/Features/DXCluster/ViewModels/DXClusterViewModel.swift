@@ -337,6 +337,35 @@ final class DXClusterViewModel: ObservableObject {
         return clients.values.first
     }
 
+    // MARK: - External-Source-Injection
+    //
+    // Wird vom UDPBridgesService genutzt, um Spots aus N1MM (oder anderen
+    // UDP-Loggern) in den Cluster-Stream einzuspeisen — dieselbe Dedup-Logik
+    // wie für TCP-Cluster-Spots greift, der `source` wird mit dem übergebenen
+    // Tag (z.B. „N1MM") gesetzt.
+
+    func injectExternalSpot(dxCall: String,
+                            spotterCall: String,
+                            freqKHz: Double,
+                            comment: String,
+                            sourceTag: String,
+                            time: Date) {
+        let mhz = freqKHz / 1000.0
+        var spot = DXSpot(
+            spotter: spotterCall.uppercased(),
+            frequency: freqKHz,
+            dxCall: dxCall.uppercased(),
+            comment: comment,
+            spotTime: DateFormatter.localizedString(from: time,
+                                                    dateStyle: .none,
+                                                    timeStyle: .short),
+            source: sourceTag
+        )
+        spot.band = HamBand.from(frequencyMHz: mhz)?.rawValue ?? ""
+        spot.timestamp = time
+        addSpot(spot)
+    }
+
     // MARK: - Private
 
     private func addSpot(_ spot: DXSpot) {

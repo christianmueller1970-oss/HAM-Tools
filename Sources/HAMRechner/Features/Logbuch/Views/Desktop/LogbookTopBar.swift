@@ -104,7 +104,7 @@ struct LogbookTopBar: View {
 
                 batteryPill
 
-                WsjtxStatusBadge()
+                UDPBridgesStatusBadge()
 
                 HStack(spacing: 5) {
                     Image(systemName: "person.crop.square")

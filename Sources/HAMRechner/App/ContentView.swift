@@ -113,8 +113,8 @@ struct ContentView: View {
     @EnvironmentObject var logbookManager: LogbookManager
     @EnvironmentObject var licenseService: LicenseService
     @EnvironmentObject var updateChecker:  UpdateChecker
-    @EnvironmentObject var wsjtxSettings:  WsjtxBridgeSettings
-    @EnvironmentObject var wsjtxBridge:    WsjtxBridgeService
+    @EnvironmentObject var udpBridgesSettings: UDPBridgesSettings
+    @EnvironmentObject var udpBridgesService:  UDPBridgesService
     @EnvironmentObject var scpService:     SCPService
     // dxClusterVM lebt auf App-Level (HAMRechnerApp) — wird hier nur per
     // Environment konsumiert, damit auch Pop-up-Bandmap-Fenster dieselbe
@@ -153,19 +153,19 @@ struct ContentView: View {
             logbookManager.licenseAllowsMoreQSOs = { lic.canLogMoreQSOs }
             logbookManager.onQSOLogged           = { lic.registerLoggedQSO() }
 
-            // WSJT-X-Bridge: bei jedem QSOLogged-UDP-Paket → ins aktive Log
-            // einfügen. Sucht das Log über currentLogID; falls keins offen ist,
-            // wird das QSO verworfen (User-Feedback via wsjtxBridge.lastError
-            // wäre die Alternative — aktuell konservativ).
+            // UDP-Bridges: WSJT-X-Familie (WSJT-X/JTDX/JS8Call/MSHV) +
+            // N1MM. Bei jedem QSOLogged-Paket ins aktive Log einfügen, bei
+            // jedem N1MM-Spot in den DX-Cluster-Stream injizieren.
             let lm = logbookManager
-            wsjtxBridge.onQSOLogged = { msg in
+            let vm = dxClusterVM
+            udpBridgesService.onQSOLogged = { payload, _ in
                 guard let logID = lm.currentLogID,
                       let activeLog = lm.logs.first(where: { $0.id == logID })
                 else { return }
-                let qso = WsjtxQSOConverter.qso(from: msg, into: activeLog)
-                // Doppelt-Schutz für QSOs aus WSJT-X (z.B. wenn der Operator
-                // zweimal "Log QSO" drückt): gleiches Call+Band+Mode innerhalb
-                // 60 Sek wird verworfen.
+                let qso = UDPBridgeQSOConverter.qso(from: payload, into: activeLog)
+                // Doppelt-Schutz: gleiches Call+Band+Mode innerhalb 60 Sek
+                // wird verworfen (z.B. wenn WSJT-X und N1MM dasselbe QSO
+                // gleichzeitig melden — oder bei einem Doppelklick im Logger).
                 let isDupe = lm.currentQSOs.contains { e in
                     e.call == qso.call
                         && e.band == qso.band
@@ -175,9 +175,17 @@ struct ContentView: View {
                 guard !isDupe else { return }
                 lm.addQSO(qso)
             }
-            if wsjtxSettings.enabled {
-                wsjtxBridge.start(port: wsjtxSettings.port)
+            udpBridgesService.onSpot = { payload, _ in
+                vm.injectExternalSpot(
+                    dxCall: payload.dxCall,
+                    spotterCall: payload.spotterCall,
+                    freqKHz: payload.freqKHz,
+                    comment: payload.comment,
+                    sourceTag: payload.sourceTag,
+                    time: payload.time
+                )
             }
+            udpBridgesService.bind(to: udpBridgesSettings)
 
             // Update-Check beim Start (max 1×/24h).
             updateChecker.autoCheckIfDue()
@@ -205,15 +213,6 @@ struct ContentView: View {
             }
         } message: {
             Text("Die Master-Call-Datenbank (Contest-Suggest) ist älter als \(SCPService.staleThresholdDays) Tage. Frische Daten von supercheckpartial.com und Club Log laden? Du kannst das jederzeit unter Einstellungen → Daten manuell auslösen.")
-        }
-        .onChange(of: wsjtxSettings.enabled) { _, newValue in
-            if newValue { wsjtxBridge.start(port: wsjtxSettings.port) }
-            else        { wsjtxBridge.stop() }
-        }
-        .onChange(of: wsjtxSettings.port) { _, _ in
-            if wsjtxSettings.enabled {
-                wsjtxBridge.restart(port: wsjtxSettings.port)
-            }
         }
         .onChange(of: updateChecker.state) { _, new in
             if case .updateAvailable(let payload) = new {
