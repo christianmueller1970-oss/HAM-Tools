@@ -1105,9 +1105,32 @@ private struct NodeEditSheet: View {
 private struct DarstellungTab: View {
     @EnvironmentObject var themeManager: ThemeManager
     @AppStorage("map.style") private var selectedMapStyle: MapStyleChoice = .standard
+    @AppStorage("app.preferredLanguage") private var preferredLanguage: String = "system"
+    @State private var showRestartHint: Bool = false
 
     var body: some View {
         Form {
+            Section("Sprache") {
+                Picker("App-Sprache", selection: $preferredLanguage) {
+                    Text("System (\(systemLanguageName))").tag("system")
+                    Text("Deutsch").tag("de")
+                    Text("English").tag("en")
+                }
+                .pickerStyle(.menu)
+                .onChange(of: preferredLanguage) { _, newValue in
+                    applyLanguageChoice(newValue)
+                    showRestartHint = true
+                }
+                if showRestartHint {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.clockwise.circle.fill")
+                            .foregroundStyle(.orange)
+                        Text("Die neue Sprache wird beim nächsten App-Start wirksam.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
             Section("Design-Variante") {
                 ForEach(AppTheme.allCases) { t in
                     HStack(spacing: 12) {
@@ -1180,6 +1203,36 @@ private struct DarstellungTab: View {
         case .hamStyle:   return "Helles Design — weiße Tabelle, schwarzes Terminal"
         case .dark:       return "Dunkles Design — blau-grauer Hintergrund"
         case .hamClassic: return "Ham Classic — bernsteinfarbenes Terminal"
+        }
+    }
+
+    /// Schreibt die User-Wahl in `AppleLanguages`, was beim nächsten Start
+    /// die Foundation-Locale-Auflösung steuert. "system" entfernt den Key,
+    /// sodass macOS wieder die globale Systemsprache nimmt.
+    private func applyLanguageChoice(_ choice: String) {
+        let ud = UserDefaults.standard
+        switch choice {
+        case "de":
+            ud.set(["de"], forKey: "AppleLanguages")
+        case "en":
+            ud.set(["en"], forKey: "AppleLanguages")
+        default:
+            ud.removeObject(forKey: "AppleLanguages")
+        }
+    }
+
+    /// Anzeige-Hilfe für den "System"-Menüpunkt: zeigt welche Sprache macOS
+    /// im Moment für die App ableitet (Deutsch / English / …).
+    private var systemLanguageName: String {
+        let code = Locale.current.language.languageCode?.identifier ?? "en"
+        switch code {
+        case "de": return "Deutsch"
+        case "en": return "English"
+        case "fr": return "Français"
+        case "it": return "Italiano"
+        case "es": return "Español"
+        case "ja": return "日本語"
+        default:   return code.uppercased()
         }
     }
 }

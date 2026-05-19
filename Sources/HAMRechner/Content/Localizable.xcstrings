@@ -1222,6 +1222,17 @@
         }
       }
     },
+    "App-Sprache": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        }
+      }
+    },
     "Assoc (HB, DM, G/LD …)": {
       "extractionState": "manual",
       "localizations": {
@@ -2388,6 +2399,17 @@
         }
       }
     },
+    "Deutsch": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        }
+      }
+    },
     "Diagnose": {
       "extractionState": "manual",
       "localizations": {
@@ -2450,6 +2472,17 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "The current CAT settings (radio, port, baud rate, etc.) will be saved as a new configuration under the name entered here. Existing configurations will remain unchanged."
+          }
+        }
+      }
+    },
+    "Die neue Sprache wird beim nächsten App-Start wirksam.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
           }
         }
       }
@@ -2879,6 +2912,17 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "End of the spotlight"
+          }
+        }
+      }
+    },
+    "English": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
           }
         }
       }
@@ -7184,6 +7228,17 @@
         }
       }
     },
+    "Sprache": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        }
+      }
+    },
     "Spreader": {
       "extractionState": "manual",
       "localizations": {
@@ -7433,6 +7488,17 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Summit list from sotadata.org.uk/summitslist.csv (~15 MB, ~181 000 summits). Stored in \\(dataRoot.cacheDir.path)/summits.sqlite."
+          }
+        }
+      }
+    },
+    "System (\\(systemLanguageName))": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
           }
         }
       }

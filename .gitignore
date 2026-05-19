@@ -59,3 +59,5 @@ keypair.json
 # nach jedem Release neu signiert (Signatur ist probabilistisch).
 # Live-Version liegt auf toolbox.funkwelt.net/app/updates.json.
 updates.json
+Sources/HAMRechner/Content/de.lproj/
+Sources/HAMRechner/Content/en.lproj/

@@ -14,6 +14,19 @@ if command -v python3 >/dev/null 2>&1; then
     python3 tools/extract_strings.py
 fi
 
+# xcstrings → .lproj/Localizable.strings. SwiftPM (im Gegensatz zu Xcode)
+# kompiliert das Catalog nicht automatisch in die runtime-fähige .strings-
+# Form — wir müssen das selbst tun. Die generierten Files landen direkt in
+# Content/{de,en}.lproj/, werden vom bestehenden `.process("Content")` in
+# Package.swift aufgegriffen und korrekt ins Bundle eingebettet.
+XCSTRINGS_TOOL="$(xcrun -find xcstringstool 2>/dev/null || true)"
+if [ -n "$XCSTRINGS_TOOL" ] && [ -f Sources/HAMRechner/Content/Localizable.xcstrings ]; then
+    "$XCSTRINGS_TOOL" compile \
+        Sources/HAMRechner/Content/Localizable.xcstrings \
+        --output-directory Sources/HAMRechner/Content \
+        --language de --language en
+fi
+
 swift build --build-path "$BUILD_PATH"
 
 # Binary-Name aus Swift-Build (Package.swift target) — Bundle-Name fürs UI ist HAM-Tools.
@@ -31,6 +44,17 @@ if [ -d "$BUILD_PATH/debug/$BUNDLE_NAME" ]; then
   rm -rf "$APP/Contents/Resources/$BUNDLE_NAME"
   cp -R "$BUILD_PATH/debug/$BUNDLE_NAME" "$APP/Contents/Resources/"
 fi
+
+# Lokalisierungs-Bundle ZUSÄTZLICH ins App-Bundle direkt — SwiftUI's
+# `Text("…")` resolved gegen `Bundle.main` (= das App-Bundle, NICHT das
+# SwiftPM-Sub-Bundle). Wenn die .lproj nur im Sub-Bundle liegen, findet
+# SwiftUI sie nicht und alles bleibt auf der Source-Sprache.
+for lproj in "$BUILD_PATH/debug/$BUNDLE_NAME"/*.lproj; do
+  if [ -d "$lproj" ]; then
+    rm -rf "$APP/Contents/Resources/$(basename "$lproj")"
+    cp -R "$lproj" "$APP/Contents/Resources/"
+  fi
+done
 
 if [ -f "AppIcon.icns" ]; then
   cp "AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
@@ -54,6 +78,12 @@ ${ICON_KEY}
     <key>NSPrincipalClass</key>              <string>NSApplication</string>
     <key>LSMinimumSystemVersion</key>        <string>14.0</string>
     <key>NSHighResolutionCapable</key>       <true/>
+    <key>CFBundleDevelopmentRegion</key>     <string>de</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>de</string>
+        <string>en</string>
+    </array>
 </dict>
 </plist>
 EOF
