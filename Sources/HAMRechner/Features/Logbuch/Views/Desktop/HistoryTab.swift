@@ -87,8 +87,16 @@ struct HistoryTab: View {
 
     // MARK: - Map
 
+    /// Großzügige Kamera-Bounds, damit der User bis auf Globus-Niveau
+    /// herauszoomen kann (default-MapKit-Limit war zu eng — HB9HJL-Wunsch
+    /// 2026-05-19).
+    private static let cameraBounds = MapCameraBounds(
+        minimumDistance: 1_000,
+        maximumDistance: 200_000_000
+    )
+
     private var mapContent: some View {
-        Map(position: $cameraPosition) {
+        Map(position: $cameraPosition, bounds: Self.cameraBounds) {
             // QTH-Marker — Label zeigt den Locator, damit man auch ohne
             // Annotation-Tooltip sofort sieht wo das eigene QTH liegt.
             if let home = qthCoord {

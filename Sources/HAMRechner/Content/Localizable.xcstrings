@@ -3961,6 +3961,17 @@
         }
       }
     },
+    "Karte auf den eigenen QTH-Locator zentrieren": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": ""
+          }
+        }
+      }
+    },
     "Karte auf eigenen Standort zentrieren": {
       "extractionState": "manual",
       "localizations": {

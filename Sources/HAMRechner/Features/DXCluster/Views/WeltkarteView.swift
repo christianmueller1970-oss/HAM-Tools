@@ -72,10 +72,19 @@ struct WeltkarteView: View {
 
     private func centerOnQTH() {
         guard let (lat, lon) = locatorToLatLon(qthLocator) else { return }
-        cameraPosition = .region(MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: lat, longitude: lon),
-            span:   MKCoordinateSpan(latitudeDelta: 80, longitudeDelta: 160)
-        ))
+        // SwiftUI-Map ignoriert wiederholte `.region(...)`-Updates wenn der
+        // User die Karte zwischendurch interaktiv verschoben hat. Mit
+        // `.camera(MapCamera(...))` + Distance gibt's einen eindeutigen
+        // Snapshot, den MapKit nicht weg-cached. Distance in Metern; ~8 Mio m
+        // entspricht etwa der bisherigen 80°×160°-Region-Sicht.
+        withAnimation(.easeInOut(duration: 0.5)) {
+            cameraPosition = .camera(MapCamera(
+                centerCoordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon),
+                distance: 8_000_000,
+                heading: 0,
+                pitch: 0
+            ))
+        }
     }
 
     // MARK: - Map
@@ -86,8 +95,16 @@ struct WeltkarteView: View {
         return CLLocationCoordinate2D(latitude: lat, longitude: lon)
     }
 
+    /// Kamera-Bounds: kein hard center-bound, aber generöser maximalDistance,
+    /// damit der User bis auf Globus-Niveau herauszoomen kann (Standard von
+    /// MapKit limitiert hier deutlich enger).
+    private static let cameraBounds = MapCameraBounds(
+        minimumDistance: 1_000,         // 1 km — bis runter auf Stadtteil
+        maximumDistance: 200_000_000    // 200 000 km — kompletter Globus
+    )
+
     private var mapContent: some View {
-        Map(position: $cameraPosition) {
+        Map(position: $cameraPosition, bounds: Self.cameraBounds) {
             // Eigener QTH-Marker — wird ZUERST gerendert, damit Spot-Pins
             // bei Überlappung darüber liegen. HB9HJL-Wunsch 2026-05-19:
             // Locator soll als Pin sichtbar sein.
@@ -140,6 +157,16 @@ struct WeltkarteView: View {
             }
             .pickerStyle(.menu)
             .frame(width: 100)
+
+            Button {
+                centerOnQTH()
+            } label: {
+                Label("QTH", systemImage: "house.fill")
+                    .font(.caption)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .help("Karte auf den eigenen QTH-Locator zentrieren")
 
             Spacer()
 
